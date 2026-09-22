@@ -74,7 +74,7 @@ ITEMS = [
     ("knuckle_orcish",         "knuckle", "orcish",  "Orcish Knuckles",         "orcish_knuckle.nif",        "iron_knuckle.tga",  1.0, 0),
     ("knuckle_daedric",        "knuckle", "daedric", "Daedric Knuckles",        "daedric_knuckle.nif",       "iron_knuckle.tga",  1.0, 0),
     ("knuckle_daedric_spiked", "knuckle", "daedric", "Daedric Spiked Knuckles", "daedric_knuckle_sharp.nif", "iron_knuckle.tga",  1.2, 0),
-    ("knuckle_wood",           "knuckle", "iron",    "Wooden Knuckles",         "wood_knuckle.nif",          "iron_knuckle.tga",  1.0, 0),
+    ("knuckle_wood",           "knuckle", "iron",    "Wooden Knuckles",         "wooden_knuckle.nif",          "iron_knuckle.tga",  1.0, 0),
 ]
 
 # The slim ebony katar trades reach and bulk for speed.
