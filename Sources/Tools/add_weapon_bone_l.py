@@ -1,6 +1,13 @@
-"""Adds an ARP custom controller 'Weapon Bone.L' to the `rig` armature, mirroring 'Weapon Bone',
-and binds the vanilla 'Bip01' armature's existing 'Weapon Bone.L' to it the same way the other
-bones are bound (Copy Transforms + Copy Scale)."""
+"""Puts 'Weapon Bone.L' on the vanilla 'Bip01' armature and gives it an ARP custom controller.
+
+The bone is placed by copying 'Weapon Bone''s transform within its own hand's frame, from the right
+hand to the left. No mirror is applied: Bip01 Hand.L and Bip01 Hand.R are already anatomical mirrors
+of each other, so the same offset inside the hand lands mirrored in the world, with the blade still
+leading the punch. This has to agree with Sources/Tools/patch_skeleton.py, which says the same thing
+about the exported skeletons - animate against one and the game uses the other.
+
+Idempotent: run it again after moving anything and it re-places the bone, the controller and the
+constraints together."""
 import bpy
 from mathutils import Matrix, Vector
 
@@ -11,7 +18,36 @@ PARENT = 'hand.l'        # its ARP parent (mirror of hand.r)
 rig = bpy.data.objects['rig']
 bip = bpy.data.objects['Bip01']
 
-assert NEW in bip.data.bones, "Bip01 has no %r bone" % NEW
+# --- place the deform bone -------------------------------------------------------------------------
+# Same transform inside the hand as the right-hand weapon bone has inside its own.
+HAND_L, HAND_R = 'Bip01 Hand.L', 'Bip01 Hand.R'
+in_right_hand = bip.data.bones[HAND_R].matrix_local.inverted() @ bip.data.bones[SRC].matrix_local
+placement = bip.data.bones[HAND_L].matrix_local @ in_right_hand
+
+bpy.context.view_layer.objects.active = bip
+bpy.ops.object.mode_set(mode='EDIT')
+bip_arm = bip.data
+bip_mirror = bip_arm.use_mirror_x
+bip_arm.use_mirror_x = False
+try:
+    deform = bip_arm.edit_bones.get(NEW) or bip_arm.edit_bones.new(NEW)
+    deform.use_connect = False
+    deform.parent = bip_arm.edit_bones[HAND_L]
+    source_eb = bip_arm.edit_bones[SRC]
+    length = source_eb.length
+    deform.head = placement.to_translation()
+    deform.tail = placement.to_translation() + placement.col[1].to_3d().normalized() * length
+    deform.align_roll(placement.col[2].to_3d().normalized())
+    deform.use_deform = True
+finally:
+    bip_arm.use_mirror_x = bip_mirror
+bpy.ops.object.mode_set(mode='OBJECT')
+
+check = bip.data.bones[HAND_L].matrix_local.inverted() @ bip.data.bones[NEW].matrix_local
+for r in range(4):
+    for c in range(4):
+        assert abs(check[r][c] - in_right_hand[r][c]) < 1e-4, ("placement mismatch", r, c)
+print("placed Bip01 %r: same transform in the left hand as %r has in the right" % (NEW, SRC))
 
 # The deform rig's bones copy their controller's WORLD transform, so a controller's rest matrix has
 # to match the deform bone's rest matrix exactly - that is how 'Weapon Bone' and 'Shield Bone' are

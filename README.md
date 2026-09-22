@@ -108,8 +108,8 @@ This works for NPCs swinging these weapons as well as for you.
 ### The off-hand weapon
 
 A second copy of the weapon is put in your left hand while the weapon is drawn, hanging off a
-`Weapon Bone.L` bone that this mod's skeleton meshes add - the mirror of the engine's own weapon
-bone. See *Compatibility* below, and turn it off in the settings if it gets in the way.
+`Weapon Bone.L` bone that this mod's skeleton meshes add beside the engine's own weapon bone. See
+*Compatibility* below, and turn it off in the settings if it gets in the way.
 
 ### The draw sound
 
@@ -192,7 +192,16 @@ constrained to a matching ARP custom controller (`cc` bone) under `hand.l`, so i
 any other controller.
 
 The game learns about the bone from the patched skeletons, not from the animations - OpenMW builds
-its bone map once, from `base_anim*.nif`, and nothing a `.kf` adds later appears in it.
+its bone map once, from the skeleton, and nothing a `.kf` adds later appears in it.
+
+Its placement is not a mirror. `Weapon Bone.L` carries `Weapon Bone`'s transform *within its own
+hand's frame*, copied straight across, because `Bip01 L Hand` and `Bip01 R Hand` are already
+anatomical mirrors of each other - so the same offset inside the hand comes out mirrored in the
+world, with the blade still leading the punch. Mirroring it explicitly gets it wrong, and so does
+deriving it from `Shield Bone`, the one mirror pair vanilla actually ships: a shield is not held the
+way a blade is, and the blade ends up pointing back through the forearm. Both the Blender rig and
+`patch_skeleton.py` say this the same way, and the patcher refuses to write a file whose blade would
+point backwards - measured against that rig's own forearm, as the right hand's does.
 
 <!-- nexus-skip-end -->
 
