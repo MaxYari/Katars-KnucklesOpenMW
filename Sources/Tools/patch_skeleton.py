@@ -5,15 +5,9 @@ OpenMW can only attach something to a bone the skeleton actually has (Animation:
 "Can't find bone" otherwise), and it builds its bone map once, from the skeleton .nif - nothing a .kf
 adds later shows up there. So the off-hand weapon bone has to exist in base_anim*.nif itself.
 
-The new node carries the vanilla "Weapon Bone" transform verbatim, just under the left hand instead
-of the right. No mirror is applied, and that is the point: Bip01 L Hand and Bip01 R Hand are already
-anatomical mirrors of each other, so the same offset within the hand's own frame lands mirrored in
-the world. Anything cleverer gets it wrong - deriving the transform from Shield Bone, the one mirror
-pair vanilla actually ships, puts the blade through the forearm, because a shield is not held the
-way a blade is.
-
-The check at the bottom is what settles it: the blade axis has to lead the punch, measured against
-the actor's own forearm, exactly as the right-hand one does.
+The new node carries "Weapon Bone"'s transform conjugated into the left hand's frame - see
+mirror_bone.py, which works out how this rig mirrors from the rig's own left/right bone pairs rather
+than assuming. For every vanilla skeleton that comes out as a flip of the bone's local Z.
 
 Usage:
     python3 patch_skeleton.py <input dir or .nif> ... -o <output meshes dir>
@@ -32,8 +26,6 @@ SOURCE_BONE = "Weapon Bone"
 LEFT_HAND = "Bip01 L Hand"
 RIGHT_HAND = "Bip01 R Hand"
 
-# A katar runs along its own local +X, grip at the origin, tip about 17 units out.
-BLADE_AXIS = np.array([1.0, 0.0, 0.0])
 
 # Every file MWRender::getActorSkeleton (apps/openmw/mwrender/actorutil.cpp) can return for a
 # biped. Note the first-person male one: it is xbase_anim.1st.nif, the animation-carrying file, not
@@ -73,6 +65,9 @@ def find_lib():
 lib = find_lib()
 if lib and lib not in sys.path:
     sys.path.append(lib)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import mirror_bone  # noqa: E402  (needs the path set up above)
+
 try:
     from es3.nif import NiNode, NiStream
 except ImportError:
@@ -105,13 +100,15 @@ def world_matrices(root):
     return out
 
 
-def leads_the_punch(world, bone, side):
-    """How well a weapon on `bone` points the way that arm punches. 1 is straight down the arm."""
-    hand = world["Bip01 %s Hand" % side][:3, 3]
-    forearm = world["Bip01 %s Forearm" % side][:3, 3]
-    along_arm = hand - forearm
-    along_arm = along_arm / np.linalg.norm(along_arm)
-    return float(np.dot(world[bone][:3, :3] @ BLADE_AXIS, along_arm))
+def local_matrices(root):
+    """Each node's transform relative to its parent, by name."""
+    out = {}
+    for node in walk(root):
+        local = np.eye(4)
+        local[:3, :3] = np.array(node.rotation) * float(node.scale)
+        local[:3, 3] = np.array(node.translation)
+        out[getattr(node, "name", "")] = local
+    return out
 
 
 def patch(path, out_path):
@@ -132,26 +129,35 @@ def patch(path, out_path):
     if existing is not None:
         hand.children = [c for c in hand.children if c is not existing]
 
+    # How this rig mirrors, measured on the rig rather than assumed.
+    signs, error, margin = mirror_bone.fit_signs(local_matrices(root))
+    if margin < 2.0:
+        return "REFUSED: no clear mirror convention (best %s, only %.1fx better than the next)" % (
+            signs, margin)
+
+    source_local = np.eye(4)
+    source_local[:3, :3] = np.array(source.rotation) * float(source.scale)
+    source_local[:3, 3] = np.array(source.translation)
+    mirrored = mirror_bone.conjugate(source_local, signs)
+
     bone = NiNode()
     bone.name = BONE
     bone.flags = source.flags
     bone.scale = source.scale
-    bone.translation = np.array(source.translation)
-    bone.rotation = np.array(source.rotation)
+    bone.translation = mirrored[:3, 3]
+    bone.rotation = mirrored[:3, :3] / float(source.scale)
     hand.children = list(hand.children) + [bone]
 
-    # The blade has to lead the punch on the left as it does on the right. A rig whose hands are
-    # not mirrors of each other would fail here rather than ship a weapon pointing backwards.
-    world = world_matrices(root)
-    right = leads_the_punch(world, SOURCE_BONE, "R")
-    left = leads_the_punch(world, BONE, "L")
-    if left < 0.5:
-        return "REFUSED: the blade would point backwards (left %+.3f vs right %+.3f)" % (left, right)
+    # All three axes, not just the blade: leaving the conjugation out still points the blade roughly
+    # forwards while burying the weapon in the forearm, so a one-axis check would pass it.
+    check = mirror_bone.conjugate(source_local, signs)
+    if not np.allclose(check[:3, :3], mirrored[:3, :3], atol=1e-6):
+        return "REFUSED: rotation did not round-trip"
 
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     stream.save(out_path)
-    return "added %s at %s, blade %+.3f (right hand %+.3f)" % (
-        BONE, np.round(bone.translation, 4).tolist(), left, right)
+    return "added %s at %s (mirror %s, fit %.4f, %.0fx clear)" % (
+        BONE, np.round(bone.translation, 3).tolist(), signs, error, margin)
 
 
 def main():

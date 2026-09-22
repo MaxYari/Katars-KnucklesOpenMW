@@ -21,6 +21,7 @@ Sources/*
 Sources/Tools/*
 !Sources/Tools/patch_skeleton.py
 !Sources/Tools/mirror_weapon_track.py
+!Sources/Tools/mirror_bone.py
 *.blend
 *.blend1
 *.rar

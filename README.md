@@ -181,8 +181,10 @@ script, so a rebuild is reproducible:
   grip bar. Superseded by `tools/mw_export.py`, which is what produces the shipped meshes now; this
   one is kept because it documents the grip-bar centring the records depend on.
 - `Sources/Tools/patch_skeleton.py` - adds `Weapon Bone.L` to the vanilla skeletons.
-- `Sources/Tools/mirror_weapon_track.py` - gives `Weapon Bone.L` the same keyframe track as
+- `Sources/Tools/mirror_weapon_track.py` - gives `Weapon Bone.L` the mirrored keyframe track of
   `Weapon Bone` in a `.kf`. Run it over the animations after every export.
+- `Sources/Tools/mirror_bone.py` - the one definition of how this rig mirrors, shared by both of
+  the above. Run it directly to self-test the quaternion maths.
 - `Sources/Tools/make_plugin.py` - writes `Katar.omwaddon` from the vanilla shortsword table.
 - `Sources/Tools/add_weapon_bone_l.py` - builds the ARP controller for that bone in the Blender file.
 - `Sources/Tools/tests/run.sh` - runs the script tests against fakes for the openmw API.
@@ -207,14 +209,16 @@ any other controller.
 The game learns about the bone from the patched skeletons, not from the animations - OpenMW builds
 its bone map once, from the skeleton, and nothing a `.kf` adds later appears in it.
 
-Its placement is not a mirror. `Weapon Bone.L` carries `Weapon Bone`'s transform *within its own
-hand's frame*, copied straight across, because `Bip01 L Hand` and `Bip01 R Hand` are already
-anatomical mirrors of each other - so the same offset inside the hand comes out mirrored in the
-world, with the blade still leading the punch. Mirroring it explicitly gets it wrong, and so does
-deriving it from `Shield Bone`, the one mirror pair vanilla actually ships: a shield is not held the
-way a blade is, and the blade ends up pointing back through the forearm. Both the Blender rig and
-`patch_skeleton.py` say this the same way, and the patcher refuses to write a file whose blade would
-point backwards - measured against that rig's own forearm, as the right hand's does.
+Its placement is a conjugation, not a reflection. Morrowind's rig does not give the two hands the
+same local frame, and it does not give them mirrored ones either: for any bone whose parent is also
+half of a mirrored pair, the two sides are related by `local_left = S · local_right · S` with `S` a
+diagonal sign matrix. Every vanilla skeleton uses `diag(1, 1, -1)`, a flip of the bone's local Z.
+
+`Sources/Tools/mirror_bone.py` holds that rule, and fits `S` from each rig's own left/right bone
+pairs rather than assuming it - `diag(1, 1, -1)` wins by 5x on the posed first-person skeleton, 13x
+to 58x on the others and 368x in the Blender source. Both the skeleton patcher and the keyframe
+mirroring go through it, because a rest pose and a track that disagree are worse than either being
+wrong alone.
 
 <!-- nexus-skip-end -->
 

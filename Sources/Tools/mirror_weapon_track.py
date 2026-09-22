@@ -5,9 +5,10 @@ An animation that poses the weapon bone - which the katar set does, to seat the 
 leaves the off-hand one wherever the skeleton's rest pose put it, because nothing authored before
 the bone existed has a track for it. The two weapons then sit differently in their hands.
 
-The track is copied across verbatim, for the same reason patch_skeleton.py copies the rest transform
-verbatim: a keyframe track is relative to the bone's parent, Bip01 L Hand and Bip01 R Hand are
-anatomical mirrors of each other, so the same values inside the hand come out mirrored in the world.
+A keyframe track is relative to the bone's parent, so it needs the same conjugation into the left
+hand's frame that the rest transform does - see mirror_bone.py. Translations and their tangents are
+sign-flipped; rotations are quaternions, where conjugating by a reflection maps the axis through it
+and negates the angle. Copying the track across unchanged buries the weapon in the forearm.
 
 Run it after every export; it replaces an existing Weapon Bone.L track rather than stacking another.
 
@@ -22,6 +23,8 @@ import argparse
 import copy
 import os
 import sys
+
+import numpy as np
 
 SOURCE_BONE = "Weapon Bone"
 BONE = "Weapon Bone.L"
@@ -48,6 +51,10 @@ def find_lib():
 lib = find_lib()
 if lib and lib not in sys.path:
     sys.path.append(lib)
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import mirror_bone  # noqa: E402  (needs the path set up above)
+
 try:
     from es3.nif import NiKeyframeController, NiStringExtraData, NiStream
 except ImportError:
@@ -73,7 +80,32 @@ def key_count(component):
     return 0 if keys is None else len(keys)
 
 
-def patch(path):
+def mirror_data(data, signs):
+    """Conjugate a NiKeyframeData in place, into the other hand's frame."""
+    translations = getattr(data.translations, "keys", None)
+    if translations is not None and len(translations):
+        keys = np.asarray(translations, dtype=float)
+        # [time, x, y, z] plus, for the spline key types, an in and an out tangent - all vectors in
+        # the same space, so all of them get the same treatment.
+        for start in range(1, keys.shape[1], 3):
+            if start + 3 <= keys.shape[1]:
+                keys[:, start:start + 3] = mirror_bone.conjugate_vectors(keys[:, start:start + 3], signs)
+        data.translations.keys = keys
+
+    rotations = getattr(data.rotations, "keys", None)
+    if rotations is not None and len(rotations):
+        keys = np.asarray(rotations, dtype=float)
+        if keys.shape[1] < 5:
+            raise ValueError("rotation keys are %d wide, not the [time, w, x, y, z] this handles"
+                             % keys.shape[1])
+        keys[:, 1:5] = mirror_bone.conjugate_quaternion(keys[:, 1:5], signs)
+        data.rotations.keys = keys
+
+    # Scales are scalars; nothing to mirror.
+    return data
+
+
+def patch(path, signs):
     stream = NiStream()
     stream.load(path)
     root = stream.roots[0]
@@ -94,7 +126,7 @@ def patch(path):
     if BONE in names:
         index = names.index(BONE)
         existing = controllers[index]
-        existing.data = copy.deepcopy(source.data)
+        existing.data = mirror_data(copy.deepcopy(source.data), signs)
         for field in ("flags", "frequency", "phase", "start_time", "stop_time"):
             setattr(existing, field, getattr(source, field))
         stream.save(path)
@@ -105,7 +137,7 @@ def patch(path):
     last(extras).next = target
 
     controller = NiKeyframeController()
-    controller.data = copy.deepcopy(source.data)
+    controller.data = mirror_data(copy.deepcopy(source.data), signs)
     for field in ("flags", "frequency", "phase", "start_time", "stop_time"):
         setattr(controller, field, getattr(source, field))
     last(controllers).next = controller
@@ -119,7 +151,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("inputs", nargs="+", help=".kf files, or directories holding them")
+    ap.add_argument("--signs", default="1,1,-1",
+                    help="the rig's mirror convention (patch_skeleton.py prints the one it fitted)")
     args = ap.parse_args()
+    signs = tuple(int(v) for v in args.signs.split(","))
 
     files = []
     for item in args.inputs:
@@ -130,7 +165,7 @@ def main():
             files.append(item)
 
     for path in files:
-        print("%-28s %s" % (os.path.basename(path), patch(path)))
+        print("%-28s %s" % (os.path.basename(path), patch(path, signs)))
 
 
 if __name__ == "__main__":
