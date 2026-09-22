@@ -23,6 +23,14 @@ local weapons = require(mp .. "scripts/weapons")
 
 local cfg = settings.values
 
+-- MSS answers the equipment lookup this script makes every frame. ReAnimation requires it too, so
+-- it should always be there; if it is not, say so once rather than failing with a stack trace.
+if not core.contentFiles.has("MaxYariScriptServices.omwscripts") then
+    print("[H2HWeapons] ERROR: Max Yari's Script Services (MSS) is missing. It is required.")
+    require('openmw.ui').showMessage("Katars and Knuckledusters: Max Yari's Script Services (MSS) is missing, please install it.")
+    return {}
+end
+
 local CARRIED_RIGHT = types.Actor.EQUIPMENT_SLOT.CarriedRight
 local WEAPON_STANCE = types.Actor.STANCE.Weapon
 local SKILLS = types.NPC.stats.skills
@@ -271,8 +279,10 @@ local tooltipsTried = false
 local function fatigueRange(kind)
     local factor = weapons.FATIGUE_FACTOR[kind]
     local strengthFactor = cfg.strengthFactor
-    return formulas.handToHandFatigue(omwself, 0, strengthFactor) * factor,
-           formulas.handToHandFatigue(omwself, 1, strengthFactor) * factor
+    -- The plain GameObject, not the self handle: formulas does a types.NPC.objectIsInstance on it.
+    local player = omwself.object
+    return formulas.handToHandFatigue(player, 0, strengthFactor) * factor,
+           formulas.handToHandFatigue(player, 1, strengthFactor) * factor
 end
 
 local function registerTooltipModifier()

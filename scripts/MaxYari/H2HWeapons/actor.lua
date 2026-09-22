@@ -24,6 +24,9 @@ I.Combat.addOnHitHandler(function(attack)
     local attacker = attack.attacker
     if attacker == nil then return end
 
+    local damage = attack.damage
+    if damage == nil then return end -- the engine always sends one; another mod's call might not
+
     local kind = weapons.kindOfItem(attack.weapon)
     if not kind then return end
 
@@ -31,6 +34,5 @@ I.Combat.addOnHitHandler(function(attack)
                   * weapons.FATIGUE_FACTOR[kind]
     if fatigue <= 0 then return end
 
-    local damage = attack.damage
     damage.fatigue = (damage.fatigue or 0) + fatigue
 end)
