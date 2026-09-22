@@ -33,6 +33,18 @@ DAMAGE_FACTOR = {"katar": 0.80, "knuckle": 0.50}
 # A katar is a blade strapped to a bar; knuckles are a bar. Both are lighter than the sword they
 # are cut from, and knuckles are quick.
 WEIGHT_FACTOR = {"katar": 0.75, "knuckle": 0.40}
+
+# Enchantment capacity (the raw record field; the game shows a tenth of it). The engine has no
+# formula for this - it reads the number off the record - but Bethesda wrote one weapon line at a
+# time, and within a line the capacity is a fixed multiple of the weight, with the material
+# carrying the weight. Daggers run at 6.67, shortswords and chitin/ebony/daedric shortswords at
+# 5.0, tantos 5.5, wakizashis 4.5, right across iron through daedric.
+#
+# So these follow the same rule rather than scaling the shortsword's number by the damage factor,
+# which left each weapon at whatever ratio fell out. A katar takes the dagger's rate, being a blade
+# on a bar; knuckledusters take the plain shortsword rate, which on their weight comes to well
+# under a dagger's pool.
+ENCHANT_PER_WEIGHT = {"katar": 6.67, "knuckle": 5.0}
 SPEED = {"katar": 2.00, "knuckle": 2.50}
 REACH = {"katar": 1.00, "knuckle": 0.80}
 WEAPON_TYPE = {"katar": SHORT_BLADE, "knuckle": BLUNT_ONE_HAND}
@@ -63,7 +75,7 @@ def scale(value, factor):
 
 def stats(item):
     _id, kind, material, _name, _mesh, _icon, value_mult, _flags = item
-    chop, slash, thrust, weight, value, health, enchant = SHORTSWORDS[material]
+    chop, slash, thrust, weight, value, health, _enchant = SHORTSWORDS[material]
     dmg = DAMAGE_FACTOR[kind]
     out = {
         "chop": tuple(scale(v, dmg) for v in chop),
@@ -72,12 +84,13 @@ def stats(item):
         "weight": round(weight * WEIGHT_FACTOR[kind], 1),
         "value": int(value * dmg * value_mult),
         "health": int(health * dmg),
-        "enchant": int(enchant * dmg),
         "speed": SPEED[kind],
         "reach": REACH[kind],
         "type": WEAPON_TYPE[kind],
     }
     out.update(OVERRIDES.get(_id, {}))
+    # After the overrides, so a weapon given a different weight gets the capacity to match.
+    out["enchant"] = int(round(out["weight"] * ENCHANT_PER_WEIGHT[kind]))
     return out
 
 
@@ -134,14 +147,14 @@ def main():
     with open(args.out, "wb") as fh:
         fh.write(data)
 
-    print("%-24s %-26s %-8s %-9s %-9s %-9s %5s %6s %6s" % (
-        "id", "name", "type", "chop", "slash", "thrust", "wt", "value", "speed"))
+    print("%-24s %-26s %-8s %-9s %-9s %-9s %5s %6s %6s %6s" % (
+        "id", "name", "type", "chop", "slash", "thrust", "wt", "value", "speed", "ench"))
     for item in ITEMS:
         s = stats(item)
-        print("%-24s %-26s %-8s %-9s %-9s %-9s %5s %6d %6.2f" % (
+        print("%-24s %-26s %-8s %-9s %-9s %-9s %5s %6d %6.2f %6.1f" % (
             item[0], item[3], "blade" if s["type"] == SHORT_BLADE else "blunt",
             "%d-%d" % s["chop"], "%d-%d" % s["slash"], "%d-%d" % s["thrust"],
-            s["weight"], s["value"], s["speed"]))
+            s["weight"], s["value"], s["speed"], s["enchant"] / 10.0))
     print("\nwrote %s (%d bytes, %d records)" % (args.out, len(data), len(ITEMS)))
 
 

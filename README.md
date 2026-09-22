@@ -51,9 +51,15 @@ of the fatigue - they are made for bruising.
 - **Engine weapon type:** katars Short Blade, knuckledusters Blunt Weapon. Both one handed.
 - **Skill you actually use:** Hand to Hand, for both.
 
-Eleven weapons, in iron, chitin, steel, silver, orcish, ebony and daedric. Their damage is derived
+Eleven weapons, in iron, chitin, steel, silver, orcish, ebony and daedric. Their stats are derived
 from the vanilla shortswords rather than picked by hand - see `Sources/Tools/make_plugin.py`, which
 is what writes `Katar.omwaddon`.
+
+Enchantment capacity follows Bethesda's own habit: the engine has no formula for it, but within any
+one vanilla weapon line the capacity is a fixed multiple of the weight, with the material carrying
+the weight (daggers run at 6.67 points per unit of weight, shortswords at 5.0, right across iron
+through daedric). Katars take the dagger's rate and knuckledusters the shortsword's, so a steel
+katar ends up with a steel shortsword's pool and iron knuckledusters with well under a dagger's.
 
 ### Hit chance
 
