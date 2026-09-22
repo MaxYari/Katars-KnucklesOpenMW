@@ -36,9 +36,20 @@ MIRROR_T = np.array([1.0, 1.0, -1.0])
 MIRROR_PRE = np.diag([1.0, 1.0, -1.0])
 MIRROR_POST = np.diag([-1.0, 1.0, 1.0])
 
+# Every file MWRender::getActorSkeleton (apps/openmw/mwrender/actorutil.cpp) can return for a
+# biped. Note the first-person male one: it is xbase_anim.1st.nif, the animation-carrying file, not
+# base_anim.1st.nif - the engine never loads that one as a skeleton at all. Only the female and
+# beast first-person rigs use the "base_" names.
+#
+#   3rd person   male base_anim.nif   female base_anim_female.nif   beast base_animkna.nif
+#   1st person   male xbase_anim.1st.nif  female base_anim_female.1st.nif  beast base_animkna.1st.nif
+#
+# base_anim.1st.nif is patched too, harmlessly, because other tools and mods do reference it.
+# Werewolf skins are left alone: a werewolf cannot hold a weapon.
 SKELETONS = [
     "base_anim.nif", "base_anim_female.nif", "base_animkna.nif",
-    "base_anim.1st.nif", "base_anim_female.1st.nif", "base_animkna.1st.nif",
+    "xbase_anim.1st.nif", "base_anim_female.1st.nif", "base_animkna.1st.nif",
+    "base_anim.1st.nif",
 ]
 
 

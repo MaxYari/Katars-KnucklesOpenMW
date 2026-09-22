@@ -132,10 +132,16 @@ These are shared by every actor, so they live in the save rather than in your se
 
 ## Compatibility
 
-**Skeletons.** `meshes/base_anim*.nif` are shipped here, patched to add one bone. Anything else that
-replaces them - another skeleton replacer, a body mod - will conflict, and whichever loads last
-wins. If this mod loses, the off-hand weapon quietly does not appear and everything else still
-works. To have both, patch the other mod's skeletons instead:
+**Skeletons.** The actor skeletons are shipped here, patched to add one bone. Which file the engine
+loads depends on the view and the race (`MWRender::getActorSkeleton`): third person is
+`base_anim.nif`, `base_anim_female.nif` or `base_animkna.nif`; first person is
+**`xbase_anim.1st.nif`** for a male human, `base_anim_female.1st.nif` or `base_animkna.1st.nif`
+otherwise. Note that first-person male one - `base_anim.1st.nif` is never loaded as a skeleton at
+all, despite the name.
+
+Anything else that replaces these - another skeleton replacer, a body mod - will conflict, and
+whichever loads last wins. If this mod loses, the off-hand weapon quietly does not appear and
+everything else still works. To have both, patch the other mod's skeletons instead:
 
 ```
 python3 Sources/Tools/patch_skeleton.py <that mod>/meshes -o <that mod>/meshes

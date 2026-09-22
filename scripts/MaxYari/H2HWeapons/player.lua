@@ -187,10 +187,14 @@ local function updateOffHandWeapon(stance)
     if not animation.hasBone(omwself, OFF_HAND_BONE) then
         if not boneWarned then
             boneWarned = true
-            print("[H2HWeapons] the skeleton has no '" .. OFF_HAND_BONE .. "' bone, so the off-hand " ..
-                "weapon cannot be shown. Another mod is probably replacing meshes/base_anim*.nif - " ..
-                "re-run Sources/Tools/patch_skeleton.py on its skeletons, or turn the off-hand " ..
-                "weapon off in the settings.")
+            -- Which file that is depends on the view and the race: first person is
+            -- xbase_anim.1st.nif for a male human, base_anim_female.1st.nif or
+            -- base_animkna.1st.nif otherwise; third person is base_anim*.nif
+            -- (MWRender::getActorSkeleton, apps/openmw/mwrender/actorutil.cpp).
+            print("[H2HWeapons] this actor's skeleton has no '" .. OFF_HAND_BONE .. "' bone, so the " ..
+                "off-hand weapon cannot be shown. Another mod is probably replacing the skeleton in " ..
+                "meshes/ - re-run Sources/Tools/patch_skeleton.py on its copies, or turn the " ..
+                "off-hand weapon off in the settings.")
         end
         return
     end
