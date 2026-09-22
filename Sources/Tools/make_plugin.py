@@ -30,10 +30,20 @@ SHORTSWORDS = {
 }
 
 DAMAGE_FACTOR = {"katar": 0.80, "knuckle": 0.50}
-# Weight and enchantment capacity are measured against the dagger of the same material, not the
-# shortsword the damage comes from: a katar is two thirds of a dagger and a knuckleduster half of
-# that again, in both.
-DAGGER_FACTOR = {"katar": 2 / 3, "knuckle": 1 / 3}
+# Weight and enchantment capacity are both measured against the dagger of the same material, not
+# the shortsword the damage comes from - but at different shares, for different reasons.
+#
+# Weight is what a swing costs you: MWMechanics::applyFatigueLoss charges
+# fFatigueAttackBase (2.0) + weight * attackStrength * fWeaponFatigueMult (0.25), and bare fists
+# pay only the 2.0, having no weapon at all. So weight is tuned against that floor rather than
+# against the weapon it is cut from: a knuckleduster is half a dagger and a katar nine tenths,
+# which puts a full-strength swing at roughly a fifth and a third over a fist's cost at the
+# iron/steel tier.
+DAGGER_WEIGHT_SHARE = {"katar": 0.9, "knuckle": 0.5}
+
+# Capacity is a measure of how much weapon there is to enchant, which is not the same question -
+# a katar is two thirds of a dagger there, a knuckleduster a third.
+DAGGER_ENCHANT_SHARE = {"katar": 2 / 3, "knuckle": 1 / 3}
 
 # There is no vanilla dagger in orcish or ebony, so the dagger is derived from the shortsword
 # instead. Bethesda weighed every dagger at 0.375 of its shortsword - iron, steel, chitin and
@@ -46,8 +56,6 @@ DAGGER_WEIGHT_FACTOR = 0.375
 # carrying the weight: daggers run at 6.67 points per unit, shortswords 5.0, tantos 5.5,
 # wakizashis 4.5, right across iron through daedric.
 #
-# Keeping the dagger's rate is what makes DAGGER_FACTOR mean one thing rather than two: at the same
-# points per unit of weight, two thirds of a dagger's weight is two thirds of its capacity.
 DAGGER_ENCHANT_PER_WEIGHT = 6.67
 SPEED = {"katar": 2.00, "knuckle": 2.50}
 REACH = {"katar": 1.00, "knuckle": 0.80}
@@ -69,8 +77,9 @@ ITEMS = [
 ]
 
 # The slim ebony katar trades reach and bulk for speed.
-# The slim ebony katar is three quarters of the guarded one's bulk, and quicker for it.
-OVERRIDES = {"katar_ebony_slim": {"speed": 2.25, "weight": 3.0, "reach": 0.9}}
+# "bulk" scales weight and capacity together, so a weapon that is simply less of itself stays
+# consistent in both. The slim ebony katar is three quarters of the guarded one, and quicker for it.
+OVERRIDES = {"katar_ebony_slim": {"speed": 2.25, "reach": 0.9, "bulk": 0.75}}
 
 
 def scale(value, factor):
@@ -82,20 +91,24 @@ def stats(item):
     _id, kind, material, _name, _mesh, _icon, value_mult, _flags = item
     chop, slash, thrust, weight, value, health, _enchant = SHORTSWORDS[material]
     dmg = DAMAGE_FACTOR[kind]
+    overrides = dict(OVERRIDES.get(_id, {}))
+    bulk = overrides.pop("bulk", 1.0)
+
+    dagger_weight = weight * DAGGER_WEIGHT_FACTOR
     out = {
         "chop": tuple(scale(v, dmg) for v in chop),
         "slash": tuple(scale(v, dmg) for v in slash),
         "thrust": tuple(scale(v, dmg) for v in thrust),
-        "weight": round(weight * DAGGER_WEIGHT_FACTOR * DAGGER_FACTOR[kind], 1),
+        "weight": round(dagger_weight * DAGGER_WEIGHT_SHARE[kind] * bulk, 1),
+        "enchant": int(round(dagger_weight * DAGGER_ENCHANT_PER_WEIGHT
+                             * DAGGER_ENCHANT_SHARE[kind] * bulk)),
         "value": int(value * dmg * value_mult),
         "health": int(health * dmg),
         "speed": SPEED[kind],
         "reach": REACH[kind],
         "type": WEAPON_TYPE[kind],
     }
-    out.update(OVERRIDES.get(_id, {}))
-    # After the overrides, so a weapon given a different weight gets the capacity to match.
-    out["enchant"] = int(round(out["weight"] * DAGGER_ENCHANT_PER_WEIGHT))
+    out.update(overrides)
     return out
 
 
@@ -152,14 +165,19 @@ def main():
     with open(args.out, "wb") as fh:
         fh.write(data)
 
-    print("%-24s %-26s %-8s %-9s %-9s %-9s %5s %6s %6s %6s" % (
-        "id", "name", "type", "chop", "slash", "thrust", "wt", "value", "speed", "ench"))
+    # What a full-strength swing costs the attacker, against the 2.0 a bare fist pays.
+    fist, weapon_mult = 2.0, 0.25
+
+    print("%-24s %-26s %-8s %-9s %-9s %-9s %5s %6s %6s %6s %13s" % (
+        "id", "name", "type", "chop", "slash", "thrust", "wt", "value", "speed", "ench", "swing cost"))
     for item in ITEMS:
         s = stats(item)
-        print("%-24s %-26s %-8s %-9s %-9s %-9s %5s %6d %6.2f %6.1f" % (
+        cost = fist + s["weight"] * weapon_mult
+        print("%-24s %-26s %-8s %-9s %-9s %-9s %5s %6d %6.2f %6.1f %6.2f %+5.0f%%" % (
             item[0], item[3], "blade" if s["type"] == SHORT_BLADE else "blunt",
             "%d-%d" % s["chop"], "%d-%d" % s["slash"], "%d-%d" % s["thrust"],
-            s["weight"], s["value"], s["speed"], s["enchant"] / 10.0))
+            s["weight"], s["value"], s["speed"], s["enchant"] / 10.0,
+            cost, 100 * (cost - fist) / fist))
     print("\nwrote %s (%d bytes, %d records)" % (args.out, len(data), len(ITEMS)))
 
 

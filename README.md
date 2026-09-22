@@ -55,12 +55,21 @@ Eleven weapons, in iron, chitin, steel, silver, orcish, ebony and daedric. Their
 from the vanilla shortswords rather than picked by hand - see `Sources/Tools/make_plugin.py`, which
 is what writes `Katar.omwaddon`.
 
-Weight and enchantment capacity are measured against the **dagger** of the same material rather
-than the shortsword: a katar is two thirds of a dagger in both, and a knuckleduster half of that
-again. That follows Bethesda's own habit - the engine has no formula for capacity, but within any
-one vanilla weapon line it is a fixed multiple of the weight, with the material carrying the weight
-(daggers run at 6.67 points per unit, shortswords at 5.0, right across iron through daedric).
-Keeping the dagger's rate is what makes "two thirds of a dagger" mean one thing rather than two.
+Weight and enchantment capacity are both measured against the **dagger** of the same material
+rather than the shortsword, at different shares.
+
+**Weight** is what a swing costs you. The engine charges the attacker
+`fFatigueAttackBase (2.0) + weight × swing strength × fWeaponFatigueMult (0.25)`, and bare fists pay
+only the flat 2.0, having no weapon at all - so weight is tuned against that floor rather than
+against the blade these are cut from. A knuckleduster is **half a dagger** and a katar **nine tenths
+of one**, which puts a full-strength swing 19% and 34% over a fist's cost at the iron/steel tier
+(a steel dagger is 38%).
+
+**Capacity** is a different question - how much weapon there is to enchant - and there a katar is
+two thirds of a dagger and a knuckleduster a third. The engine has no formula for capacity at all,
+it reads the number off the record; but within any one vanilla weapon line it is a fixed multiple of
+the weight, with the material carrying the weight (daggers run at 6.67 points per unit, shortswords
+at 5.0, right across iron through daedric), and these follow that.
 
 ### Hit chance
 
