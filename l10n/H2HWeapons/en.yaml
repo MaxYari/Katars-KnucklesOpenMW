@@ -23,12 +23,22 @@ hand_to_hand_share_description: |-
 
 skill_bonus_max: "Weapon skill bonus"
 skill_bonus_max_description: |-
-  Bonus to the effective Hand to Hand value while the weapon skill is kept up with it. 0.1 is +10%.
+  What the weapon skill adds to your effective Hand to Hand, as a share of the weapon skill itself.
+  0.15 is +15% of your Short Blade or Blunt Weapon.
+
+skill_bonus_min: "Weapon skill bonus floor"
+skill_bonus_min_description: |-
+  The share a badly neglected weapon skill is still worth. The bonus tapers to this rather than
+  disappearing.
+
+skill_bonus_grace: "Weapon skill bonus grace"
+skill_bonus_grace_description: |-
+  How many points the weapon skill may fall behind Hand to Hand before the bonus starts tapering.
+  Within this, or ahead, you get the full share.
 
 skill_bonus_falloff: "Weapon skill bonus falloff"
 skill_bonus_falloff_description: |-
-  How many points the weapon skill may fall behind Hand to Hand before the bonus is gone. Full bonus
-  at or above parity, nothing this far below.
+  How many points past the grace the bonus takes to taper from the full share down to the floor.
 
 show_off_hand_weapon: "Show the off-hand weapon"
 show_off_hand_weapon_description: |-
@@ -42,5 +52,6 @@ silence_draw_sound_description: |-
 
 tooltip_type: "Hand to Hand"
 tooltip_fatigue: "Fatigue Damage"
-# %{skill} is filled in with Short Blade or Blunt Weapon, whichever the weapon is.
-tooltip_explanation: "Hand-to-Hand weapon: effectiveness is determined by the Hand to Hand skill, with a minor bonus from %{skill}."
+# %{skill} is Short Blade or Blunt Weapon, whichever the weapon is; %{handToHand} and %{bonus} are
+# the player's current values, filled in each time a tooltip is built.
+tooltip_explanation: "Hand-to-Hand weapon: effectiveness is determined by the Hand to Hand skill (%{handToHand}), with a minor bonus from %{skill} (%{bonus})."

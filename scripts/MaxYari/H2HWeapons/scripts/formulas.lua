@@ -45,26 +45,38 @@ function M.handToHandFatigue(actor, attackStrength, strengthInfluences)
     return damage
 end
 
---- The skill value the engine should roll the hit chance against.
+--- What keeping the weapon skill up is worth, in skill points.
 --
--- Hand-to-hand is what these weapons are really swung with, so that is the number the engine gets
--- (see player.lua, which writes it into the weapon skill for the duration of a swing). Keeping the
--- weapon skill up alongside it pays a bonus: the full `bonusMax` while the weapon skill is at or
--- above hand-to-hand, tapering to nothing once it is `bonusFalloff` points below.
+-- The bonus is a share of the weapon skill itself, not of hand-to-hand, so letting Short Blade or
+-- Blunt Weapon rot costs you twice over: a smaller share of a smaller number. The share is the full
+-- `skillBonusMax` while the weapon skill is within `skillBonusGrace` points of hand-to-hand (or
+-- ahead of it), and from there tapers over `skillBonusFalloff` points down to `skillBonusMin` - a
+-- floor, not a cutoff, so a neglected weapon skill is still worth something.
 --
 -- @param handToHand #number the actor's hand-to-hand skill
 -- @param weaponSkill #number the actor's skill in the weapon the engine thinks it is
--- @param bonusMax #number fraction added at full bonus, e.g. 0.10
--- @param bonusFalloff #number skill points below hand-to-hand at which the bonus reaches zero
-function M.effectiveSkill(handToHand, weaponSkill, bonusMax, bonusFalloff)
-    local bonus = 0
-    local difference = weaponSkill - handToHand
-    if difference >= 0 then
-        bonus = bonusMax
-    elseif bonusFalloff > 0 and difference > -bonusFalloff then
-        bonus = bonusMax * (1 + difference / bonusFalloff)
+-- @param cfg #table settings.values
+function M.skillBonus(handToHand, weaponSkill, cfg)
+    local behind = handToHand - weaponSkill
+    local rate
+    if behind <= cfg.skillBonusGrace then
+        rate = cfg.skillBonusMax
+    elseif cfg.skillBonusFalloff <= 0 then
+        rate = cfg.skillBonusMin
+    else
+        local taper = math.min(1, (behind - cfg.skillBonusGrace) / cfg.skillBonusFalloff)
+        rate = cfg.skillBonusMax + (cfg.skillBonusMin - cfg.skillBonusMax) * taper
     end
-    return handToHand * (1 + bonus)
+    return weaponSkill * rate
+end
+
+--- The skill value the engine should roll the hit chance against.
+--
+-- Hand-to-hand is what these weapons are really swung with, so that is the number the engine gets
+-- (see player.lua, which writes it into the weapon skill for the duration of a swing), plus
+-- whatever the weapon skill is worth on top.
+function M.effectiveSkill(handToHand, weaponSkill, cfg)
+    return handToHand + M.skillBonus(handToHand, weaponSkill, cfg)
 end
 
 return M

@@ -60,9 +60,12 @@ swing, that skill *is* your Hand to Hand: the difference is written into the wea
 when the swing winds up and taken back out when it follows through, so the roll the engine makes is
 the one it would make with your fists.
 
-Keeping the weapon skill up alongside it pays. While Short Blade (or Blunt Weapon) is **at or above**
-your Hand to Hand, the value the engine rolls against gets **+10%**. The bonus tapers off as the
-weapon skill falls behind, and is gone once it is **10 points** below. Both numbers are settings.
+Keeping the weapon skill up alongside it pays, and the bonus is a share of **that** skill, so
+letting it rot costs you twice over - a smaller share of a smaller number. While Short Blade (or
+Blunt Weapon) is within **10 points** of your Hand to Hand, or ahead of it, you get **15% of the
+weapon skill** on top. Past that it tapers over the next 20 points down to **5%** - a floor, not a
+cutoff. Every number there is a setting, and the item tooltip shows what the bonus works out to
+right now.
 
 ### Experience
 
@@ -100,8 +103,10 @@ Options -> Scripts -> Katars and Knuckledusters.
 
 - **Strength influences hand to hand** (default off) - must match the launcher option of the same name.
 - **Hand to Hand experience share** (0.7) - the rest goes to the weapon skill.
-- **Weapon skill bonus** (0.1) - +10% while the weapon skill keeps up.
-- **Weapon skill bonus falloff** (10) - points below Hand to Hand at which that bonus is gone.
+- **Weapon skill bonus** (0.15) - share of the weapon skill added while it keeps up.
+- **Weapon skill bonus floor** (0.05) - the share a neglected weapon skill is still worth.
+- **Weapon skill bonus grace** (10) - points it may fall behind before the share starts tapering.
+- **Weapon skill bonus falloff** (20) - points past the grace over which it reaches the floor.
 - **Show the off-hand weapon** (on).
 - **Silence the draw and sheathe sound** (on).
 

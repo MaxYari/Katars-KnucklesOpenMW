@@ -109,7 +109,7 @@ local function applySkillSwap(kind)
     local weaponSkill = weaponStat.modified
     local handToHand = SKILLS.handtohand(omwself).modified
 
-    local effective = formulas.effectiveSkill(handToHand, weaponSkill, cfg.skillBonusMax, cfg.skillBonusFalloff)
+    local effective = formulas.effectiveSkill(handToHand, weaponSkill, cfg)
     local delta = effective - weaponSkill
     -- getHitChance truncates the skill to an int, so anything under a point changes nothing.
     if delta > -0.5 and delta < 0.5 then return end
@@ -341,12 +341,21 @@ local function registerTooltipModifier()
 
         -- And a footnote at the bottom saying which skills this weapon actually runs on, since
         -- "Hand to Hand (Short Blade)" on the type line does not say what the short blade is for.
+        -- The numbers are read here rather than at registration, so the tooltip is right after a
+        -- level up, a fortify effect or a change to the settings.
         if skillName then
+            local handToHand = SKILLS.handtohand(omwself).modified
+            local weaponSkill = SKILLS[weapons.WEAPON_SKILL[kind]](omwself).modified
+            local bonus = formulas.skillBonus(handToHand, weaponSkill, cfg)
+            local text = l10n("tooltip_explanation")
+                :gsub("%%{skill}", skillName)
+                :gsub("%%{handToHand}", string.format("%d", math.floor(handToHand + 0.5)))
+                :gsub("%%{bonus}", string.format("%+.1f", bonus))
             inner:add({
                 name = "h2hExplanation",
                 template = textParagraph,
                 props = {
-                    text = (l10n("tooltip_explanation"):gsub("%%{skill}", skillName)),
+                    text = text,
                     textColor = DIMMED,
                     autoSize = true,
                     size = util.vector2(FOOTNOTE_WIDTH, 0),

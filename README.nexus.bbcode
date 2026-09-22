@@ -45,7 +45,7 @@ Eleven weapons, in iron, chitin, steel, silver, orcish, ebony and daedric. Their
 
 The engine rolls a melee hit against whatever skill the weapon says it uses. For the length of every swing, that skill [i]is[/i] your Hand to Hand: the difference is written into the weapon skill's modifier when the swing winds up and taken back out when it follows through, so the roll the engine makes is the one it would make with your fists.
 
-Keeping the weapon skill up alongside it pays. While Short Blade (or Blunt Weapon) is [b]at or above[/b] your Hand to Hand, the value the engine rolls against gets [b]+10%[/b]. The bonus tapers off as the weapon skill falls behind, and is gone once it is [b]10 points[/b] below. Both numbers are settings.
+Keeping the weapon skill up alongside it pays, and the bonus is a share of [b]that[/b] skill, so letting it rot costs you twice over - a smaller share of a smaller number. While Short Blade (or Blunt Weapon) is within [b]10 points[/b] of your Hand to Hand, or ahead of it, you get [b]15% of the weapon skill[/b] on top. Past that it tapers over the next 20 points down to [b]5%[/b] - a floor, not a cutoff. Every number there is a setting, and the item tooltip shows what the bonus works out to right now.
 
 [size=4][b]Experience[/b][/size]
 
@@ -76,8 +76,10 @@ Options -> Scripts -> Katars and Knuckledusters.
 [list]
 [*][b]Strength influences hand to hand[/b] (default off) - must match the launcher option of the same name.
 [*][b]Hand to Hand experience share[/b] (0.7) - the rest goes to the weapon skill.
-[*][b]Weapon skill bonus[/b] (0.1) - +10% while the weapon skill keeps up.
-[*][b]Weapon skill bonus falloff[/b] (10) - points below Hand to Hand at which that bonus is gone.
+[*][b]Weapon skill bonus[/b] (0.15) - share of the weapon skill added while it keeps up.
+[*][b]Weapon skill bonus floor[/b] (0.05) - the share a neglected weapon skill is still worth.
+[*][b]Weapon skill bonus grace[/b] (10) - points it may fall behind before the share starts tapering.
+[*][b]Weapon skill bonus falloff[/b] (20) - points past the grace over which it reaches the floor.
 [*][b]Show the off-hand weapon[/b] (on).
 [*][b]Silence the draw and sheathe sound[/b] (on).
 [/list]

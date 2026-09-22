@@ -49,12 +49,25 @@ check(math.abs(formulas.handToHandFatigue(actor, 1, 1) - 50 * 0.5 * 2) < 1e-6,
 check(math.abs(formulas.handToHandFatigue(actor, 1, 0) - 50 * 0.5) < 1e-6, "and does nothing when it is off")
 st.attributes.strength = { base = 40, modifier = 0 }
 
--- effectiveSkill: full bonus at or above parity, gone 10 points below
-check(math.abs(formulas.effectiveSkill(50, 50, 0.1, 10) - 55) < 1e-6, "parity gives the full bonus")
-check(math.abs(formulas.effectiveSkill(50, 90, 0.1, 10) - 55) < 1e-6, "a higher weapon skill gives no more")
-check(math.abs(formulas.effectiveSkill(50, 45, 0.1, 10) - 52.5) < 1e-6, "halfway down gives half", formulas.effectiveSkill(50, 45, 0.1, 10))
-check(math.abs(formulas.effectiveSkill(50, 40, 0.1, 10) - 50) < 1e-6, "ten points below gives none")
-check(math.abs(formulas.effectiveSkill(50, 10, 0.1, 10) - 50) < 1e-6, "further below gives none, never less")
+-- skillBonus: a share of the weapon skill, full within the grace, tapering to a floor past it
+local BONUS = { skillBonusMax = 0.15, skillBonusMin = 0.05, skillBonusGrace = 10, skillBonusFalloff = 20 }
+local function bonus(h, w) return formulas.skillBonus(h, w, BONUS) end
+check(math.abs(bonus(50, 50) - 7.5) < 1e-6, "parity pays 15% of the weapon skill", bonus(50, 50))
+check(math.abs(bonus(50, 90) - 13.5) < 1e-6, "a higher weapon skill pays 15% of the bigger number", bonus(50, 90))
+check(math.abs(bonus(50, 40) - 6.0) < 1e-6, "ten points behind is still the full share", bonus(50, 40))
+check(math.abs(bonus(50, 30) - 30 * 0.10) < 1e-6, "halfway through the taper is halfway to the floor", bonus(50, 30))
+check(math.abs(bonus(50, 20) - 20 * 0.05) < 1e-6, "past the taper it is the floor", bonus(50, 20))
+check(math.abs(bonus(50, 5) - 5 * 0.05) < 1e-6, "and stays the floor, never nothing", bonus(50, 5))
+check(bonus(50, 5) > 0, "a neglected weapon skill is still worth something")
+check(math.abs(formulas.effectiveSkill(50, 50, BONUS) - 57.5) < 1e-6, "the bonus is added to hand-to-hand")
+-- the taper is monotonic: letting the weapon skill slide can never help
+local previous = math.huge
+for w = 100, 0, -1 do
+    local b = bonus(50, w)
+    if b > previous + 1e-9 then check(false, "bonus is monotonic in the weapon skill", w); break end
+    previous = b
+end
+check(true, "bonus never goes up as the weapon skill drops")
 
 --- the player script ----------------------------------------------------------------------------------
 local api = require("scripts.MaxYari.ReAnimation_v3.ReAnimationAPI")
@@ -87,17 +100,18 @@ end
 
 check(st.skills.shortblade.modifier == 0, "short blade starts unmodified")
 playWeapon("slash start")
--- hand-to-hand 50, short blade 30 -> 20 behind, so no bonus: the engine should roll against 50
-check(math.abs(st.skills.shortblade.modifier - 20) < 1e-6,
+-- hand-to-hand 50, short blade 30: 20 behind, halfway through the taper, so 10% of 30 on top.
+-- The engine should roll against 53, which from a base of 30 is a modifier of 23.
+check(math.abs(st.skills.shortblade.modifier - 23) < 1e-6,
       "the wind up puts hand-to-hand into the short blade skill", st.skills.shortblade.modifier)
 playWeapon("slash large follow start")
 check(st.skills.shortblade.modifier == 0, "the follow-through puts it back", st.skills.shortblade.modifier)
 
--- with both skills up, the bonus applies
+-- with both skills up, the full share applies: 50 + 15% of 50 = 57.5, a modifier of 7.5
 st.skills.shortblade.base = 50
 playWeapon("chop start")
-check(math.abs(st.skills.shortblade.modifier - 5) < 1e-6,
-      "parity earns the 10% bonus", st.skills.shortblade.modifier)
+check(math.abs(st.skills.shortblade.modifier - 7.5) < 1e-6,
+      "parity earns the full share of the weapon skill", st.skills.shortblade.modifier)
 playWeapon("chop small follow start")
 check(st.skills.shortblade.modifier == 0, "and it is taken back off")
 st.skills.shortblade.base = 30
@@ -177,8 +191,23 @@ check(inner:indexOf("h2hFatigue") == inner:indexOf("thrust") + 1,
       "right under the damage lines", inner:indexOf("h2hFatigue"))
 check(inner.h2hExplanation ~= nil, "an explanation is added")
 check(inner:indexOf("h2hExplanation") == #inner, "at the very bottom", inner:indexOf("h2hExplanation"))
-check(inner.h2hExplanation and inner.h2hExplanation.props.text:find("Short Blade", 1, true) ~= nil,
-      "naming the skill that gives the minor bonus", inner.h2hExplanation and inner.h2hExplanation.props.text)
+local explanation = inner.h2hExplanation and inner.h2hExplanation.props.text
+check(explanation and explanation:find("Short Blade", 1, true) ~= nil,
+      "naming the skill that gives the minor bonus", explanation)
+-- hand-to-hand 50, short blade 30: 20 behind, halfway through the taper, so 10% of 30
+check(explanation and explanation:find("(50)", 1, true) ~= nil,
+      "showing the current hand-to-hand value", explanation)
+check(explanation and explanation:find("(+3.0)", 1, true) ~= nil,
+      "and the bonus that weapon skill is worth right now", explanation)
+check(explanation and explanation:find("%%{") == nil, "with every placeholder filled in", explanation)
+
+-- the numbers are read when the tooltip is built, not when the modifier was registered
+st.skills.shortblade.base = 50
+local levelled, levelledInner = fakeTooltip()
+modifier({ recordId = "katar_steel" }, levelled)
+check(levelledInner.h2hExplanation.props.text:find("(+7.5)", 1, true) ~= nil,
+      "a levelled weapon skill shows a bigger bonus", levelledInner.h2hExplanation.props.text)
+st.skills.shortblade.base = 30
 
 local knuckleLayout, knuckleInner = fakeTooltip()
 knuckleInner.type.props.text = "Type: Blunt Weapon, One Handed"
