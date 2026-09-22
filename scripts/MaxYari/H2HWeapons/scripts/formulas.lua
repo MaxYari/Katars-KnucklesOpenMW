@@ -45,13 +45,16 @@ function M.handToHandFatigue(actor, attackStrength, strengthInfluences)
     return damage
 end
 
---- What keeping the weapon skill up is worth, in skill points.
+--- What keeping the weapon skill up is worth, in whole skill points.
 --
 -- The bonus is a share of the weapon skill itself, not of hand-to-hand, so letting Short Blade or
 -- Blunt Weapon rot costs you twice over: a smaller share of a smaller number. The share is the full
 -- `skillBonusMax` while the weapon skill is within `skillBonusGrace` points of hand-to-hand (or
 -- ahead of it), and from there tapers over `skillBonusFalloff` points down to `skillBonusMin` - a
 -- floor, not a cutoff, so a neglected weapon skill is still worth something.
+--
+-- Rounded down, and rounded here rather than at the point of use, so the number the tooltip shows
+-- is exactly the number the swing applies.
 --
 -- @param handToHand #number the actor's hand-to-hand skill
 -- @param weaponSkill #number the actor's skill in the weapon the engine thinks it is
@@ -67,7 +70,7 @@ function M.skillBonus(handToHand, weaponSkill, cfg)
         local taper = math.min(1, (behind - cfg.skillBonusGrace) / cfg.skillBonusFalloff)
         rate = cfg.skillBonusMax + (cfg.skillBonusMin - cfg.skillBonusMax) * taper
     end
-    return weaponSkill * rate
+    return math.floor(weaponSkill * rate)
 end
 
 --- The skill value the engine should roll the hit chance against.

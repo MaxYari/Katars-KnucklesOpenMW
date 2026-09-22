@@ -38,14 +38,16 @@ interface as it loads.
 
 ## What the weapons do
 
-**Katars** are short blades. They hit for 90% of the vanilla shortsword of their material, and take
-a tenth of the fatigue a bare fist would.
+Both trade health damage for fatigue damage against the shortsword they are cut from.
 
-**Knuckledusters** are blunt weapons. They hit for 60% of that shortsword, and take half the fatigue
-of a bare fist - they are made for it.
+**Katars** are short blades. They hit for 80% of the vanilla shortsword of their material, and take
+half the fatigue a bare fist would.
 
-- **Damage:** katars 90% of that shortsword, knuckledusters 60%.
-- **Fatigue damage:** katars 10% of a bare-fisted hit, knuckledusters 50%.
+**Knuckledusters** are blunt weapons. They hit for 50% of that shortsword, and take three quarters
+of the fatigue - they are made for bruising.
+
+- **Damage:** katars 80% of that shortsword, knuckledusters 50%.
+- **Fatigue damage:** katars 50% of a bare-fisted hit, knuckledusters 75%.
 - **Engine weapon type:** katars Short Blade, knuckledusters Blunt Weapon. Both one handed.
 - **Skill you actually use:** Hand to Hand, for both.
 
@@ -64,8 +66,8 @@ Keeping the weapon skill up alongside it pays, and the bonus is a share of **tha
 letting it rot costs you twice over - a smaller share of a smaller number. While Short Blade (or
 Blunt Weapon) is within **10 points** of your Hand to Hand, or ahead of it, you get **15% of the
 weapon skill** on top. Past that it tapers over the next 20 points down to **5%** - a floor, not a
-cutoff. Every number there is a setting, and the item tooltip shows what the bonus works out to
-right now.
+cutoff. The result is rounded down to whole skill points, so the number the tooltip shows is exactly
+the one a swing applies. Every number there is a setting.
 
 ### Experience
 
@@ -81,7 +83,7 @@ Every hit also costs the target fatigue, using the engine's own unarmed formula
 hand to hand skill * (fMinHandToHandMult + (fMaxHandToHandMult - fMinHandToHandMult) * swing strength)
 ```
 
-scaled by 10% for a katar or 50% for knuckledusters. If you have the launcher's **strength
+scaled by 50% for a katar or 75% for knuckledusters. If you have the launcher's **strength
 influences hand to hand** option on (Advanced -> Combat), set this mod's copy of it to match -
 nothing can read the real one from a script, so the mod has to be told.
 
@@ -131,8 +133,9 @@ installed, for the NIF library inside it, and it is safe to run twice.
 down while a katar or knuckleduster is in hand, through `I.ReAnimation.addOverrideCondition`. Any
 other mod adding a moveset to that group needs to do the same.
 
-**Textures.** All vanilla (Morrowind.bsa and Tribunal.bsa). Nothing is overwritten, so retexture
-packs carry straight over.
+**Textures.** Vanilla ones (Morrowind.bsa and Tribunal.bsa) are used as they are and nothing is
+overwritten, so retexture packs carry straight over. Textures baked for this mod live under
+`textures/katars/`.
 
 <!-- nexus-skip-start -->
 
@@ -141,7 +144,9 @@ packs carry straight over.
 `Reanimv  starts Katsr.blend` holds the weapons and the rig. Everything built from it is built by a
 script, so a rebuild is reproducible:
 
-- `Sources/Tools/export_weapons.py` - exports every weapon empty to its own `.nif`, centred on the grip bar.
+- `Sources/Tools/export_weapons.py` - exports every weapon empty to its own `.nif`, centred on the
+  grip bar. Superseded by `tools/mw_export.py`, which is what produces the shipped meshes now; this
+  one is kept because it documents the grip-bar centring the records depend on.
 - `Sources/Tools/patch_skeleton.py` - adds `Weapon Bone.L` to the vanilla skeletons.
 - `Sources/Tools/make_plugin.py` - writes `Katar.omwaddon` from the vanilla shortsword table.
 - `Sources/Tools/add_weapon_bone_l.py` - builds the ARP controller for that bone in the Blender file.

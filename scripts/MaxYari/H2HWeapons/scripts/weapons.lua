@@ -15,11 +15,12 @@ M.KIND = {
     Knuckle = "knuckle",
 }
 
--- Fatigue damage these deal, as a fraction of what a bare-fisted hand-to-hand hit would do.
--- A katar is a blade: it cuts rather than stuns. Knuckledusters are made for the other thing.
+-- Fatigue damage these deal, as a fraction of what a bare-fisted hand-to-hand hit would do. Both
+-- trade health damage for it against the shortsword they are cut from - a katar hits for 80% of
+-- one, knuckledusters for 50% - and knuckledusters, which are made for bruising, trade the most.
 M.FATIGUE_FACTOR = {
-    [M.KIND.Katar] = 0.10,
-    [M.KIND.Knuckle] = 0.50,
+    [M.KIND.Katar] = 0.50,
+    [M.KIND.Knuckle] = 0.75,
 }
 
 -- The skill the engine itself uses for each kind - the one the scripts have to work around.

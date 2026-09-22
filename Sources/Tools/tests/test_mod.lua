@@ -31,8 +31,8 @@ check(weapons.kindOfId("steel dagger") == false, "a dagger is not one")
 check(weapons.kindOfId("katar axe") == false, "a two-handed axe called a katar is not one")
 check(weapons.kindOfId(nil) == false, "nil is not one")
 check(weapons.modelOfId("katar_steel") == "meshes/steel_katar.nif", "model is cached", weapons.modelOfId("katar_steel"))
-check(weapons.FATIGUE_FACTOR.katar == 0.10, "katar fatigue factor")
-check(weapons.FATIGUE_FACTOR.knuckle == 0.50, "knuckle fatigue factor")
+check(weapons.FATIGUE_FACTOR.katar == 0.50, "katar fatigue factor")
+check(weapons.FATIGUE_FACTOR.knuckle == 0.75, "knuckle fatigue factor")
 check(weapons.WEAPON_SKILL.katar == "shortblade", "katars use short blade")
 check(weapons.WEAPON_SKILL.knuckle == "bluntweapon", "knuckles use blunt weapon")
 
@@ -52,14 +52,14 @@ st.attributes.strength = { base = 40, modifier = 0 }
 -- skillBonus: a share of the weapon skill, full within the grace, tapering to a floor past it
 local BONUS = { skillBonusMax = 0.15, skillBonusMin = 0.05, skillBonusGrace = 10, skillBonusFalloff = 20 }
 local function bonus(h, w) return formulas.skillBonus(h, w, BONUS) end
-check(math.abs(bonus(50, 50) - 7.5) < 1e-6, "parity pays 15% of the weapon skill", bonus(50, 50))
-check(math.abs(bonus(50, 90) - 13.5) < 1e-6, "a higher weapon skill pays 15% of the bigger number", bonus(50, 90))
-check(math.abs(bonus(50, 40) - 6.0) < 1e-6, "ten points behind is still the full share", bonus(50, 40))
-check(math.abs(bonus(50, 30) - 30 * 0.10) < 1e-6, "halfway through the taper is halfway to the floor", bonus(50, 30))
-check(math.abs(bonus(50, 20) - 20 * 0.05) < 1e-6, "past the taper it is the floor", bonus(50, 20))
-check(math.abs(bonus(50, 5) - 5 * 0.05) < 1e-6, "and stays the floor, never nothing", bonus(50, 5))
-check(bonus(50, 5) > 0, "a neglected weapon skill is still worth something")
-check(math.abs(formulas.effectiveSkill(50, 50, BONUS) - 57.5) < 1e-6, "the bonus is added to hand-to-hand")
+check(bonus(50, 50) == 7, "parity pays 15% of the weapon skill, rounded down", bonus(50, 50))
+check(bonus(50, 90) == 13, "a higher weapon skill pays 15% of the bigger number", bonus(50, 90))
+check(bonus(50, 40) == 6, "ten points behind is still the full share", bonus(50, 40))
+check(bonus(50, 30) == 3, "halfway through the taper is halfway to the floor", bonus(50, 30))
+check(bonus(50, 20) == 1, "past the taper it is the floor rate", bonus(50, 20))
+check(bonus(50, 5) == 0, "which a low enough weapon skill still rounds away", bonus(50, 5))
+check(bonus(50, 50) % 1 == 0, "the bonus is always a whole number of skill points")
+check(formulas.effectiveSkill(50, 50, BONUS) == 57, "the bonus is added to hand-to-hand")
 -- the taper is monotonic: letting the weapon skill slide can never help
 local previous = math.huge
 for w = 100, 0, -1 do
@@ -102,15 +102,15 @@ check(st.skills.shortblade.modifier == 0, "short blade starts unmodified")
 playWeapon("slash start")
 -- hand-to-hand 50, short blade 30: 20 behind, halfway through the taper, so 10% of 30 on top.
 -- The engine should roll against 53, which from a base of 30 is a modifier of 23.
-check(math.abs(st.skills.shortblade.modifier - 23) < 1e-6,
+check(st.skills.shortblade.modifier == 23,
       "the wind up puts hand-to-hand into the short blade skill", st.skills.shortblade.modifier)
 playWeapon("slash large follow start")
 check(st.skills.shortblade.modifier == 0, "the follow-through puts it back", st.skills.shortblade.modifier)
 
--- with both skills up, the full share applies: 50 + 15% of 50 = 57.5, a modifier of 7.5
+-- with both skills up, the full share applies: 50 + floor(15% of 50) = 57, a modifier of 7
 st.skills.shortblade.base = 50
 playWeapon("chop start")
-check(math.abs(st.skills.shortblade.modifier - 7.5) < 1e-6,
+check(st.skills.shortblade.modifier == 7,
       "parity earns the full share of the weapon skill", st.skills.shortblade.modifier)
 playWeapon("chop small follow start")
 check(st.skills.shortblade.modifier == 0, "and it is taken back off")
@@ -185,8 +185,8 @@ modifier({ recordId = "katar_steel" }, layout)
 check(inner.type.props.text == "Type: Hand-to-hand (Short Blade), One Handed",
       "the type line names hand-to-hand with the engine skill as a subtype", inner.type.props.text)
 check(inner.h2hFatigue ~= nil, "a fatigue damage line is added")
-check(inner.h2hFatigue and inner.h2hFatigue.props.text == "Fatigue Damage: 0.5 - 2.5",
-      "with the katar's tenth of a bare fist", inner.h2hFatigue and inner.h2hFatigue.props.text)
+check(inner.h2hFatigue and inner.h2hFatigue.props.text == "Fatigue Damage: 3 - 13",
+      "with the katar's half of a bare fist, in whole numbers", inner.h2hFatigue and inner.h2hFatigue.props.text)
 check(inner:indexOf("h2hFatigue") == inner:indexOf("thrust") + 1,
       "right under the damage lines", inner:indexOf("h2hFatigue"))
 check(inner.h2hExplanation ~= nil, "an explanation is added")
@@ -197,15 +197,16 @@ check(explanation and explanation:find("Short Blade", 1, true) ~= nil,
 -- hand-to-hand 50, short blade 30: 20 behind, halfway through the taper, so 10% of 30
 check(explanation and explanation:find("(50)", 1, true) ~= nil,
       "showing the current hand-to-hand value", explanation)
-check(explanation and explanation:find("(+3.0)", 1, true) ~= nil,
+check(explanation and explanation:find("(+3)", 1, true) ~= nil,
       "and the bonus that weapon skill is worth right now", explanation)
+check(explanation and explanation:find("%.%d") == nil, "as whole skill points", explanation)
 check(explanation and explanation:find("%%{") == nil, "with every placeholder filled in", explanation)
 
 -- the numbers are read when the tooltip is built, not when the modifier was registered
 st.skills.shortblade.base = 50
 local levelled, levelledInner = fakeTooltip()
 modifier({ recordId = "katar_steel" }, levelled)
-check(levelledInner.h2hExplanation.props.text:find("(+7.5)", 1, true) ~= nil,
+check(levelledInner.h2hExplanation.props.text:find("(+7)", 1, true) ~= nil,
       "a levelled weapon skill shows a bigger bonus", levelledInner.h2hExplanation.props.text)
 st.skills.shortblade.base = 30
 
@@ -229,14 +230,16 @@ local onHit = stubs.onHitHandlers[#stubs.onHitHandlers]
 local attack = { successful = true, sourceType = "melee", attacker = {}, strength = 1,
                  weapon = { recordId = "katar_steel" }, damage = { health = 20 } }
 onHit(attack)
--- bare fist at full strength is 50 * 0.5 = 25; a katar does a tenth of that
-check(math.abs(attack.damage.fatigue - 2.5) < 1e-6, "a katar bruises for 10% of a fist", attack.damage.fatigue)
+-- bare fist at full strength is 50 * 0.5 = 25; a katar does half of that
+check(math.abs(attack.damage.fatigue - 12.5) < 1e-6, "a katar bruises for 50% of a fist", attack.damage.fatigue)
 check(attack.damage.health == 20, "and leaves the weapon's own damage alone")
 
 attack = { successful = true, sourceType = "melee", attacker = {}, strength = 1,
            weapon = { recordId = "knuckle_iron" }, damage = { health = 5 } }
 onHit(attack)
-check(math.abs(attack.damage.fatigue - 12.5) < 1e-6, "knuckledusters for 50%", attack.damage.fatigue)
+check(math.abs(attack.damage.fatigue - 18.75) < 1e-6, "knuckledusters for 75%", attack.damage.fatigue)
+-- the damage itself stays fractional; only the tooltip rounds it
+check(attack.damage.fatigue % 1 ~= 0, "the applied damage is not rounded", attack.damage.fatigue)
 
 attack = { successful = true, sourceType = "melee", attacker = {}, strength = 1,
            weapon = { recordId = "steel dagger" }, damage = { health = 5 } }

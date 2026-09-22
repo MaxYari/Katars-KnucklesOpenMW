@@ -29,7 +29,7 @@ SHORTSWORDS = {
     "daedric": ((10, 26), (10, 26), (12, 24), 24, 20000, 1500, 120),
 }
 
-DAMAGE_FACTOR = {"katar": 0.90, "knuckle": 0.60}
+DAMAGE_FACTOR = {"katar": 0.80, "knuckle": 0.50}
 # A katar is a blade strapped to a bar; knuckles are a bar. Both are lighter than the sword they
 # are cut from, and knuckles are quick.
 WEIGHT_FACTOR = {"katar": 0.75, "knuckle": 0.40}

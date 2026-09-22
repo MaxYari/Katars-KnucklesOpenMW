@@ -28,13 +28,15 @@ content=H2HWeapons.omwscripts[/code]
 
 [size=5][b]What the weapons do[/b][/size]
 
-[b]Katars[/b] are short blades. They hit for 90% of the vanilla shortsword of their material, and take a tenth of the fatigue a bare fist would.
+Both trade health damage for fatigue damage against the shortsword they are cut from.
 
-[b]Knuckledusters[/b] are blunt weapons. They hit for 60% of that shortsword, and take half the fatigue of a bare fist - they are made for it.
+[b]Katars[/b] are short blades. They hit for 80% of the vanilla shortsword of their material, and take half the fatigue a bare fist would.
+
+[b]Knuckledusters[/b] are blunt weapons. They hit for 50% of that shortsword, and take three quarters of the fatigue - they are made for bruising.
 
 [list]
-[*][b]Damage:[/b] katars 90% of that shortsword, knuckledusters 60%.
-[*][b]Fatigue damage:[/b] katars 10% of a bare-fisted hit, knuckledusters 50%.
+[*][b]Damage:[/b] katars 80% of that shortsword, knuckledusters 50%.
+[*][b]Fatigue damage:[/b] katars 50% of a bare-fisted hit, knuckledusters 75%.
 [*][b]Engine weapon type:[/b] katars Short Blade, knuckledusters Blunt Weapon. Both one handed.
 [*][b]Skill you actually use:[/b] Hand to Hand, for both.
 [/list]
@@ -45,7 +47,7 @@ Eleven weapons, in iron, chitin, steel, silver, orcish, ebony and daedric. Their
 
 The engine rolls a melee hit against whatever skill the weapon says it uses. For the length of every swing, that skill [i]is[/i] your Hand to Hand: the difference is written into the weapon skill's modifier when the swing winds up and taken back out when it follows through, so the roll the engine makes is the one it would make with your fists.
 
-Keeping the weapon skill up alongside it pays, and the bonus is a share of [b]that[/b] skill, so letting it rot costs you twice over - a smaller share of a smaller number. While Short Blade (or Blunt Weapon) is within [b]10 points[/b] of your Hand to Hand, or ahead of it, you get [b]15% of the weapon skill[/b] on top. Past that it tapers over the next 20 points down to [b]5%[/b] - a floor, not a cutoff. Every number there is a setting, and the item tooltip shows what the bonus works out to right now.
+Keeping the weapon skill up alongside it pays, and the bonus is a share of [b]that[/b] skill, so letting it rot costs you twice over - a smaller share of a smaller number. While Short Blade (or Blunt Weapon) is within [b]10 points[/b] of your Hand to Hand, or ahead of it, you get [b]15% of the weapon skill[/b] on top. Past that it tapers over the next 20 points down to [b]5%[/b] - a floor, not a cutoff. The result is rounded down to whole skill points, so the number the tooltip shows is exactly the one a swing applies. Every number there is a setting.
 
 [size=4][b]Experience[/b][/size]
 
@@ -57,7 +59,7 @@ Every hit also costs the target fatigue, using the engine's own unarmed formula 
 
 [code]hand to hand skill * (fMinHandToHandMult + (fMaxHandToHandMult - fMinHandToHandMult) * swing strength)[/code]
 
-scaled by 10% for a katar or 50% for knuckledusters. If you have the launcher's [b]strength influences hand to hand[/b] option on (Advanced -> Combat), set this mod's copy of it to match - nothing can read the real one from a script, so the mod has to be told.
+scaled by 50% for a katar or 75% for knuckledusters. If you have the launcher's [b]strength influences hand to hand[/b] option on (Advanced -> Combat), set this mod's copy of it to match - nothing can read the real one from a script, so the mod has to be told.
 
 This works for NPCs swinging these weapons as well as for you.
 
@@ -96,7 +98,7 @@ It needs [url=https://github.com/Greatness7/io_scene_mw]Greatness7's io_scene_mw
 
 [b]One-handed attacks.[/b] The katar moveset and ReAnimation's own one-handed set both live on the [font=Courier New]weapononehand[/font] animation group, and only one may be active at a time. This mod stands ReAnimation's down while a katar or knuckleduster is in hand, through [font=Courier New]I.ReAnimation.addOverrideCondition[/font]. Any other mod adding a moveset to that group needs to do the same.
 
-[b]Textures.[/b] All vanilla (Morrowind.bsa and Tribunal.bsa). Nothing is overwritten, so retexture packs carry straight over.
+[b]Textures.[/b] Vanilla ones (Morrowind.bsa and Tribunal.bsa) are used as they are and nothing is overwritten, so retexture packs carry straight over. Textures baked for this mod live under [font=Courier New]textures/katars/[/font].
 
 [size=5][b]Credits[/b][/size]
 

@@ -5,9 +5,11 @@ __pycache__/
 *.blend2
 .claude/
 
-# Vanilla Morrowind textures, kept here only so the Blender source has something to preview
-# against. Every texture the exported meshes use ships with the game (Morrowind.bsa +
-# Tribunal.bsa), so none of that belongs in the repo or the release; extract them again if you
-# need them in Blender. Textures baked for this mod, under textures/katars/, do ship.
+# The loose vanilla Morrowind textures here are only so the Blender source has something to preview
+# against; they ship with the game, so they do not belong in the repo or the release. Extract them
+# again if you need them in Blender.
+#
+# Textures baked for this mod go in textures/katars/ and DO ship - that is the one path under
+# textures/ that is tracked, so put new ones there (or add another exception below).
 /textures/*
 !/textures/katars/

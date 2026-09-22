@@ -330,7 +330,9 @@ local function registerTooltipModifier()
         local line = {
             name = "h2hFatigue",
             template = textNormal,
-            props = { text = string.format("%s: %.1f - %.1f", l10n("tooltip_fatigue"), low, high) },
+            -- Whole numbers, like the chop/slash/thrust lines above it.
+            props = { text = string.format("%s: %d - %d", l10n("tooltip_fatigue"),
+                math.floor(low + 0.5), math.floor(high + 0.5)) },
         }
         local after = inner:indexOf("thrust") or inner:indexOf("attack") or inner:indexOf("type")
         if after then
@@ -350,7 +352,7 @@ local function registerTooltipModifier()
             local text = l10n("tooltip_explanation")
                 :gsub("%%{skill}", skillName)
                 :gsub("%%{handToHand}", string.format("%d", math.floor(handToHand + 0.5)))
-                :gsub("%%{bonus}", string.format("%+.1f", bonus))
+                :gsub("%%{bonus}", string.format("%+d", bonus))
             inner:add({
                 name = "h2hExplanation",
                 template = textParagraph,
