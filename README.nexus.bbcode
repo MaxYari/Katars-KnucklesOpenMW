@@ -43,7 +43,7 @@ Both trade health damage for fatigue damage against the shortsword they are cut 
 
 Eleven weapons, in iron, chitin, steel, silver, orcish, ebony and daedric. Their stats are derived from the vanilla shortswords rather than picked by hand - see [font=Courier New]Sources/Tools/make_plugin.py[/font], which is what writes [font=Courier New]Katar.omwaddon[/font].
 
-Enchantment capacity follows Bethesda's own habit: the engine has no formula for it, but within any one vanilla weapon line the capacity is a fixed multiple of the weight, with the material carrying the weight (daggers run at 6.67 points per unit of weight, shortswords at 5.0, right across iron through daedric). Katars take the dagger's rate and knuckledusters the shortsword's, so a steel katar ends up with a steel shortsword's pool and iron knuckledusters with well under a dagger's.
+Weight and enchantment capacity are measured against the [b]dagger[/b] of the same material rather than the shortsword: a katar is two thirds of a dagger in both, and a knuckleduster half of that again. That follows Bethesda's own habit - the engine has no formula for capacity, but within any one vanilla weapon line it is a fixed multiple of the weight, with the material carrying the weight (daggers run at 6.67 points per unit, shortswords at 5.0, right across iron through daedric). Keeping the dagger's rate is what makes "two thirds of a dagger" mean one thing rather than two.
 
 [size=4][b]Hit chance[/b][/size]
 

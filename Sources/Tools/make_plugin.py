@@ -30,21 +30,25 @@ SHORTSWORDS = {
 }
 
 DAMAGE_FACTOR = {"katar": 0.80, "knuckle": 0.50}
-# A katar is a blade strapped to a bar; knuckles are a bar. Both are lighter than the sword they
-# are cut from, and knuckles are quick.
-WEIGHT_FACTOR = {"katar": 0.75, "knuckle": 0.40}
+# Weight and enchantment capacity are measured against the dagger of the same material, not the
+# shortsword the damage comes from: a katar is two thirds of a dagger and a knuckleduster half of
+# that again, in both.
+DAGGER_FACTOR = {"katar": 2 / 3, "knuckle": 1 / 3}
+
+# There is no vanilla dagger in orcish or ebony, so the dagger is derived from the shortsword
+# instead. Bethesda weighed every dagger at 0.375 of its shortsword - iron, steel, chitin and
+# daedric exactly, silver at 0.400 - so one number covers the whole line.
+DAGGER_WEIGHT_FACTOR = 0.375
 
 # Enchantment capacity (the raw record field; the game shows a tenth of it). The engine has no
 # formula for this - it reads the number off the record - but Bethesda wrote one weapon line at a
 # time, and within a line the capacity is a fixed multiple of the weight, with the material
-# carrying the weight. Daggers run at 6.67, shortswords and chitin/ebony/daedric shortswords at
-# 5.0, tantos 5.5, wakizashis 4.5, right across iron through daedric.
+# carrying the weight: daggers run at 6.67 points per unit, shortswords 5.0, tantos 5.5,
+# wakizashis 4.5, right across iron through daedric.
 #
-# So these follow the same rule rather than scaling the shortsword's number by the damage factor,
-# which left each weapon at whatever ratio fell out. A katar takes the dagger's rate, being a blade
-# on a bar; knuckledusters take the plain shortsword rate, which on their weight comes to well
-# under a dagger's pool.
-ENCHANT_PER_WEIGHT = {"katar": 6.67, "knuckle": 5.0}
+# Keeping the dagger's rate is what makes DAGGER_FACTOR mean one thing rather than two: at the same
+# points per unit of weight, two thirds of a dagger's weight is two thirds of its capacity.
+DAGGER_ENCHANT_PER_WEIGHT = 6.67
 SPEED = {"katar": 2.00, "knuckle": 2.50}
 REACH = {"katar": 1.00, "knuckle": 0.80}
 WEAPON_TYPE = {"katar": SHORT_BLADE, "knuckle": BLUNT_ONE_HAND}
@@ -65,7 +69,8 @@ ITEMS = [
 ]
 
 # The slim ebony katar trades reach and bulk for speed.
-OVERRIDES = {"katar_ebony_slim": {"speed": 2.25, "weight": 9.0, "reach": 0.9}}
+# The slim ebony katar is three quarters of the guarded one's bulk, and quicker for it.
+OVERRIDES = {"katar_ebony_slim": {"speed": 2.25, "weight": 3.0, "reach": 0.9}}
 
 
 def scale(value, factor):
@@ -81,7 +86,7 @@ def stats(item):
         "chop": tuple(scale(v, dmg) for v in chop),
         "slash": tuple(scale(v, dmg) for v in slash),
         "thrust": tuple(scale(v, dmg) for v in thrust),
-        "weight": round(weight * WEIGHT_FACTOR[kind], 1),
+        "weight": round(weight * DAGGER_WEIGHT_FACTOR * DAGGER_FACTOR[kind], 1),
         "value": int(value * dmg * value_mult),
         "health": int(health * dmg),
         "speed": SPEED[kind],
@@ -90,7 +95,7 @@ def stats(item):
     }
     out.update(OVERRIDES.get(_id, {}))
     # After the overrides, so a weapon given a different weight gets the capacity to match.
-    out["enchant"] = int(round(out["weight"] * ENCHANT_PER_WEIGHT[kind]))
+    out["enchant"] = int(round(out["weight"] * DAGGER_ENCHANT_PER_WEIGHT))
     return out
 
 
