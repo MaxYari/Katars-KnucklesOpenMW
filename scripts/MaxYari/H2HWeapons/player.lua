@@ -16,6 +16,7 @@ local core = require('openmw.core')
 local I = require('openmw.interfaces')
 local omwself = require('openmw.self')
 local types = require('openmw.types')
+local util = require('openmw.util')
 
 local formulas = require(mp .. "scripts/formulas")
 local settings = require(mp .. "scripts/settings")
@@ -295,8 +296,18 @@ local function registerTooltipModifier()
         [weapons.KIND.Knuckle] = core.getGMST("sSkillBluntweapon"),
     }
 
+    -- Inventory Extender's own text templates, so the added lines match the rest of the tooltip
+    -- (its font size setting included). MWUI's are the same thing without that, as a fallback.
     local ok, base = pcall(require, "scripts.InventoryExtender.ui.templates.base")
-    local textNormal = (ok and base and base.textNormal) or I.MWUI.templates.textNormal
+    base = ok and base or nil
+    local textNormal = (base and base.textNormal) or I.MWUI.templates.textNormal
+    -- The footnote wraps, so it needs a paragraph template and a width to wrap at. This is how
+    -- Inventory Extender builds the lore text it shows at the bottom of a tooltip.
+    local textParagraph = (base and base.textParagraph) or I.MWUI.templates.textParagraph
+    local okConst, constants = pcall(require, "scripts.InventoryExtender.util.constants")
+    local DIMMED = (okConst and constants and constants.Colors and constants.Colors.DISABLED)
+        or util.color.rgb(0.6, 0.6, 0.6)
+    local FOOTNOTE_WIDTH = 320
 
     I.InventoryExtender.registerTooltipModifier("H2HWeapons", function(item, layout)
         local kind = weapons.kindOfItem(item)
@@ -326,6 +337,21 @@ local function registerTooltipModifier()
             inner:insert(after + 1, line)
         else
             inner:add(line)
+        end
+
+        -- And a footnote at the bottom saying which skills this weapon actually runs on, since
+        -- "Hand to Hand (Short Blade)" on the type line does not say what the short blade is for.
+        if skillName then
+            inner:add({
+                name = "h2hExplanation",
+                template = textParagraph,
+                props = {
+                    text = (l10n("tooltip_explanation"):gsub("%%{skill}", skillName)),
+                    textColor = DIMMED,
+                    autoSize = true,
+                    size = util.vector2(FOOTNOTE_WIDTH, 0),
+                },
+            })
         end
     end)
 end

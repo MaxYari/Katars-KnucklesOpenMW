@@ -42,3 +42,5 @@ silence_draw_sound_description: |-
 
 tooltip_type: "Hand to Hand"
 tooltip_fatigue: "Fatigue Damage"
+# %{skill} is filled in with Short Blade or Blunt Weapon, whichever the weapon is.
+tooltip_explanation: "Hand-to-Hand weapon: effectiveness is determined by the Hand to Hand skill, with a minor bonus from %{skill}."

@@ -62,6 +62,7 @@ stubs.I.ReAnimation = api.interface
 
 st.stance = 1 -- weapon drawn
 st.equipped = { recordId = "katar_steel" }
+stubs.enableInventoryExtender()
 local player = require("scripts.MaxYari.H2HWeapons.player")
 local onUpdate = player.engineHandlers.onUpdate
 
@@ -141,6 +142,56 @@ local punch = { useType = 0, skillGain = 1.0 }
 for i = #stubs.skillUsedHandlers, 1, -1 do stubs.skillUsedHandlers[i]("handtohand", punch) end
 check(punch.skillGain == 1.0, "a hand-to-hand use is untouched", punch.skillGain)
 check(#st.skillUses == 0, "and starts nothing else", #st.skillUses)
+
+--- tooltips --------------------------------------------------------------------------------------------
+-- A stand-in for the layout Inventory Extender builds for a weapon: the shape the modifier walks,
+-- with the named lines it puts in for a melee weapon.
+local function fakeTooltip()
+    local inner = stubs.content {
+        { name = "name", props = { text = "Steel Katar" } },
+        { name = "type", props = { text = "Type: Short Blade, One Handed" } },
+        { name = "chop", props = { text = "Chop: 5 - 11" } },
+        { name = "slash", props = { text = "Slash: 5 - 11" } },
+        { name = "thrust", props = { text = "Thrust: 6 - 11" } },
+        { name = "range", props = { text = "Range: 4.6 Feet" } },
+        { name = "speed", props = { text = "Speed: 200%" } },
+    }
+    return { content = stubs.content {
+        { name = "padding", content = stubs.content {
+            { name = "tooltip", content = inner },
+        } },
+    } }, inner
+end
+
+local modifier = stubs.tooltipModifiers["H2HWeapons"]
+check(modifier ~= nil, "the tooltip modifier is registered")
+
+local layout, inner = fakeTooltip()
+modifier({ recordId = "katar_steel" }, layout)
+check(inner.type.props.text == "Type: Hand-to-hand (Short Blade), One Handed",
+      "the type line names hand-to-hand with the engine skill as a subtype", inner.type.props.text)
+check(inner.h2hFatigue ~= nil, "a fatigue damage line is added")
+check(inner.h2hFatigue and inner.h2hFatigue.props.text == "Fatigue Damage: 0.5 - 2.5",
+      "with the katar's tenth of a bare fist", inner.h2hFatigue and inner.h2hFatigue.props.text)
+check(inner:indexOf("h2hFatigue") == inner:indexOf("thrust") + 1,
+      "right under the damage lines", inner:indexOf("h2hFatigue"))
+check(inner.h2hExplanation ~= nil, "an explanation is added")
+check(inner:indexOf("h2hExplanation") == #inner, "at the very bottom", inner:indexOf("h2hExplanation"))
+check(inner.h2hExplanation and inner.h2hExplanation.props.text:find("Short Blade", 1, true) ~= nil,
+      "naming the skill that gives the minor bonus", inner.h2hExplanation and inner.h2hExplanation.props.text)
+
+local knuckleLayout, knuckleInner = fakeTooltip()
+knuckleInner.type.props.text = "Type: Blunt Weapon, One Handed"
+modifier({ recordId = "knuckle_iron" }, knuckleLayout)
+check(knuckleInner.type.props.text == "Type: Hand-to-hand (Blunt Weapon), One Handed",
+      "knuckledusters name blunt weapon instead", knuckleInner.type.props.text)
+check(knuckleInner.h2hExplanation.props.text:find("Blunt Weapon", 1, true) ~= nil,
+      "in the explanation too", knuckleInner.h2hExplanation.props.text)
+
+local plainLayout, plainInner = fakeTooltip()
+modifier({ recordId = "steel dagger" }, plainLayout)
+check(plainInner.type.props.text == "Type: Short Blade, One Handed", "an ordinary weapon is untouched")
+check(plainInner.h2hFatigue == nil, "and gets no extra lines")
 
 --- the actor script ------------------------------------------------------------------------------------
 local actorScript = require("scripts.MaxYari.H2HWeapons.actor")

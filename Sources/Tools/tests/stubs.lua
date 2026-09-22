@@ -73,12 +73,35 @@ M.statObject = statObject
 --- packages -----------------------------------------------------------------------------------------
 local packages = {}
 
+--- A stand-in for openmw.ui's content lists: an array that can also be indexed by element name.
+function M.content(items)
+    local c = {}
+    for _, item in ipairs(items or {}) do c[#c + 1] = item end
+    return setmetatable(c, {
+        __index = function(t, k)
+            if k == "add" then return function(self, v) self[#self + 1] = v end end
+            if k == "insert" then return function(self, i, v) table.insert(self, i, v) end end
+            if k == "indexOf" then
+                return function(self, name)
+                    for i = 1, #self do if rawget(self, i).name == name then return i end end
+                    return nil
+                end
+            end
+            if type(k) == "string" then
+                for i = 1, #t do if rawget(t, i).name == k then return rawget(t, i) end end
+            end
+            return nil
+        end,
+    })
+end
+
 packages['openmw.util'] = {
     vector2 = function(x, y) return { x = x, y = y } end,
     vector3 = function(x, y, z) return { x = x, y = y, z = z } end,
     clamp = function(v, a, b) return math.max(a, math.min(b, v)) end,
     round = function(v) return math.floor(v + 0.5) end,
     makeStrictReadOnly = function(t) return t end,
+    color = { rgb = function(r, g, b) return { r = r, g = g, b = b } end },
 }
 
 packages['openmw.core'] = {
@@ -86,7 +109,24 @@ packages['openmw.core'] = {
     getSimulationTime = function() return st.time end,
     getRealTime = function() return st.time end,
     contentFiles = { has = function(_, n) return true end },
-    l10n = function() return function(key) return key end end,
+    -- Reads the mod's own l10n file, so a test that checks a message really checks the message.
+    -- Only the flat `key: "text"` entries; the settings descriptions are block scalars and no test
+    -- looks at them, so those come back as their key.
+    l10n = function(context)
+        local strings = {}
+        for _, root in ipairs(roots) do
+            local f = io.open(root .. "/l10n/" .. context .. "/en.yaml", "r")
+            if f then
+                for line in f:lines() do
+                    local k, v = line:match('^([%w_]+):%s*"(.*)"%s*$')
+                    if k then strings[k] = v end
+                end
+                f:close()
+                break
+            end
+        end
+        return function(key) return strings[key] or key end
+    end,
     sound = {
         stopSound = function(id, obj) st.stoppedSounds = st.stoppedSounds or {}; table.insert(st.stoppedSounds, id) end,
     },
@@ -243,7 +283,14 @@ I.Combat = {
     addOnHitHandler = function(f) table.insert(M.onHitHandlers, f) end,
 }
 I.Settings = { registerGroup = function() end, registerPage = function() end }
-I.MWUI = { templates = { textNormal = {} } }
+I.MWUI = { templates = { textNormal = { name = "textNormal" }, textParagraph = { name = "textParagraph" } } }
+-- Inventory Extender, when a test asks for it. Set M.tooltipModifiers is filled by the mod.
+M.tooltipModifiers = {}
+function M.enableInventoryExtender()
+    I.InventoryExtender = {
+        registerTooltipModifier = function(id, fn) M.tooltipModifiers[id] = fn end,
+    }
+end
 packages['openmw.interfaces'] = I
 M.I = I
 
