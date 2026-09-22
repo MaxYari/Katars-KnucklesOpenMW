@@ -1,0 +1,105 @@
+[size=6][b]Katars and Knuckledusters[/b][/size]
+
+Hand-to-hand weapons for OpenMW: five katars and six sets of knuckledusters that you fight with using the [b]Hand to Hand[/b] skill, not the weapon skill the engine files them under.
+
+Morrowind has no hand-to-hand weapon type. A katar has to be a short blade and knuckledusters have to be a blunt weapon, or the engine will not let you hold them. So each of the things that follows from that is put back by a script: the skill the hit chance is rolled against, where the experience goes, the fatigue damage a punch would do, the second weapon in your off hand, and the sword-drawing sound your fists should not make.
+
+[size=5][b]Requirements[/b][/size]
+
+[list]
+[*][b]OpenMW 0.49 or newer.[/b]
+[*][b][url=https://www.nexusmods.com/morrowind/mods/52596]ReAnimation[/url] 3.2 or newer[/b] - required. The katar moveset is registered through it.
+[*][b][url=https://www.nexusmods.com/morrowind/mods/60256]Max Yari's Script Services (MSS)[/url][/b] - required. ReAnimation needs it too.
+[*][b][url=https://www.nexusmods.com/morrowind/mods/59205]Inventory Extender[/url][/b] - optional. Adds the hand-to-hand type and the fatigue damage to item tooltips.
+[/list]
+
+In the OpenMW launcher, under Settings -> Visuals -> Animations, [b]Use Additional Animation Sources[/b] must be on. ReAnimation needs it as well.
+
+[size=5][b]Install[/b][/size]
+
+Add the mod folder as a data directory, then enable, in this order:
+
+[code]content=ReAnimation_API.omwscripts
+content=ReAnimation_v3.omwscripts
+content=Katar.omwaddon
+content=H2HWeapons.omwscripts[/code]
+
+[font=Courier New]H2HWeapons.omwscripts[/font] has to come after [font=Courier New]ReAnimation_API.omwscripts[/font]: it talks to ReAnimation's interface as it loads.
+
+[size=5][b]What the weapons do[/b][/size]
+
+[b]Katars[/b] are short blades. They hit for 90% of the vanilla shortsword of their material, and take a tenth of the fatigue a bare fist would.
+
+[b]Knuckledusters[/b] are blunt weapons. They hit for 60% of that shortsword, and take half the fatigue of a bare fist - they are made for it.
+
+[list]
+[*][b]Damage:[/b] katars 90% of that shortsword, knuckledusters 60%.
+[*][b]Fatigue damage:[/b] katars 10% of a bare-fisted hit, knuckledusters 50%.
+[*][b]Engine weapon type:[/b] katars Short Blade, knuckledusters Blunt Weapon. Both one handed.
+[*][b]Skill you actually use:[/b] Hand to Hand, for both.
+[/list]
+
+Eleven weapons, in iron, chitin, steel, silver, orcish, ebony and daedric. Their damage is derived from the vanilla shortswords rather than picked by hand - see [font=Courier New]Sources/Tools/make_plugin.py[/font], which is what writes [font=Courier New]Katar.omwaddon[/font].
+
+[size=4][b]Hit chance[/b][/size]
+
+The engine rolls a melee hit against whatever skill the weapon says it uses. For the length of every swing, that skill [i]is[/i] your Hand to Hand: the difference is written into the weapon skill's modifier when the swing winds up and taken back out when it follows through, so the roll the engine makes is the one it would make with your fists.
+
+Keeping the weapon skill up alongside it pays. While Short Blade (or Blunt Weapon) is [b]at or above[/b] your Hand to Hand, the value the engine rolls against gets [b]+10%[/b]. The bonus tapers off as the weapon skill falls behind, and is gone once it is [b]10 points[/b] below. Both numbers are settings.
+
+[size=4][b]Experience[/b][/size]
+
+A successful hit gives [b]70% to Hand to Hand and 30% to the weapon skill[/b] the engine thinks you used. The split is a setting.
+
+[size=4][b]Fatigue damage[/b][/size]
+
+Every hit also costs the target fatigue, using the engine's own unarmed formula ([font=Courier New]MWMechanics::getHandToHandDamage[/font]):
+
+[code]hand to hand skill * (fMinHandToHandMult + (fMaxHandToHandMult - fMinHandToHandMult) * swing strength)[/code]
+
+scaled by 10% for a katar or 50% for knuckledusters. If you have the launcher's [b]strength influences hand to hand[/b] option on (Advanced -> Combat), set this mod's copy of it to match - nothing can read the real one from a script, so the mod has to be told.
+
+This works for NPCs swinging these weapons as well as for you.
+
+[size=4][b]The off-hand weapon[/b][/size]
+
+A second copy of the weapon is put in your left hand while the weapon is drawn, hanging off a [font=Courier New]Weapon Bone.L[/font] bone that this mod's skeleton meshes add - the mirror of the engine's own weapon bone. See [i]Compatibility[/i] below, and turn it off in the settings if it gets in the way.
+
+[size=4][b]The draw sound[/b][/size]
+
+Drawing a short blade or a blunt weapon plays a sound. Bare hands do not, and neither do these.
+
+[size=5][b]Settings[/b][/size]
+
+Options -> Scripts -> Katars and Knuckledusters.
+
+[list]
+[*][b]Strength influences hand to hand[/b] (default off) - must match the launcher option of the same name.
+[*][b]Hand to Hand experience share[/b] (0.7) - the rest goes to the weapon skill.
+[*][b]Weapon skill bonus[/b] (0.1) - +10% while the weapon skill keeps up.
+[*][b]Weapon skill bonus falloff[/b] (10) - points below Hand to Hand at which that bonus is gone.
+[*][b]Show the off-hand weapon[/b] (on).
+[*][b]Silence the draw and sheathe sound[/b] (on).
+[/list]
+
+These are shared by every actor, so they live in the save rather than in your settings file.
+
+[size=5][b]Compatibility[/b][/size]
+
+[b]Skeletons.[/b] [font=Courier New]meshes/base_anim*.nif[/font] are shipped here, patched to add one bone. Anything else that replaces them - another skeleton replacer, a body mod - will conflict, and whichever loads last wins. If this mod loses, the off-hand weapon quietly does not appear and everything else still works. To have both, patch the other mod's skeletons instead:
+
+[code]python3 Sources/Tools/patch_skeleton.py <that mod>/meshes -o <that mod>/meshes[/code]
+
+It needs [url=https://github.com/Greatness7/io_scene_mw]Greatness7's io_scene_mw[/url] Blender add-on installed, for the NIF library inside it, and it is safe to run twice.
+
+[b]One-handed attacks.[/b] The katar moveset and ReAnimation's own one-handed set both live on the [font=Courier New]weapononehand[/font] animation group, and only one may be active at a time. This mod stands ReAnimation's down while a katar or knuckleduster is in hand, through [font=Courier New]I.ReAnimation.addOverrideCondition[/font]. Any other mod adding a moveset to that group needs to do the same.
+
+[b]Textures.[/b] All vanilla (Morrowind.bsa and Tribunal.bsa). Nothing is overwritten, so retexture packs carry straight over.
+
+[size=5][b]Credits[/b][/size]
+
+[list]
+[*]Meshes, animations and scripts: Max Yari
+[*]Textures: Bethesda (Morrowind, Tribunal)
+[*]NIF library: [url=https://github.com/Greatness7/io_scene_mw]Greatness7[/url]
+[/list]

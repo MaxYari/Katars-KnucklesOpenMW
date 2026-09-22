@@ -1,0 +1,5 @@
+# Load this after ReAnimation_API.omwscripts: animations.lua talks to I.ReAnimation when it loads.
+GLOBAL: scripts/MaxYari/H2HWeapons/global.lua
+PLAYER: scripts/MaxYari/H2HWeapons/player.lua
+NPC, CREATURE, PLAYER: scripts/MaxYari/H2HWeapons/actor.lua
+PLAYER: scripts/MaxYari/H2HWeapons/animations.lua

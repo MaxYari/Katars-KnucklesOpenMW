@@ -1,0 +1,44 @@
+page_name: "Katars and Knuckledusters"
+page_description: "Hand-to-hand weapons: katars and knuckledusters, swung with the Hand to Hand skill."
+
+settings_group: "Hand-to-Hand Weapons"
+settings_group_description: |-
+  How katars and knuckledusters behave. These are shared by every actor, so they live in the save
+  rather than in your settings file.
+
+strength_influences: "Strength influences hand to hand"
+strength_influences_description: |-
+  Mirror of the launcher option of the same name (Advanced -> Combat). No script can read the real
+  one, so set this to match it, or the fatigue damage these weapons deal will not agree with a bare
+  fist.
+
+off: "Off"
+on: "On"
+onExceptWerewolves: "On, except werewolves"
+
+hand_to_hand_share: "Hand to Hand experience share"
+hand_to_hand_share_description: |-
+  How much of a successful hit's experience goes to Hand to Hand. The rest goes to the weapon skill
+  the engine thinks was used - Short Blade for katars, Blunt Weapon for knuckledusters.
+
+skill_bonus_max: "Weapon skill bonus"
+skill_bonus_max_description: |-
+  Bonus to the effective Hand to Hand value while the weapon skill is kept up with it. 0.1 is +10%.
+
+skill_bonus_falloff: "Weapon skill bonus falloff"
+skill_bonus_falloff_description: |-
+  How many points the weapon skill may fall behind Hand to Hand before the bonus is gone. Full bonus
+  at or above parity, nothing this far below.
+
+show_off_hand_weapon: "Show the off-hand weapon"
+show_off_hand_weapon_description: |-
+  Put a second copy of the weapon in the left hand. Needs this mod's skeleton meshes, which add the
+  bone it hangs off; turn this off if another mod replaces them.
+
+silence_draw_sound: "Silence the draw and sheathe sound"
+silence_draw_sound_description: |-
+  These are officially short blades and blunt weapons, so the engine plays their draw and sheathe
+  sound. Bare hands make none, and neither should these.
+
+tooltip_type: "Hand to Hand"
+tooltip_fatigue: "Fatigue Damage"
