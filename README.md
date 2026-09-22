@@ -111,6 +111,17 @@ A second copy of the weapon is put in your left hand while the weapon is drawn, 
 `Weapon Bone.L` bone that this mod's skeleton meshes add beside the engine's own weapon bone. See
 *Compatibility* below, and turn it off in the settings if it gets in the way.
 
+Animations pose the weapon bone to seat a weapon in the grip, so the off-hand one needs the same
+track or it sits wherever the skeleton's rest pose left it. This mod's own katar animations carry
+it. Any animation that does not - the engine's own chop and thrust, movement, anything from another
+animation mod - leaves the off-hand weapon at rest, which reads as it sitting low or loose in the
+hand. `Sources/Tools/mirror_weapon_track.py` adds the track to a `.kf`, and can be pointed at any
+animation folder:
+
+```
+python3 Sources/Tools/mirror_weapon_track.py <animation folder>
+```
+
 ### The draw sound
 
 Drawing a short blade or a blunt weapon plays a sound. Bare hands do not, and neither do these.
@@ -170,6 +181,8 @@ script, so a rebuild is reproducible:
   grip bar. Superseded by `tools/mw_export.py`, which is what produces the shipped meshes now; this
   one is kept because it documents the grip-bar centring the records depend on.
 - `Sources/Tools/patch_skeleton.py` - adds `Weapon Bone.L` to the vanilla skeletons.
+- `Sources/Tools/mirror_weapon_track.py` - gives `Weapon Bone.L` the same keyframe track as
+  `Weapon Bone` in a `.kf`. Run it over the animations after every export.
 - `Sources/Tools/make_plugin.py` - writes `Katar.omwaddon` from the vanilla shortsword table.
 - `Sources/Tools/add_weapon_bone_l.py` - builds the ARP controller for that bone in the Blender file.
 - `Sources/Tools/tests/run.sh` - runs the script tests against fakes for the openmw API.

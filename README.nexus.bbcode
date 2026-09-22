@@ -73,6 +73,10 @@ This works for NPCs swinging these weapons as well as for you.
 
 A second copy of the weapon is put in your left hand while the weapon is drawn, hanging off a [font=Courier New]Weapon Bone.L[/font] bone that this mod's skeleton meshes add beside the engine's own weapon bone. See [i]Compatibility[/i] below, and turn it off in the settings if it gets in the way.
 
+Animations pose the weapon bone to seat a weapon in the grip, so the off-hand one needs the same track or it sits wherever the skeleton's rest pose left it. This mod's own katar animations carry it. Any animation that does not - the engine's own chop and thrust, movement, anything from another animation mod - leaves the off-hand weapon at rest, which reads as it sitting low or loose in the hand. [font=Courier New]Sources/Tools/mirror_weapon_track.py[/font] adds the track to a [font=Courier New].kf[/font], and can be pointed at any animation folder:
+
+[code]python3 Sources/Tools/mirror_weapon_track.py <animation folder>[/code]
+
 [size=4][b]The draw sound[/b][/size]
 
 Drawing a short blade or a blunt weapon plays a sound. Bare hands do not, and neither do these.
