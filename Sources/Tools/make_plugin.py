@@ -66,7 +66,7 @@ ITEMS = [
     ("katar_steel",            "katar",   "steel",   "Steel Katar",             "steel_katar.nif",           "steel_katar.tga",   1.0, 0),
     ("katar_silver",           "katar",   "silver",  "Silver Katar",            "silver_katar.nif",          "steel_katar.tga",   1.0, SILVER_FLAG),
     ("katar_ebony",            "katar",   "ebony",   "Ebony Katar",             "ebony_katar.nif",           "steel_katar.tga",   1.0, 0),
-    ("katar_ebony_slim",       "katar",   "ebony",   "Ebony Slim Katar",        "ebony_slim_katar.nif",      "steel_katar.tga",   0.9, 0),
+    ("katar_ebony_slim",       "katar",   "ebony",   "Ebony Rose",        "ebony_slim_katar.nif",      "steel_katar.tga",   0.9, 0),
     ("katar_daedric",          "katar",   "daedric", "Daedric Katar",           "daedric_katar.nif",         "steel_katar.tga",   1.0, 0),
     ("knuckle_iron",           "knuckle", "iron",    "Iron Knuckles",           "iron_knuckle.nif",          "iron_knuckle.tga",  1.0, 0),
     ("knuckle_chitin",         "knuckle", "chitin",  "Chitin Knuckles",         "chitin_knuckle.nif",        "chitin_knuckle.tga", 1.0, 0),
@@ -75,7 +75,7 @@ ITEMS = [
     ("knuckle_daedric",        "knuckle", "daedric", "Daedric Knuckles",        "daedric_knuckle.nif",       "iron_knuckle.tga",  1.0, 0),
     ("knuckle_daedric_spiked", "knuckle", "daedric", "Daedric Spiked Knuckles", "daedric_knuckle_sharp.nif", "iron_knuckle.tga",  1.2, 0),
     ("knuckle_wood",           "knuckle", "iron",    "Wooden Knuckles",         "wooden_knuckle.nif",          "iron_knuckle.tga",  1.0, 0),
-    ("knuckle_mage",           "knuckle", "iron",    "Mage Knuckles",           "mage_knuckle.nif",          "iron_knuckle.tga",  1.0, 0),
+    ("knuckle_mage",           "knuckle", "iron",    "The Conduit",           "mage_knuckle.nif",          "iron_knuckle.tga",  1.0, 0),
 ]
 
 # The slim ebony katar trades reach and bulk for speed.
