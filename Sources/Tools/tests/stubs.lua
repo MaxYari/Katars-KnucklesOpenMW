@@ -43,6 +43,8 @@ end)
 --- state the tests poke at -------------------------------------------------------------------------
 M.state = {
     textKeys = {},        -- ["group: key"] = time
+    files = {},           -- VFS paths that exist, for vfs.fileExists
+    vfxById = {},         -- [vfxId] = { model, opts }
     groups = {},          -- [group] = true
     stance = 1,
     equipped = nil,       -- { recordId = ..., type = ... }
@@ -200,8 +202,15 @@ packages['openmw.animation'] = {
     getSpeed = function() return 1 end,
     setSpeed = function() end,
     cancel = function(_, g) st.cancelled = st.cancelled or {}; table.insert(st.cancelled, g) end,
-    addVfx = function(_, model, opts) st.vfx = { model = model, opts = opts } end,
-    removeVfx = function() st.vfx = nil end,
+    addVfx = function(_, model, opts)
+        st.vfx = { model = model, opts = opts }
+        st.vfxById = st.vfxById or {}
+        st.vfxById[(opts and opts.vfxId) or ""] = { model = model, opts = opts }
+    end,
+    removeVfx = function(_, id)
+        if st.vfx and st.vfx.opts and st.vfx.opts.vfxId == id then st.vfx = nil end
+        if st.vfxById then st.vfxById[id or ""] = nil end
+    end,
 }
 
 packages['openmw.self'] = setmetatable(
@@ -211,8 +220,11 @@ packages['openmw.self'] = setmetatable(
 
 packages['openmw.camera'] = { getMode = function() return st.cameraMode or 0 end, MODE = { FirstPerson = 0, ThirdPerson = 1 } }
 packages['openmw.nearby'] = {}
-packages['openmw.vfs'] = { fileExists = function() return false end, open = function() return nil end,
-                           pathsWithPrefix = function() return function() return nil end end }
+packages['openmw.vfs'] = {
+    fileExists = function(path) return st.files ~= nil and st.files[path] == true end,
+    open = function() return nil end,
+    pathsWithPrefix = function() return function() return nil end end,
+}
 packages['openmw.storage'] = {
     globalSection = function()
         return { asTable = function() return {} end, subscribe = function() end, get = function() end }

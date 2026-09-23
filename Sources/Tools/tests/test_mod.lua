@@ -14,7 +14,10 @@ st.weaponRecords["katar_steel"] = { type = 0, model = "meshes/steel_katar.nif" }
 st.weaponRecords["knuckle_iron"] = { type = 3, model = "meshes/iron_knuckle.nif" }
 st.weaponRecords["steel dagger"] = { type = 0, model = "meshes/w/w_dagger.nif" }
 st.weaponRecords["katar axe"] = { type = 8, model = "meshes/w/axe.nif" }  -- named like one, is not one
-st.bones = { ["Weapon Bone.L"] = true }
+st.bones = { ["Weapon Bone"] = true, ["Weapon Bone.L"] = true }
+-- The mage knuckle ships a charge effect beside its mesh; the steel katar does not.
+st.files = { ["meshes/mage_knuckle_charged.nif"] = true }
+st.weaponRecords["knuckle_mage"] = { type = 3, model = "meshes/mage_knuckle.nif" }
 st.groups = { weapononehand = true, katar = true, kataralt = true, idlekatar = true }
 st.skills = {
     handtohand = { base = 50, modifier = 0, damage = 0 },
@@ -156,6 +159,39 @@ local punch = { useType = 0, skillGain = 1.0 }
 for i = #stubs.skillUsedHandlers, 1, -1 do stubs.skillUsedHandlers[i]("handtohand", punch) end
 check(punch.skillGain == 1.0, "a hand-to-hand use is untouched", punch.skillGain)
 check(#st.skillUses == 0, "and starts nothing else", #st.skillUses)
+
+--- the charge effect ------------------------------------------------------------------------------
+-- A weapon lights up when a "<mesh>_charged.nif" sits beside its mesh, on both weapon bones.
+st.equipped = { recordId = "knuckle_mage" }
+st.vfxById = {}
+onUpdate(0.016)
+local right, left = st.vfxById["H2HWeapons_Charge_R"], st.vfxById["H2HWeapons_Charge_L"]
+check(right ~= nil and left ~= nil, "the mage knuckle lights up in both hands")
+check(right and right.model == "meshes/mage_knuckle_charged.nif", "with the charge effect beside its mesh",
+      right and right.model)
+check(right and right.opts.boneName == "Weapon Bone", "main hand on the weapon bone")
+check(left and left.opts.boneName == "Weapon Bone.L", "off hand on the mirrored one")
+check(right and right.opts.loop == true, "and it loops")
+
+st.stance = 0
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_Charge_R"] == nil, "sheathing puts it out")
+st.stance = 1
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_Charge_R"] ~= nil, "drawing lights it again")
+
+player.interface.setCharged(false)
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_Charge_R"] == nil, "and setCharged(false) puts it out")
+player.interface.setCharged(true)
+onUpdate(0.016)
+
+-- A weapon with no charge effect beside it gets none.
+st.equipped = { recordId = "katar_steel" }
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_Charge_R"] == nil, "a weapon without one stays dark")
+st.equipped = { recordId = "knuckle_mage" }
+onUpdate(0.016)
 
 --- tooltips --------------------------------------------------------------------------------------------
 -- A stand-in for the layout Inventory Extender builds for a weapon: the shape the modifier walks,

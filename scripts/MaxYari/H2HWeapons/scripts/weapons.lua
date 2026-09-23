@@ -7,6 +7,7 @@
 -- Answers are worked out once per record id and cached, because the hot paths - the per-frame
 -- off-hand mesh check, the per-hit fatigue damage - must not be asking the engine for records.
 local types = require('openmw.types')
+local vfs = require('openmw.vfs')
 
 local M = {}
 
@@ -42,6 +43,10 @@ local kindById = {}
 -- [lowercased record id] = model path. Kept separately because .model is a property backed by a
 -- C++ call, and the off-hand mesh check would otherwise make one every frame.
 local modelById = {}
+-- [lowercased record id] = charge effect model, or false. A weapon has one if a "<mesh>_charged.nif"
+-- sits beside its mesh: a particle system authored in the weapon's own local space, so hanging it
+-- on the weapon bone drops it inside the weapon with no offsets. Looked up once per weapon.
+local chargeModelById = {}
 
 local function classify(recordId)
     local record = types.Weapon.record(recordId)
@@ -83,6 +88,21 @@ function M.modelOfId(recordId)
     local id = string.lower(recordId)
     if kindById[id] == nil then M.kindOfId(recordId) end
     return modelById[id]
+end
+
+-- The charge effect that goes with a weapon's mesh, or nil if it has none.
+function M.chargeModelOfId(recordId)
+    local model = M.modelOfId(recordId)
+    if model == nil then return nil end
+    local id = string.lower(recordId)
+
+    local charge = chargeModelById[id]
+    if charge == nil then
+        charge = string.gsub(model, "%.nif$", "_charged.nif")
+        if charge == model or not vfs.fileExists(charge) then charge = false end
+        chargeModelById[id] = charge
+    end
+    return charge or nil
 end
 
 return M

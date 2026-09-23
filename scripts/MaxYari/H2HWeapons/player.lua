@@ -64,6 +64,7 @@ local EQUIPMENT_CACHE_TIME = 0.1
 local equippedInfo = nil
 local equippedKind = false
 local equippedModel = nil
+local equippedChargeModel = nil
 
 local function refreshEquipped()
     local info = I.MSS.getEquipmentInfo(CARRIED_RIGHT, EQUIPMENT_CACHE_TIME)
@@ -73,6 +74,7 @@ local function refreshEquipped()
     local changed = kind ~= equippedKind
     equippedKind = kind
     equippedModel = kind and weapons.modelOfId(info.recordId) or nil
+    equippedChargeModel = kind and weapons.chargeModelOfId(info.recordId) or nil
     return changed
 end
 
@@ -162,8 +164,9 @@ local function updateOffHandWeapon(stance)
     local mode = camera.getMode()
     if mode ~= lastCameraMode then
         lastCameraMode = mode
-        if attachedModel then
+        if attachedModel or chargeShown then
             attachedModel = nil
+            chargeShown = nil
             reattachIn = REATTACH_DELAY
         end
     end
@@ -206,6 +209,53 @@ local function updateOffHandWeapon(stance)
         useAmbientLight = false,
     })
     attachedModel = wanted
+end
+
+--- The charge effect ------------------------------------------------------------------------------
+-- A weapon that ships a "<mesh>_charged.nif" beside its mesh can light up: the file is a particle
+-- system authored in the weapon's own local space, so hanging it on the weapon bones drops it
+-- inside the weapon - inside the mage knuckle's crystal - with no offsets to work out here.
+--
+-- Both hands, because both hands are holding one. The same camera-mode dance as the off-hand
+-- weapon: a view switch rebuilds the model and takes every attached effect with it.
+--
+-- `charged` is forced on for now so the effect can be looked at in game. Once there is something to
+-- charge the weapon, that flag is what it drives - see I.H2HWeapons.setCharged.
+local CHARGE_VFX = { "H2HWeapons_Charge_R", "H2HWeapons_Charge_L" }
+local CHARGE_BONES = { "Weapon Bone", "Weapon Bone.L" }
+
+local charged = true
+local chargeShown = nil
+
+local function setChargeEffect(model)
+    for i = 1, #CHARGE_VFX do
+        animation.removeVfx(omwself, CHARGE_VFX[i])
+    end
+    chargeShown = nil
+    if not model then return end
+
+    for i = 1, #CHARGE_BONES do
+        -- The off hand's bone only exists with this mod's skeletons; the main hand's is vanilla.
+        if animation.hasBone(omwself, CHARGE_BONES[i]) then
+            animation.addVfx(omwself, model, {
+                vfxId = CHARGE_VFX[i],
+                boneName = CHARGE_BONES[i],
+                loop = true,
+                useAmbientLight = false,
+            })
+        end
+    end
+    chargeShown = model
+end
+
+local function updateChargeEffect(stance)
+    local wanted = nil
+    if charged and equippedChargeModel and stance == WEAPON_STANCE then
+        wanted = equippedChargeModel
+    end
+    if wanted == chargeShown then return end
+    if reattachIn > 0 then return end   -- the off-hand update owns the countdown
+    setChargeEffect(wanted)
 end
 
 --- Draw and sheathe sound -------------------------------------------------------------------------
@@ -391,6 +441,7 @@ local function onUpdate(dt)
     end
 
     updateOffHandWeapon(stance)
+    updateChargeEffect(stance)
     silenceDrawSounds()
 end
 
@@ -408,6 +459,9 @@ return {
         WEAPON_SKILL = weapons.WEAPON_SKILL,
         --- The kind in the player's right hand, or false.
         equippedKind = function() return equippedKind end,
+        --- Light the weapon's charge effect, if its mesh ships one. Forced on at the moment.
+        setCharged = function(value) charged = value and true or false end,
+        isCharged = function() return charged end,
     },
     engineHandlers = {
         onUpdate = onUpdate,
@@ -418,6 +472,7 @@ return {
         end,
         onLoad = function(data)
             attachedModel = nil
+            chargeShown = nil
             lastCameraMode = nil
             if data and data.swappedSkill then
                 swappedSkill = data.swappedSkill
