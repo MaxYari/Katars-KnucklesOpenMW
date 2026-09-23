@@ -75,6 +75,7 @@ ITEMS = [
     ("knuckle_daedric",        "knuckle", "daedric", "Daedric Knuckles",        "daedric_knuckle.nif",       "iron_knuckle.tga",  1.0, 0),
     ("knuckle_daedric_spiked", "knuckle", "daedric", "Daedric Spiked Knuckles", "daedric_knuckle_sharp.nif", "iron_knuckle.tga",  1.2, 0),
     ("knuckle_wood",           "knuckle", "iron",    "Wooden Knuckles",         "wooden_knuckle.nif",          "iron_knuckle.tga",  1.0, 0),
+    ("knuckle_mage",           "knuckle", "iron",    "Mage Knuckles",           "mage_knuckle.nif",          "iron_knuckle.tga",  1.0, 0),
 ]
 
 # The slim ebony katar trades reach and bulk for speed.
@@ -90,6 +91,8 @@ OVERRIDES = {
     # it is the medium, not the metal, that holds one.
     # Weight is set outright rather than through bulk, which would drag the capacity down with it.
     "knuckle_wood": {"damage_mult": 0.5, "enchant_material": "silver", "weight": 0.9, "value": 5},
+    # An iron knuckle in every stat - damage, weight, capacity, the lot. What it is worth carrying
+    # for is its enchantment, so the numbers stay ordinary and no override is needed.
 }
 
 
