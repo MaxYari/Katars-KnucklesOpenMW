@@ -443,6 +443,11 @@ packages['openmw_aux.ui'] = { deepDestroy = function() end }
 --- interfaces ---------------------------------------------------------------------------------------
 M.playHandlers = {}
 M.textKeyHandlers = {}
+M.textKeyHandlersByGroup = {}
+-- Fires a text key at the handlers registered for its group, as the engine does.
+function M.textKey(group, key)
+    for _, f in ipairs(M.textKeyHandlersByGroup[group] or {}) do f(group, key) end
+end
 M.animEndedHandlers = {}
 M.skillUsedHandlers = {}
 M.onHitHandlers = {}
@@ -450,7 +455,12 @@ M.onHitHandlers = {}
 local I = {}
 I.AnimationController = {
     addPlayBlendedAnimationHandler = function(f) table.insert(M.playHandlers, f) end,
-    addTextKeyHandler = function(_, f) table.insert(M.textKeyHandlers, f) end,
+    addTextKeyHandler = function(group, f)
+        table.insert(M.textKeyHandlers, f)
+        group = group or "" -- "" or none: every group's keys
+        M.textKeyHandlersByGroup[group] = M.textKeyHandlersByGroup[group] or {}
+        table.insert(M.textKeyHandlersByGroup[group], f)
+    end,
     addAnimationEndedHandler = function(f) table.insert(M.animEndedHandlers, f) end,
     playBlendedAnimation = function(group, options)
         for _, h in ipairs(M.playHandlers) do h(group, options) end

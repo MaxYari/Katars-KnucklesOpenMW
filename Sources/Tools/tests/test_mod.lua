@@ -108,12 +108,42 @@ check(st.vfx and st.vfx.model == "meshes/steel_katar.nif", "with the weapon's ow
 check(st.vfx and st.vfx.opts.boneName == "Weapon Bone.L", "on the off-hand bone")
 check(st.vfx and st.vfx.opts.loop == true, "and it loops, so it stays")
 
-st.stance = 0 -- sheathed
+-- The off hand goes and comes with the weapon in the right hand, which the engine hides and shows on
+-- the weapon group's detach and attach keys, partway through the animation.
+st.stance = 0 -- sheathing
 onUpdate(0.016)
-check(st.vfx == nil, "sheathing takes it away")
+check(st.vfx ~= nil, "the off hand stays while the sheathe is on its way")
+stubs.textKey("weapononehand", "unequip detach")
+onUpdate(0.016)
+check(st.vfx == nil, "and goes when the right hand's weapon does")
+st.stance = 1 -- drawing
+onUpdate(0.016)
+check(st.vfx == nil, "drawing does not show it before the right hand's")
+stubs.textKey("weapononehand", "equip attach")
+onUpdate(0.016)
+check(st.vfx ~= nil, "but together with it")
+-- A stance changed with no animation - a script, a load - is taken as it is after a moment.
+st.stance = 0
+onUpdate(0.016)
+st.time = st.time + 2
+onUpdate(0.016)
+check(st.vfx == nil, "a sheathe with no detach key still takes it away, a moment later")
 st.stance = 1
 onUpdate(0.016)
-check(st.vfx ~= nil, "drawing brings it back")
+st.time = st.time + 2
+onUpdate(0.016)
+check(st.vfx ~= nil, "and a draw with no attach key brings it back")
+-- Resting takes every effect off (Actors::rest); closing the rest screen puts the off hand back.
+st.vfxById, st.vfx = {}, nil
+player.eventHandlers.UiModeChanged({ oldMode = "Rest", newMode = nil })
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_OffHand"] ~= nil, "after resting the off hand is put back")
+st.vfxById, st.vfx = {}, nil
+player.eventHandlers.UiModeChanged({ oldMode = "Inventory", newMode = nil })
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_OffHand"] == nil, "a screen that passes no time is left alone")
+player.eventHandlers.UiModeChanged({ oldMode = "Rest", newMode = nil })
+onUpdate(0.016)
 
 -- skill swap over a swing
 local function playWeapon(startKey)
@@ -198,9 +228,11 @@ check(left and left.opts.boneName == "Weapon Bone.L", "off hand on the mirrored 
 check(right and right.opts.loop == true, "and it loops")
 
 st.stance = 0
+stubs.textKey("weapononehand", "unequip detach")
 onUpdate(0.016)
 check(st.vfxById["H2HWeapons_Charge_R"] == nil, "sheathing puts it out")
 st.stance = 1
+stubs.textKey("weapononehand", "equip attach")
 onUpdate(0.016)
 check(st.vfxById["H2HWeapons_Charge_R"] ~= nil, "drawing lights it again")
 

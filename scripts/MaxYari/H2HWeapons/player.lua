@@ -363,8 +363,16 @@ end
 -- Switching between first and third person swaps the whole model, skeleton and all, and everything
 -- attached to it goes too. So the view is watched - first person or not, which is what picks the
 -- model - and a couple of frames after it changes, once the new model exists, everything is attached
--- again from scratch. A teleport or a load starts over the same way. Otherwise something is
--- attached or taken off only when what should be there changes.
+-- again from scratch. A teleport or a load starts over the same way. So does passing time - resting,
+-- waiting, jail, travel, training - which strips every actor nearby of its effects (Actors::rest,
+-- removeEffects) and puts back only magic effects' own. Otherwise something is attached or taken off
+-- only when what should be there changes.
+--
+-- The off hand shows while the right hand does. The engine shows and hides the weapon on the weapon
+-- group's "equip attach" and "unequip detach" keys (CharacterController::handleTextKey), partway
+-- through drawing and sheathing, so those are followed here too: the stance changes the moment a
+-- sheathe starts, the weapon only when the hand gets to it. A stance changed with no such animation
+-- - a load, a script - is taken as it is once no key has come for a moment.
 local ATTACHMENTS = {
     { vfxId = "H2HWeapons_OffHand", bone = "Weapon Bone.L" },
     { vfxId = "H2HWeapons_Charge_R", bone = "Weapon Bone" },
@@ -376,6 +384,36 @@ local REATTACH_DELAY = 2
 local attached = {}       -- [attachment] = the model on it, as far as this script knows
 local firstPerson = nil   -- nil: start over on the next update
 local reattachIn = 0
+
+local WEAPON_KEY_GROUPS = { "weapononehand", "shortbladeonehand", "bluntonehand" }
+local WEAPON_KEY_WAIT = 1.5
+-- Screens that pass time, after which everything attached has been taken off (see above).
+local TIME_PASSING_MODES = { Rest = true, Jail = true, Travel = true, Training = true }
+
+local weaponShown = nil   -- whether the right hand shows the weapon; nil: take the stance's word
+local lastStance = nil
+local stanceChangedAt = 0
+
+for _, group in ipairs(WEAPON_KEY_GROUPS) do
+    I.AnimationController.addTextKeyHandler(group, function(_, key)
+        if key == "equip attach" then
+            weaponShown = true
+        elseif key == "unequip detach" then
+            weaponShown = false
+        end
+    end)
+end
+
+local function followWeaponShown(stance)
+    local inStance = stance == WEAPON_STANCE
+    local now = core.getSimulationTime()
+    if weaponShown == nil then weaponShown = inStance end
+    if stance ~= lastStance then
+        lastStance = stance
+        stanceChangedAt = now
+    end
+    if weaponShown ~= inStance and now - stanceChangedAt > WEAPON_KEY_WAIT then weaponShown = inStance end
+end
 local boneWarned = {}
 
 local function warnMissingBone(bone)
@@ -420,6 +458,7 @@ local function detachAll()
 end
 
 local function updateAttachments(stance)
+    followWeaponShown(stance)
     local isFirstPerson = camera.getMode() == FIRST_PERSON
     if isFirstPerson ~= firstPerson then
         firstPerson = isFirstPerson
@@ -431,7 +470,7 @@ local function updateAttachments(stance)
         return
     end
 
-    local drawn = equippedKind and stance == WEAPON_STANCE
+    local drawn = equippedKind and weaponShown
     local offHand = (drawn and cfg.showOffHandWeapon and equippedModel) or nil
     local glow = (drawn and isCharged() and equippedChargeModel) or nil
     attach(OFF_HAND, offHand)
@@ -798,6 +837,11 @@ return {
         H2HWeapons_BurstStaged = onBurstStaged,
         H2HWeapons_MageFuryCharged = onMageFuryCharged,
         H2HWeapons_MageFuryStrike = onMageFuryStrike,
+        -- Passing time took off everything attached; forget it, and it goes back on. An effect still
+        -- there is not added twice (Animation::addEffect keeps a looping one to one per bone).
+        UiModeChanged = function(e)
+            if e and TIME_PASSING_MODES[e.oldMode] then attached = {} end
+        end,
         -- Spell Framework Plus' report of a cast it made. Listened to, never consumed.
         MagExp_CastResult = onCastReport,
     },
@@ -819,6 +863,8 @@ return {
             -- The model is new; whatever was attached went with the old one.
             attached = {}
             firstPerson = nil
+            weaponShown = nil
+            lastStance = nil
             scalingReported = false
             fistWasOn = false
             if not data then return end

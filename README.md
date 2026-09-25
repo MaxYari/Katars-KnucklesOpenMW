@@ -15,6 +15,8 @@ ones to reach as your skill grows. A few spell merchants teach it.
 
 Developed for OpenMW. **Requires OpenMW 0.51+**.
 
+![A pair of katars in first person, at night](imgs/promo_screenshot.png)
+
 <p><a href="https://ko-fi.com/maxyari"><img src="imgs/morrowind_kofi_banner_left_half_bright124.gif" width="25.72%" align="top" alt="Support me on Ko-fi"></a><a href="https://ko-fi.com/maxyari"><img src="imgs/banner_right.png" width="73.88%" align="top" alt="Support me on Ko-fi"></a><br><a href="https://ko-fi.com/maxyari"><img src="imgs/banner_glow.png" width="99.6%" align="top" alt=""></a></p>
 
 ## ⚔ What they do
