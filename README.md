@@ -1,5 +1,7 @@
 # ⚔ Katars and Knuckledusters
 
+![Katars & Knuckles](imgs/banner.png)
+
 Hand-to-hand weapons for OpenMW. Strap a blade or a set of knuckles to your fists and fight with the
 **Hand to Hand** skill - your punches, only with some steel in them.
 
