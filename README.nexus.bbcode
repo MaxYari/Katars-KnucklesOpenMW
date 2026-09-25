@@ -1,178 +1,106 @@
-[size=6][b]Katars and Knuckledusters[/b][/size]
+[size=6][b]⚔ Katars and Knuckledusters[/b][/size]
 
-Hand-to-hand weapons for OpenMW: five katars and eight sets of knuckledusters that you fight with using the [b]Hand to Hand[/b] skill, not the weapon skill the engine files them under - two of them uniques with magic of their own.
+Hand-to-hand weapons for OpenMW. Strap a blade or a set of knuckles to your fists and fight with the [b]Hand to Hand[/b] skill - your punches, only with some steel in them.
 
-Morrowind has no hand-to-hand weapon type. A katar has to be a short blade and knuckledusters have to be a blunt weapon, or the engine will not let you hold them. So each of the things that follows from that is put back by a script: the skill the hit chance is rolled against, where the experience goes, the fatigue damage a punch would do, the second weapon in your off hand, and the sword-drawing sound your fists should not make.
+[b]13 weapons[/b]: 5 katars and 8 sets of knuckledusters, in wood, chitin, iron, steel, silver, orcish, ebony and daedric. [b]3 of them are rare[/b], with a trick of their own each - finding them and working out what they do is up to you. The rest turn up the way ordinary weapons do: in merchants' stock, on NPCs and in chests.
 
-[size=5][b]Requirements[/b][/size]
+For conjurers there is [b]Bound Fist[/b], a new conjuration spell that binds a daedric hand-to-hand weapon to your fists. Which weapon you get depends on your Conjuration - there are visually different ones to reach as your skill grows. A few spell merchants teach it.
 
-[list]
-[*][b]OpenMW 0.51 or newer.[/b] The uniques' magic is made of custom magic effects, which need 0.51's load-time scripting ([font=Courier New]openmw.content[/font]).
-[*][b][url=https://www.nexusmods.com/morrowind/mods/52596]ReAnimation[/url] 3.2 or newer[/b] - required. The katar moveset is registered through it.
-[*][b][url=https://www.nexusmods.com/morrowind/mods/60256]Max Yari's Script Services (MSS)[/url][/b] - required. ReAnimation needs it too.
-[*][b][url=https://www.nexusmods.com/morrowind/mods/59205]Inventory Extender[/url][/b] - optional. Adds the hand-to-hand type and the fatigue damage to item tooltips.
-[/list]
+Developed for OpenMW. [b]Requires OpenMW 0.51+[/b].
 
-In the OpenMW launcher, under Settings -> Visuals -> Animations, [b]Use Additional Animation Sources[/b] must be on. ReAnimation needs it as well.
+[url=https://ko-fi.com/maxyari][img]https://raw.githubusercontent.com/MaxYari/Katars-KnucklesOpenMW/main/imgs/morrowind_kofi_banner_left_half_bright124.gif[/img][/url][url=https://ko-fi.com/maxyari][img]https://raw.githubusercontent.com/MaxYari/Katars-KnucklesOpenMW/main/imgs/nexus/banner_right.png[/img][/url]
+[url=https://ko-fi.com/maxyari][img]https://raw.githubusercontent.com/MaxYari/Katars-KnucklesOpenMW/main/imgs/nexus/banner_glow.png[/img][/url]
 
-[size=5][b]Install[/b][/size]
-
-Add the mod folder as a data directory, then enable, in this order:
-
-[code]content=ReAnimation_API.omwscripts
-content=ReAnimation_v3.omwscripts
-content=Katar.omwaddon
-content=H2HWeapons.omwscripts
-content=H2HWeapons_SpellTraders.omwscripts[/code]
-
-[font=Courier New]H2HWeapons_SpellTraders.omwscripts[/font] is optional: it is what gets merchants selling Bound Fist. Leave it out and nobody does.
-
-[font=Courier New]H2HWeapons.omwscripts[/font] has to come after [font=Courier New]ReAnimation_API.omwscripts[/font]: it talks to ReAnimation's interface as it loads.
-
-[size=5][b]What the weapons do[/b][/size]
-
-Both trade health damage for fatigue damage against the shortsword they are cut from.
-
-[b]Katars[/b] are short blades. They hit for 80% of the vanilla shortsword of their material, and take half the fatigue a bare fist would.
-
-[b]Knuckledusters[/b] are blunt weapons. They hit for 50% of that shortsword, and take three quarters of the fatigue - they are made for bruising.
+[size=5][b]⚔ What they do[/b][/size]
 
 [list]
-[*][b]Damage:[/b] katars 80% of that shortsword, knuckledusters 50%.
-[*][b]Fatigue damage:[/b] katars 50% of a bare-fisted hit, knuckledusters 75%.
-[*][b]Engine weapon type:[/b] katars Short Blade, knuckledusters Blunt Weapon. Both one handed.
-[*][b]Skill you actually use:[/b] Hand to Hand, for both.
+[*]The game files katars under Short Blade and knuckledusters under Blunt Weapon, but you fight with both using [b]Hand to Hand[/b]: it decides whether you hit, and it gets most of the experience. Keeping the weapon skill up is worth a small bonus.
+[*]Every hit also bruises like a punch, wearing the target's fatigue down until they drop - and once they are down, it hurts. Katars cut harder, knuckledusters bruise harder.
+[*]A second copy of the weapon goes in your off hand, and they move and fight with ReAnimation's hand-to-hand animations.
 [/list]
 
-Thirteen weapons, in wood, iron, chitin, steel, silver, orcish, ebony and daedric. Their stats are derived from the vanilla shortswords rather than picked by hand - see [font=Courier New]Sources/Tools/make_plugin.py[/font], which is what writes [font=Courier New]Katar.omwaddon[/font].
+[b]Spoiler: what they all look like[/b]
+[spoiler]
 
-Weight and enchantment capacity are both measured against the [b]dagger[/b] of the same material rather than the shortsword, at different shares.
+If you would rather spoil the fun and see every katar and knuckleduster before you find them, here they are:
 
-[b]Weight[/b] is what a swing costs you. The engine charges the attacker [font=Courier New]fFatigueAttackBase (2.0) + weight × swing strength × fWeaponFatigueMult (0.25)[/font], and bare fists pay only the flat 2.0, having no weapon at all - so weight is tuned against that floor rather than against the blade these are cut from. A knuckleduster is [b]half a dagger[/b] and a katar [b]nine tenths of one[/b], which puts a full-strength swing 19% and 34% over a fist's cost at the iron/steel tier (a steel dagger is 38%).
+[img]https://raw.githubusercontent.com/MaxYari/Katars-KnucklesOpenMW/main/imgs/all_katars.png[/img]
 
-[b]Capacity[/b] is a different question - how much weapon there is to enchant - and there a katar is two thirds of a dagger and a knuckleduster a third. The engine has no formula for capacity at all, it reads the number off the record; but within any one vanilla weapon line it is a fixed multiple of the weight, with the material carrying the weight (daggers run at 6.67 points per unit, shortswords at 5.0, right across iron through daedric), and these follow that.
+[/spoiler]
 
-[size=4][b]Hit chance[/b][/size]
+[size=5][b]⚔ How to install[/b][/size]
 
-The engine rolls a melee hit against whatever skill the weapon says it uses. For the length of every swing, that skill [i]is[/i] your Hand to Hand: the difference is written into the weapon skill's modifier when the swing winds up and taken back out when it follows through, so the roll the engine makes is the one it would make with your fists.
+[b]Requires OpenMW 0.51+[/b]
 
-Keeping the weapon skill up alongside it pays, and the bonus is a share of [b]that[/b] skill, so letting it rot costs you twice over - a smaller share of a smaller number. While Short Blade (or Blunt Weapon) is within [b]10 points[/b] of your Hand to Hand, or ahead of it, you get [b]15% of the weapon skill[/b] on top. Past that it tapers over the next 20 points down to [b]5%[/b] - a floor, not a cutoff. The result is rounded down to whole skill points, so the number the tooltip shows is exactly the one a swing applies. Every number there is a setting.
+[list=1]
+[*]Install the dependencies: [url=https://www.nexusmods.com/morrowind/mods/52596]ReAnimation[/url] (3.2 or
+[/list]
 
-[size=4][b]Experience[/b][/size]
+newer) and [url=https://www.nexusmods.com/morrowind/mods/60256]Max Yari's Script Services (MSS)[/url].
 
-A successful hit gives [b]70% to Hand to Hand and 30% to the weapon skill[/b] the engine thinks you used. The split is a setting.
+[list=1]
+[*]Install this mod [b]with a mod organiser[/b]: download the archive and drag and drop it into your mod
+[/list]
 
-[size=4][b]Fatigue damage[/b][/size]
+organiser of choice (e.g [url=https://github.com/ModOrganizer2/modorganizer/releases]Mod Organizer 2[/url] on Windows or [url=https://github.com/grazelandsnomad/nerevarine_organizer/releases/tag/v0.70]Nerevarine Organizer[/url] on Linux). [b]Or[/b]: [url=https://modding-openmw.com/tips/installing-mods/]read this tutorial[/url] on how to install mods using the launcher or completely manually (it's also very easy).
 
-Every hit also costs the target fatigue, using the engine's own unarmed formula ([font=Courier New]MWMechanics::getHandToHandDamage[/font]):
+[list=1]
+[*]Enable these in the "Content Files" tab of the OpenMW launcher, after ReAnimation:
+[list]
+[*][font=Courier New]Katar.omwaddon[/font]
+[*][font=Courier New]H2HWeapons.omwscripts[/font]
+[*][font=Courier New]H2HWeapons_SpellTraders.omwscripts[/font] - optional, it is what lets spell merchants teach Bound Fist.
+[/list]
+[*]OpenMW Launcher -> Settings -> Visuals -> Animations: "Use Additional Animation Sources" must be
+[/list]
 
-[code]hand to hand skill * (fMinHandToHandMult + (fMaxHandToHandMult - fMinHandToHandMult) * swing strength)[/code]
+enabled.
 
-scaled by 50% for a katar or 75% for knuckledusters. If you have the launcher's [b]strength influences hand to hand[/b] option on (Advanced -> Combat), set this mod's copy of it to match - nothing can read the real one from a script, so the mod has to be told.
+[list=1]
+[*]The weapons are added to the game's loot and merchant lists. If you use other mods that add to
+[/list]
 
-It behaves as a fist's does in every other way too. Fatigue driven below zero knocks the target out, and once they are down - knocked down, knocked out or paralysed - the bruising lands on their health instead, at a tenth of its value ([font=Courier New]fHandtoHandHealthPer[/font]), on top of the weapon's own damage.
-
-This works for NPCs swinging these weapons as well as for you.
-
-[size=4][b]The off-hand weapon[/b][/size]
-
-A second copy of the weapon is put in your left hand while the weapon is drawn, hanging off a [font=Courier New]Weapon Bone.L[/font] bone that this mod's skeleton meshes add beside the engine's own weapon bone. See [i]Compatibility[/i] below, and turn it off in the settings if it gets in the way.
-
-Animations pose the weapon bone to seat a weapon in the grip, so the off-hand one needs the same track or it sits wherever the skeleton's rest pose left it. This mod's own animations carry it. Any animation that does not - anything from another animation mod - leaves the off-hand weapon at rest, which reads as it sitting low or loose in the hand. [font=Courier New]Sources/Tools/mirror_weapon_track.py[/font] adds the track to a [font=Courier New].kf[/font], and can be pointed at any animation folder:
-
-[code]python3 Sources/Tools/mirror_weapon_track.py <animation folder>[/code]
-
-[size=4][b]The draw sound[/b][/size]
-
-Drawing a short blade or a blunt weapon plays a sound. Bare hands do not, and neither do these.
-
-[size=5][b]The uniques[/b][/size]
-
-Both are enchanted with magic effects of this mod's own, so their tooltips and your active effects name and explain what they do. The engine carries those effects the way it carries any other - duration, visuals, the area burst, the hostile reaction and the crime it can be - and the scripts add only what the engine keys to its built-in effects and so cannot give a new one.
-
-[b]Ebony Rose[/b] ([font=Courier New]katar_ebony_rose[/font]) - a slim ebony katar, quicker and lighter than the guarded one.
+those lists too, merge your lists once your load order is set, as you would for any such mods:
 
 [list]
-[*]Every strike leaves [b]Volatile Venom[/b]: 3 points a second for 10 seconds, in violet.
-[*][b]3 strikes on enemies it has already poisoned within 8 seconds[/b] ready a burst. The next strike, within 5 seconds, bursts: [b]20 points of venom on everyone within 10 feet[/b] of whoever it hits. Never on you - the engine never applies an area spell to its caster.
-[*]The burst is a real area enchantment, so everything an area spell does, it does: the explosion, hostility and crime for whoever it catches. An item cannot change its enchantment, so for that one swing you hold a copy of the katar carrying the burst, and the original goes back into your hand - with the swing's charge and wear - as soon as it follows through. It never leaves your inventory, so hotkeys keep working.
-[*]The venom's damage is dealt by script, since the engine only deals damage for its own effects. It honours [b]Resist Poison[/b] and [b]Weakness to Poison[/b]; [b]Cure Poison[/b] does not wash it out. A killing blow is handed to the engine as a Damage Health cast by whoever poisoned the victim, so the kill is theirs by the engine's own rules - murder included, when it is one.
+[*]Windows: [url=https://github.com/NullCascade/TES3Merge]TES3Merge[/url] or [url=https://gitlab.com/bmwinger/delta-plugin]DeltaPlugin[/url]
+[*]Linux: [url=https://gitlab.com/bmwinger/delta-plugin]DeltaPlugin[/url]
+[/list]
+[list=1]
+[*]If you have the launcher's "Strength influences hand to hand" option on (Settings -> Gameplay),
 [/list]
 
-[b]Mage Fury[/b] ([font=Courier New]knuckle_mage_fury[/font]) - iron knuckledusters with a crystal set in them.
+set the mod's copy of it to match: Options -> Scripts -> Katars and Knuckledusters. The rest of the mod's settings are there too.
+
+Optional:
 
 [list]
-[*][b]Cast a harmful spell successfully with them equipped[/b] and they take a charge of it: the crystal lights up, and "Channeled Spell" shows in your active effects with the strikes left.
-[*]Each of the [b]next 3 strikes[/b] carries [b]a third of that spell's harmful effects[/b] - its magnitude, or its duration for an effect that has none - into whoever it hits. Applied by the engine, so resistances, reflection and kill credit are the spell's own.
-[*]The charge fades [b]30 seconds[/b] after the cast or the last strike.
+[*][url=https://www.nexusmods.com/morrowind/mods/59205]Inventory Extender[/url] - shows the Hand to Hand type and the fatigue damage in weapon tooltips.
+[*][url=https://www.nexusmods.com/morrowind/mods/58693]Unofficial Tamriel Rebuilt Spells[/url] - Bound Fist then grows stronger with your Conjuration, following that mod's bound item settings (turn on its "Scale bound items").
+[*][b]PBR[/b]: the weapons come with PBR maps (normal and specular), so metal and crystal catch the light properly under [url=https://github.com/wareya/OpenMW-PBR/tree/0.51]Wareya's PBR shaders[/url] - a small replacement for OpenMW's own lighting shaders. Recommended together with [url=https://www.nexusmods.com/morrowind/mods/52114]Aesthetically Shiny Things[/url], which gives the rest of the game the same treatment. None of it is required: without them the weapons look fine with OpenMW's default shaders.
 [/list]
 
-To get them:
+Have fun!
 
-[code]player->additem katar_ebony_rose 1
-player->additem knuckle_mage_fury 1[/code]
-
-[size=5][b]Bound Fist[/b][/size]
-
-A conjuration spell. For 60 seconds it binds a daedric hand-to-hand weapon to your fists, and which one depends on your [b]Conjuration[/b] when you cast it:
-
-[code]| Conjuration | Weapon |
-| --- | --- |
-| under 40 | Bound Knuckles (daedric knuckledusters) |
-| 40 - 64 | Bound Spiked Knuckles |
-| 65 and up | Bound Katar |[/code]
-
-It works like any bound weapon: the weapon goes into your hand and is drawn, and when the spell ends it returns to Oblivion and whatever you held before is back in hand. NPCs who know it cast it too.
-
-[b]Scaling[/b] follows [url=https://www.nexusmods.com/morrowind/mods/58693]Unofficial Tamriel Rebuilt Spells[/url]' bound item settings, so a bound fist scales exactly as that mod's bound weapons do - damage and weight with Conjuration, in 5-point steps. This mod has no settings of its own for it; its settings page shows what it found. Without that mod, its defaults are used and scaling is on: 50% of the weapon's damage at Conjuration 0, 0.7% more per point (85% at 50, 120% at 100).
-
-[b]Where to buy it:[/b] half of the spell merchants who sell Bound Dagger or Bound Mace, about one per town - in Vvardenfell, Masalinie Merian (Balmora, Guild of Mages), Heem-La (Ald-ruhn, Guild of Mages), Diren Vendu (Tel Mora) and Urtiso Faryon (Sadrith Mora); with Tamriel Rebuilt, seventeen more, mostly Temple and Imperial Cult priests and Mages Guild conjurers. The full list, and the one place to change it, is [font=Courier New]scripts/MaxYari/H2HWeapons/traders/list.lua[/font]. Merchants learn it as they come into the world, so their NPC records are never overridden and nothing conflicts with mods that edit them.
-
-[code]player->addspell h2h_bound_fist[/code]
-
-[size=5][b]Settings[/b][/size]
-
-Options -> Scripts -> Katars and Knuckledusters.
+[size=5][b]⚔ Mod compatibility[/b][/size]
 
 [list]
-[*][b]Strength influences hand to hand[/b] (default off) - must match the launcher option of the same name.
-[*][b]Hand to Hand experience share[/b] (0.7) - the rest goes to the weapon skill.
-[*][b]Weapon skill bonus[/b] (0.15) - share of the weapon skill added while it keeps up.
-[*][b]Weapon skill bonus floor[/b] (0.05) - the share a neglected weapon skill is still worth.
-[*][b]Weapon skill bonus grace[/b] (10) - points it may fall behind before the share starts tapering.
-[*][b]Weapon skill bonus falloff[/b] (20) - points past the grace over which it reaches the floor.
-[*][b]Show the off-hand weapon[/b] (on).
-[*][b]Silence the draw and sheathe sound[/b] (on).
+[*][b]Skeleton and body replacers[/b]: compatible - no skeleton is replaced.
+[*][b]Tamriel Rebuilt[/b]: its spell merchants teach Bound Fist too.
+[*][b][url=https://www.nexusmods.com/morrowind/mods/58653]Oblivion-Style Spell Casting[/url][/b]: supported.
+[*][b]Retextures[/b]: vanilla textures are used as they are, so retexture packs carry over.
+[*][b]Other animation mods[/b]: fine, unless they also replace ReAnimation's one-handed attacks while a katar or knuckleduster is in hand.
 [/list]
 
-These are shared by every actor, so they live in the save rather than in your settings file.
-
-[size=5][b]Compatibility[/b][/size]
-
-[b]Skeletons.[/b] The off-hand weapon hangs off a [font=Courier New]Weapon Bone.L[/font] that vanilla skeletons do not have. This mod adds it the way that cannot conflict: a small file per skeleton, [font=Courier New]Animations/<skeleton>/h2h_weapon_bone_l.nif[/font], whose bone OpenMW grafts onto that skeleton when it loads it (it takes any node marked [font=Courier New]BONE[/font] from the [font=Courier New].nif[/font] files in [font=Courier New]animations/<skeleton name>/[/font]; "use additional animation sources" has to be on, which ReAnimation needs anyway). The skeleton name is the file actually loaded, which is the [font=Courier New]x[/font] twin ([font=Courier New]xbase_anim.nif[/font]) whenever an [font=Courier New]x…kf[/font] exists, so there is a folder for both names of every rig. Which skeleton the engine loads depends on the view and the race ([font=Courier New]MWRender::getActorSkeleton[/font]): third person is [font=Courier New]base_anim.nif[/font], [font=Courier New]base_anim_female.nif[/font] or [font=Courier New]base_animkna.nif[/font]; first person is [b][font=Courier New]xbase_anim.1st.nif[/font][/b] for a male human, [font=Courier New]base_anim_female.1st.nif[/font] or [font=Courier New]base_animkna.1st.nif[/font] otherwise. Note that first-person male one - [font=Courier New]base_anim.1st.nif[/font] is never loaded as a skeleton at all, despite the name.
-
-No skeleton is replaced, so skeleton and body replacers do not conflict with this: the bone is grafted onto whatever skeleton they provide, as long as it keeps vanilla's bone names.
-
-A replacer that loads a skeleton under a new file name gets no bone, since there is no folder of that name here; the off-hand weapon then quietly does not appear, and everything else still works. Give it one with:
-
-[code]python3 Sources/Tools/patch_skeleton.py <its skeleton .nif> --bones-out Animations[/code]
-
-It needs [url=https://github.com/Greatness7/io_scene_mw]Greatness7's io_scene_mw[/url] Blender add-on installed, for the NIF library inside it, and it is safe to run twice.
-
-[b]The moveset.[/b] Katars and knuckledusters move and fight with ReAnimation's own hand-to-hand animations - idle, walk, run, sneak, jump, draw and sheathe, and every punch with its mirrored variant - imported under the katar's names by [font=Courier New]Sources/Tools/import_h2h_set.py[/font], with the weapon bones seated for the grip on the way. They keep the fist's timing: the engine's one-handed attack underneath is re-timed to them, not the other way round, so a hit still lands on the frame it should. That is also why these weapons have such low speeds - 0.8 for katars, 1.0 for knuckledusters: the fist's animations are quick to begin with, and at 1.0 about as quick as a sword's at 2.0.
-
-[b]One-handed attacks.[/b] The katar moveset and ReAnimation's own one-handed set both live on the [font=Courier New]weapononehand[/font] animation group, and only one may be active at a time. This mod's set is registered with [font=Courier New]overridePriority = 1[/font], one above ReAnimation's, so ReAnimation's stands down while a katar or knuckleduster is in hand. Any other mod adding a moveset to that group does the same.
-
-[b]Loot and merchants.[/b] The weapons are added to vanilla's own levelled lists, each wherever the vanilla weapon it stands in for is - its material's shortsword, or the chitin club for wood - at the same level: the [font=Courier New]random_<material>_weapon[/font] lists that chests and crates draw on, and the [font=Courier New]l_n_wpn_melee_*[/font] lists that merchants' stock and NPCs' weapons come from. The uniques and the bound weapons are in no list. A plugin can only replace a levelled list, not add to it, so a mod loaded later that edits one of the same lists wins it; with such a mod, run a merged-lists tool ([url=https://gitlab.com/bmwinger/delta-plugin]DeltaPlugin[/url], OMWLLF) as you would for any mod that adds loot. Tamriel Data, Tamriel Rebuilt and OAAB leave these lists alone. Tamriel Rebuilt's own merchants and containers use lists of their own, so there these turn up only where vanilla lists are used.
-
-[b]Spellcasting mods.[/b] Bound Fist and Mage Fury notice a cast however it is made: the engine's own, or one made by [url=https://www.nexusmods.com/morrowind/mods/58652]Spell Framework Plus[/url] - which is how Oblivion-Style Spell Casting casts, for the player and for NPCs - from the report it sends the caster. Anything else still binds the player's Bound Fist, from the effect itself, within half a second.
-
-[b]Textures.[/b] Vanilla ones (Morrowind.bsa and Tribunal.bsa) are used as they are and nothing is overwritten, so retexture packs carry straight over. Textures baked for this mod live under [font=Courier New]textures/katars/[/font], and the venom's violet recolours of the vanilla poison effects under [font=Courier New]textures/katars_vfx/[/font] - their own files, so the ordinary poison is untouched.
-
-[size=5][b]Credits[/b][/size]
+[size=5][b]⚔ Credits[/b][/size]
 
 [list]
 [*]Meshes, animations and scripts: Max Yari
-[*]Textures: Bethesda (Morrowind, Tribunal); the venom's are recoloured from their poison effects
+[*]Textures: Bethesda (Morrowind, Tribunal)
 [*]NIF library: [url=https://github.com/Greatness7/io_scene_mw]Greatness7[/url]
+[*][url=https://skfb.ly/oWDnS]"Rose"[/url] by Lisa3Dart - Hespera_3d is licensed under [url=http://creativecommons.org/licenses/by/4.0/]Creative Commons Attribution[/url].
 [/list]
+
+[size=5][b]⚔ For modders[/b][/size]
+
+The mod exposes a small interface, [font=Courier New]I.H2HWeapons[/font], for asking what kind of hand-to-hand weapon an item is. How everything works - and how to build the plugin, meshes and animations from source - is written up in the [url=https://github.com/MaxYari/Katars-KnucklesOpenMW/blob/main/Sources/DEVELOPMENT.md]technical notes[/url] in the git repository.
