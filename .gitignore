@@ -13,3 +13,5 @@ __pycache__/
 # textures/ that is tracked, so put new ones there (or add another exception below).
 /textures/*
 !/textures/katars/
+# The venom's recoloured poison effects (Sources/Tools/venom_fx.py), kept apart from the weapon bake.
+!/textures/katars_vfx/

@@ -1,4 +1,6 @@
 # Load this after ReAnimation_API.omwscripts: animations.lua talks to I.ReAnimation when it loads.
+# content.lua runs once at game start and makes the records the two uniques' magic uses.
+LOAD: scripts/MaxYari/H2HWeapons/content.lua
 GLOBAL: scripts/MaxYari/H2HWeapons/global.lua
 PLAYER: scripts/MaxYari/H2HWeapons/player.lua
 NPC, CREATURE, PLAYER: scripts/MaxYari/H2HWeapons/actor.lua

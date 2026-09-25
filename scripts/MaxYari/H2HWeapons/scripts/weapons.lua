@@ -6,8 +6,13 @@
 --
 -- Answers are worked out once per record id and cached, because the hot paths - the per-frame
 -- off-hand mesh check, the per-hit fatigue damage - must not be asking the engine for records.
+local mp = "scripts/MaxYari/H2HWeapons/"
+
+local core = require('openmw.core')
 local types = require('openmw.types')
 local vfs = require('openmw.vfs')
+
+local U = require(mp .. "scripts/uniques")
 
 local M = {}
 
@@ -31,12 +36,32 @@ M.WEAPON_SKILL = {
 }
 
 -- Matched against the record id, so another mod's katars and knuckledusters are picked up too
--- without needing to know about this one. The weapon type has to agree as well, so a two-handed
--- "Katar Axe" from somewhere is left alone.
+-- without needing to know about this one - and against the mesh's file name, which is all a
+-- generated record keeps to say what it is: one an enchanter made from a katar, or a Bound Fist
+-- scaled to its caster, has an id like "Generated:0x1a2". The weapon type has to agree as well, so a
+-- two-handed "Katar Axe" from somewhere is left alone.
 local RULES = {
     { term = "katar", kind = M.KIND.Katar, type = types.Weapon.TYPE.ShortBladeOneHand },
     { term = "knuckle", kind = M.KIND.Knuckle, type = types.Weapon.TYPE.BluntOneHand },
 }
+
+-- What the uniques' enchantments do - and, through them, what a weapon is when its id says nothing:
+-- the copy of Ebony Rose held for the one swing that bursts is a generated record with a generated
+-- id, and it has to stay a katar to the animations, the skill swap and the off hand.
+M.SPECIAL = {
+    Venom = "venom",        -- Ebony Rose: every strike poisons
+    Burst = "burst",        -- the swing that sets the venom off around its target
+    MageFury = "magefury",  -- Mage Fury: strikes deliver the spell it was charged with
+}
+local ENCHANTMENTS = {
+    [string.lower(U.VENOM_ENCHANT)] = { kind = M.KIND.Katar, special = M.SPECIAL.Venom },
+    [string.lower(U.BURST_ENCHANT)] = { kind = M.KIND.Katar, special = M.SPECIAL.Burst },
+    [string.lower(U.MAGE_FURY_ENCHANT)] = { kind = M.KIND.Knuckle, special = M.SPECIAL.MageFury },
+}
+
+local function modelFile(record)
+    return record.model and string.match(string.lower(record.model), "([^/\\]+)$") or ""
+end
 
 -- [lowercased record id] = kind, or false. One small entry per weapon ever looked at.
 local kindById = {}
@@ -47,18 +72,30 @@ local modelById = {}
 -- sits beside its mesh: a particle system authored in the weapon's own local space, so hanging it
 -- on the weapon bone drops it inside the weapon with no offsets. Looked up once per weapon.
 local chargeModelById = {}
+-- [lowercased record id] = one of M.SPECIAL, or false.
+local specialById = {}
 
 local function classify(recordId)
     local record = types.Weapon.record(recordId)
     if record == nil then return false end
 
     local id = string.lower(recordId)
+    local enchantment = record.enchant and ENCHANTMENTS[string.lower(record.enchant)]
+    specialById[id] = enchantment and enchantment.special or false
+
+    local file = modelFile(record)
     for i = 1, #RULES do
         local rule = RULES[i]
-        if record.type == rule.type and string.find(id, rule.term, 1, true) then
+        if record.type == rule.type
+            and (string.find(id, rule.term, 1, true) or string.find(file, rule.term, 1, true)) then
             modelById[id] = record.model
             return rule.kind
         end
+    end
+    local kind = enchantment and enchantment.kind
+    if kind then
+        modelById[id] = record.model
+        return kind
     end
     return false
 end
@@ -88,6 +125,33 @@ function M.modelOfId(recordId)
     local id = string.lower(recordId)
     if kindById[id] == nil then M.kindOfId(recordId) end
     return modelById[id]
+end
+
+-- Which of the uniques' tricks a weapon carries (one of M.SPECIAL), or false.
+function M.specialOfId(recordId)
+    if recordId == nil then return false end
+    local id = string.lower(recordId)
+    if kindById[id] == nil then M.kindOfId(recordId) end
+    return specialById[id] or false
+end
+
+-- The same, for an item object.
+function M.specialOfItem(item)
+    if item == nil then return false end
+    if not types.Weapon.objectIsInstance(item) then return false end
+    return M.specialOfId(item.recordId)
+end
+
+-- Whether a magic effect exists. This mod's own are made at load (content.lua); should that fail, the
+-- engine throws on every read of one, so whatever reads them asks this first. Once per id.
+local effectKnown = {}
+function M.effectExists(id)
+    local known = effectKnown[id]
+    if known == nil then
+        known = core.magic.effects.records[id] ~= nil
+        effectKnown[id] = known
+    end
+    return known
 end
 
 -- The charge effect that goes with a weapon's mesh, or nil if it has none.

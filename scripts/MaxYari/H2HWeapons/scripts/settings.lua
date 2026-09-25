@@ -12,9 +12,10 @@ local M = {}
 
 M.GLOBAL_GROUP = GLOBAL_GROUP
 
--- The launcher's "strength influences hand to hand" (Advanced -> Combat), which no Lua API exposes.
--- The setting is stored as a string, because the "select" renderer takes the value itself as the
--- label's l10n key; these are the engine's own 0/1/2 behind it.
+-- A mirror of the launcher's "strength influences hand to hand" (Advanced -> Combat), which no Lua
+-- API exposes - only difficulty is (corebindings.cpp) - so the player sets this to match it. The
+-- setting is stored as a string, because the "select" renderer takes the value itself as the label's
+-- l10n key; these are the engine's own 0/1/2 behind it, in the launcher's order.
 local STRENGTH_VALUES = { off = 0, on = 1, onExceptWerewolves = 2 }
 
 -- Defaults, also used as the registered defaults in global.lua. Keep the two in step.

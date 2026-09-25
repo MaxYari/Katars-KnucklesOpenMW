@@ -82,4 +82,33 @@ function M.effectiveSkill(handToHand, weaponSkill, cfg)
     return handToHand + M.skillBonus(handToHand, weaponSkill, cfg)
 end
 
+--- Bound Fist ------------------------------------------------------------------------------------
+-- Which tier a caster's Conjuration earns: the first whose `below` it is under, or the last.
+function M.boundTier(conjuration, tiers)
+    for i = 1, #tiers do
+        local below = tiers[i].below
+        if below == nil or conjuration < below then return i end
+    end
+    return #tiers
+end
+
+-- Unofficial TR Spells' bound item scaling (boundRecords.lua), so the two agree to the point:
+-- Conjuration in steps, damage as a share that grows with it, weight as a share that shrinks.
+function M.boundStep(conjuration, step)
+    return math.floor(math.floor(conjuration) / step) * step
+end
+
+function M.boundDamageMult(step, values)
+    return values.BOUND_DAMAGE_BASE / 100 + values.BOUND_DAMAGE_BONUS_PER_LEVEL * step / 100
+end
+
+function M.boundEnchantMult(step, values)
+    return values.BOUND_ENCHANT_BASE / 100 + values.BOUND_ENCHANT_BONUS_PER_LEVEL * step / 100
+end
+
+function M.boundWeight(baseWeight, step, values)
+    local reduction = values.BOUND_WEIGHT_REDUCTION_PER_LEVEL * step / 100
+    return math.max(0, baseWeight * values.BOUND_WEIGHT_BASE / 100 * (1 - reduction))
+end
+
 return M

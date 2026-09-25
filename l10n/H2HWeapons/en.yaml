@@ -13,8 +13,8 @@ strength_influences_description: |-
   fist.
 
 off: "Off"
-on: "On"
-onExceptWerewolves: "On, except werewolves"
+on: "Affect Werewolves"
+onExceptWerewolves: "Do Not Affect Werewolves"
 
 hand_to_hand_share: "Hand to Hand experience share"
 hand_to_hand_share_description: |-
@@ -55,3 +55,19 @@ tooltip_fatigue: "Fatigue Damage"
 # %{skill} is Short Blade or Blunt Weapon, whichever the weapon is; %{handToHand} and %{bonus} are
 # the player's current values, filled in each time a tooltip is built.
 tooltip_explanation: "Hand-to-Hand weapon: effectiveness is determined by the Hand to Hand skill (%{handToHand}), with a minor bonus from %{skill} (%{bonus})."
+
+# The uniques. %{...} placeholders are filled from scripts/uniques.lua, so the numbers stay true.
+# The name the charge goes by in the active effects list; %{spell} is the spell it holds.
+fury_active: "Mage Fury: %{spell}"
+
+# Bound Fist's scaling: what was found at load, shown read-only on the settings page.
+status_group: "Bound Fist"
+status_group_description: |-
+  Bound Fist scales with Conjuration the way Unofficial TR Spells scales its bound weapons, from that
+  mod's own settings (Scripts -> Unofficial TR Spells -> Bound Item Behaviour). This mod has no
+  scaling settings of its own. Without Unofficial TR Spells, its defaults are used, and scaling is on.
+bound_scaling: "Bound item scaling"
+bound_scaling_description: "Where Bound Fist takes its scaling from. Changes in Unofficial TR Spells' settings apply to the next cast."
+bound_scaling_tr_on: "From Unofficial TR Spells: on"
+bound_scaling_tr_off: "From Unofficial TR Spells: off"
+bound_scaling_default: "Unofficial TR Spells not installed: defaults, on"

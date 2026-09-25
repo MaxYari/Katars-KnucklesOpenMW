@@ -15,9 +15,12 @@ st.weaponRecords["knuckle_iron"] = { type = 3, model = "meshes/iron_knuckle.nif"
 st.weaponRecords["steel dagger"] = { type = 0, model = "meshes/w/w_dagger.nif" }
 st.weaponRecords["katar axe"] = { type = 8, model = "meshes/w/axe.nif" }  -- named like one, is not one
 st.bones = { ["Weapon Bone"] = true, ["Weapon Bone.L"] = true }
--- The mage knuckle ships a charge effect beside its mesh; the steel katar does not.
-st.files = { ["meshes/mage_knuckle_charged.nif"] = true }
-st.weaponRecords["knuckle_mage"] = { type = 3, model = "meshes/mage_knuckle.nif" }
+-- Mage Fury ships a charge effect beside its mesh; the steel katar does not.
+st.files = { ["meshes/mage_fury_charged.nif"] = true }
+st.weaponRecords["knuckle_mage_fury"] = { type = 3, model = "meshes/mage_fury.nif", enchant = "h2h_magefury_en" }
+st.weaponRecords["katar_ebony_rose"] = { type = 0, model = "meshes/ebony_rose.nif", enchant = "h2h_ebonyrose_en" }
+-- The copy of Ebony Rose made for a burst: a generated record, found by its enchantment alone.
+st.weaponRecords["generated:0x99"] = { type = 0, model = "meshes/ebony_rose.nif", enchant = "h2h_ebonyrose_burst_en" }
 st.groups = { weapononehand = true, katar = true, kataralt = true, idlekatar = true }
 st.skills = {
     handtohand = { base = 50, modifier = 0, damage = 0 },
@@ -38,6 +41,19 @@ check(weapons.FATIGUE_FACTOR.katar == 0.50, "katar fatigue factor")
 check(weapons.FATIGUE_FACTOR.knuckle == 0.75, "knuckle fatigue factor")
 check(weapons.WEAPON_SKILL.katar == "shortblade", "katars use short blade")
 check(weapons.WEAPON_SKILL.knuckle == "bluntweapon", "knuckles use blunt weapon")
+check(weapons.specialOfId("katar_ebony_rose") == "venom", "Ebony Rose poisons", weapons.specialOfId("katar_ebony_rose"))
+check(weapons.specialOfId("knuckle_mage_fury") == "magefury", "Mage Fury channels spells")
+check(weapons.specialOfId("katar_steel") == false, "an ordinary katar has no trick")
+check(weapons.kindOfId("Generated:0x99") == "katar", "the burst copy is a katar though its id says nothing")
+check(weapons.specialOfId("Generated:0x99") == "burst", "and it is the one that bursts")
+check(weapons.modelOfId("Generated:0x99") == "meshes/ebony_rose.nif", "with Ebony Rose's mesh")
+-- A katar someone had enchanted is a new, generated record, and its id says nothing; its mesh does.
+st.weaponRecords["generated:0x31"] = { type = 0, model = "Meshes\\steel_katar.nif", enchant = "some_fire_en" }
+check(weapons.kindOfId("Generated:0x31") == "katar", "an enchanter's copy of a katar is still a katar")
+st.weaponRecords["generated:0x32"] = { type = 3, model = "meshes/iron_knuckle.nif" }
+check(weapons.kindOfId("Generated:0x32") == "knuckle", "and of knuckledusters, knuckledusters")
+st.weaponRecords["generated:0x33"] = { type = 0, model = "meshes/w/w_dagger_iron.nif" }
+check(weapons.kindOfId("Generated:0x33") == false, "an enchanted dagger is still a dagger")
 
 --- formulas.lua --------------------------------------------------------------------------------------
 local formulas = require("scripts.MaxYari.H2HWeapons.scripts.formulas")
@@ -81,8 +97,12 @@ st.equipped = { recordId = "katar_steel" }
 stubs.enableInventoryExtender()
 local player = require("scripts.MaxYari.H2HWeapons.player")
 local onUpdate = player.engineHandlers.onUpdate
+-- The first update, like a view switch, waits a couple of frames for the model before attaching.
+local function settle() for _ = 1, 3 do onUpdate(0.016) end end
 
 onUpdate(0.016)
+check(st.vfx == nil, "nothing is attached before the model has settled")
+settle()
 check(st.vfx ~= nil, "the off-hand weapon is attached")
 check(st.vfx and st.vfx.model == "meshes/steel_katar.nif", "with the weapon's own mesh", st.vfx and st.vfx.model)
 check(st.vfx and st.vfx.opts.boneName == "Weapon Bone.L", "on the off-hand bone")
@@ -161,13 +181,17 @@ check(punch.skillGain == 1.0, "a hand-to-hand use is untouched", punch.skillGain
 check(#st.skillUses == 0, "and starts nothing else", #st.skillUses)
 
 --- the charge effect ------------------------------------------------------------------------------
--- A weapon lights up when a "<mesh>_charged.nif" sits beside its mesh, on both weapon bones.
-st.equipped = { recordId = "knuckle_mage" }
+-- A weapon lights up when a "<mesh>_charged.nif" sits beside its mesh, on both weapon bones - here
+-- forced on, the way I.H2HWeapons.setCharged lets one look at it without casting.
+st.equipped = { recordId = "knuckle_mage_fury" }
 st.vfxById = {}
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_Charge_R"] == nil, "an uncharged Mage Fury stays dark")
+player.interface.setCharged(true)
 onUpdate(0.016)
 local right, left = st.vfxById["H2HWeapons_Charge_R"], st.vfxById["H2HWeapons_Charge_L"]
 check(right ~= nil and left ~= nil, "the mage knuckle lights up in both hands")
-check(right and right.model == "meshes/mage_knuckle_charged.nif", "with the charge effect beside its mesh",
+check(right and right.model == "meshes/mage_fury_charged.nif", "with the charge effect beside its mesh",
       right and right.model)
 check(right and right.opts.boneName == "Weapon Bone", "main hand on the weapon bone")
 check(left and left.opts.boneName == "Weapon Bone.L", "off hand on the mirrored one")
@@ -190,8 +214,75 @@ onUpdate(0.016)
 st.equipped = { recordId = "katar_steel" }
 onUpdate(0.016)
 check(st.vfxById["H2HWeapons_Charge_R"] == nil, "a weapon without one stays dark")
-st.equipped = { recordId = "knuckle_mage" }
+st.equipped = { recordId = "knuckle_mage_fury" }
 onUpdate(0.016)
+
+--- switching view ----------------------------------------------------------------------------------
+-- A first/third person switch swaps the model, and every attached effect goes with it. Everything has
+-- to come back once the new model is there - including the glow, which it used not to.
+local function engineRebuildsModel() st.vfxById = {}; st.vfx = nil end
+check(st.vfxById["H2HWeapons_OffHand"] and st.vfxById["H2HWeapons_Charge_R"]
+      and st.vfxById["H2HWeapons_Charge_L"], "before the switch: weapon and both glows")
+st.cameraMode = 1
+engineRebuildsModel()
+onUpdate(0.016)
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_OffHand"] == nil, "the new model gets a moment before anything is attached")
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_OffHand"] ~= nil, "then the off-hand weapon is back in third person")
+check(st.vfxById["H2HWeapons_Charge_R"] ~= nil and st.vfxById["H2HWeapons_Charge_L"] ~= nil,
+      "and so is the glow, in both hands")
+st.cameraMode = 0
+engineRebuildsModel()
+settle()
+check(st.vfxById["H2HWeapons_OffHand"] ~= nil and st.vfxById["H2HWeapons_Charge_R"] ~= nil,
+      "and again back in first person")
+-- A view that is still third person (vanity, preview) is the same model: nothing is redone.
+st.cameraMode = 2
+local before = st.vfxById["H2HWeapons_OffHand"]
+onUpdate(0.016)
+st.cameraMode = 1
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_OffHand"] == nil, "leaving first person starts over")
+settle()
+st.cameraMode = 2
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_OffHand"] ~= nil, "but third person to vanity does not")
+st.cameraMode = 0
+settle()
+-- A teleport starts over too.
+player.engineHandlers.onTeleported()
+engineRebuildsModel()
+settle()
+check(st.vfxById["H2HWeapons_OffHand"] ~= nil and st.vfxById["H2HWeapons_Charge_R"] ~= nil,
+      "a teleport re-attaches everything")
+
+-- No off-hand weapon, no off-hand glow.
+-- The same module instance the scripts use: they require it by its slash path.
+local cfg = require("scripts/MaxYari/H2HWeapons/scripts/settings").values
+cfg.showOffHandWeapon = false
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_OffHand"] == nil and st.vfxById["H2HWeapons_Charge_L"] == nil,
+      "with the off-hand weapon off, the left hand is empty")
+check(st.vfxById["H2HWeapons_Charge_R"] ~= nil, "and the right still glows")
+cfg.showOffHandWeapon = true
+onUpdate(0.016)
+
+-- Someone else's skeleton, without the off-hand bone: the right hand still works, nothing throws.
+st.bones["Weapon Bone.L"] = nil
+st.cameraMode = 1
+engineRebuildsModel()
+settle()
+check(st.vfxById["H2HWeapons_Charge_R"] ~= nil, "a skeleton without the left bone still lights the right")
+check(st.vfxById["H2HWeapons_OffHand"] == nil and st.vfxById["H2HWeapons_Charge_L"] == nil,
+      "and puts nothing on a bone it does not have")
+st.bones["Weapon Bone.L"] = true
+st.cameraMode = 0
+engineRebuildsModel()
+settle()
+player.interface.setCharged(nil)
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_Charge_R"] == nil, "setCharged(nil) goes back to following the charge")
 
 --- tooltips --------------------------------------------------------------------------------------------
 -- A stand-in for the layout Inventory Extender builds for a weapon: the shape the modifier walks,
@@ -277,6 +368,28 @@ check(math.abs(attack.damage.fatigue - 18.75) < 1e-6, "knuckledusters for 75%", 
 -- the damage itself stays fractional; only the tooltip rounds it
 check(attack.damage.fatigue % 1 ~= 0, "the applied damage is not rounded", attack.damage.fatigue)
 
+-- On someone who is down, the bruising lands on health instead, at a tenth - as a fist's does - and,
+-- knocked down, half again on top, as every hit on a knocked-down target is.
+local function knuckleHit()
+    local a = { successful = true, sourceType = "melee", attacker = {}, strength = 1,
+                weapon = { recordId = "knuckle_iron" }, damage = { health = 5 } }
+    onHit(a)
+    return a.damage
+end
+st.fatigue.current = -3
+local down = knuckleHit()
+check(down.fatigue == nil, "a knocked-out target takes no fatigue from it", down.fatigue)
+check(math.abs(down.health - (5 + 2.8125)) < 1e-6, "but a tenth of it, half again, to health, on top of the weapon's", down.health)
+st.fatigue.current = 40
+st.playing = { knockdown = true }
+check(math.abs(knuckleHit().health - 7.8125) < 1e-6, "the same while knocked down")
+st.playing = {}
+st.effects.paralyze = 1
+check(math.abs(knuckleHit().health - 6.875) < 1e-6, "paralysed, only the tenth: paralysis is not knocked down")
+st.effects.paralyze = nil
+local up = knuckleHit()
+check(up.health == 5 and math.abs(up.fatigue - 18.75) < 1e-6, "and back to fatigue once they are up")
+
 attack = { successful = true, sourceType = "melee", attacker = {}, strength = 1,
            weapon = { recordId = "steel dagger" }, damage = { health = 5 } }
 onHit(attack)
@@ -291,6 +404,46 @@ attack = { successful = true, sourceType = "magic", attacker = {}, strength = 1,
            weapon = { recordId = "katar_steel" }, damage = {} }
 onHit(attack)
 check(attack.damage.fatigue == nil, "a spell adds none")
+
+local function near(a, b) return a ~= nil and math.abs(a - b) < 1e-6 end
+
+-- Blocked, or dealt to a god: the engine has zeroed the weapon's damage, and would a fist's.
+attack = { successful = true, sourceType = "melee", attacker = {}, strength = 1,
+           weapon = { recordId = "katar_steel" }, damage = { health = 0 } }
+onHit(attack)
+check(attack.damage.fatigue == nil, "a blocked hit bruises nobody", attack.damage.fatigue)
+
+-- A critical strike: the weapon's own damage came out at four times its roll, so the bruising is too.
+-- The roll at full swing is 10, times condition 100/100, times Strength 40's 0.5 + 40 * 0.1 * 0.1.
+st.weaponRecords["katar_test"] = { type = 0, model = "meshes/steel_katar.nif", health = 100,
+    chopMinDamage = 5, chopMaxDamage = 10, slashMinDamage = 5, slashMaxDamage = 10,
+    thrustMinDamage = 5, thrustMaxDamage = 10 }
+local function testHit(health, attacker)
+    local a = { successful = true, sourceType = "melee", attacker = attacker or {}, strength = 1, type = 1,
+                weapon = { recordId = "katar_test", data = { condition = 100 } }, damage = { health = health } }
+    onHit(a)
+    return a.damage
+end
+check(near(testHit(9).fatigue, 12.5), "a plain hit bruises plainly", testHit(9).fatigue)
+check(near(testHit(36).fatigue, 50), "a critical one four times over", testHit(36).fatigue)
+check(near(testHit(14).fatigue, 12.5), "a hit merely a bit harder than its roll is not critical")
+check(near(testHit(36, { notPlayer = true }).fatigue, 12.5), "only the player strikes critically")
+st.playing = { knockdown = true }
+check(near(testHit(13.5).health, 13.5 + 12.5 * 0.1 * 1.5), "knocked down, the 1.5 is not mistaken for one")
+check(near(testHit(54).health, 54 + 12.5 * 4 * 0.1 * 1.5), "but a critical on the knocked down still is")
+st.playing = {}
+
+--- the mirror of the launcher's strength option ---------------------------------------------------
+local settings = require("scripts/MaxYari/H2HWeapons/scripts/settings")
+check(settings.values.strengthFactor == 0, "off by default, as the launcher is")
+local section = stubs.section(settings.GLOBAL_GROUP)
+st.attributes.strength = { base = 80, modifier = 0 }
+section:set("strengthInfluencesHandToHand", "onExceptWerewolves")
+check(settings.values.strengthFactor == 2, "the launcher's third option is its 2")
+check(near(testHit(9).fatigue, 12.5 * 2), "and the bruising scales with Strength 80 / 40")
+section:set("strengthInfluencesHandToHand", "off")
+check(near(testHit(9).fatigue, 12.5), "and stops when it is set back off")
+st.attributes.strength = { base = 40, modifier = 0 }
 
 print(string.format("\n%d checks, %d failures", checks, fails))
 os.exit(fails == 0 and 0 or 1)

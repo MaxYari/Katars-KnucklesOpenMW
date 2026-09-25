@@ -1,0 +1,3 @@
+# Optional: gives merchants this mod's spells to sell (Bound Fist). Which merchants is in
+# scripts/MaxYari/H2HWeapons/traders/list.lua. Leave this out and nobody sells them.
+GLOBAL: scripts/MaxYari/H2HWeapons/traders/traders.lua

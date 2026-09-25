@@ -53,13 +53,71 @@ M.state = {
     gmst = {
         fMinHandToHandMult = 0.1, fMaxHandToHandMult = 0.5,
         sSkillHandtohand = "Hand-to-hand", sSkillShortblade = "Short Blade",
-        sSkillBluntweapon = "Blunt Weapon", fFightDispMult = 0.2,
+        sSkillBluntweapon = "Blunt Weapon", fFightDispMult = 0.2, fHandtoHandHealthPer = 0.1, fCombatKODamageMult = 1.5,
     },
     weaponRecords = {},   -- [id] = { type = , model = }
     played = {},          -- log of playBlendedAnimation calls
     time = 0,
+    timers = {},          -- pending async simulation timers: { at, fn }
+    globalEvents = {},    -- log of core.sendGlobalEvent: { name, data }
+    events = {},          -- log of object:sendEvent: { target, name, data }
+    effects = {},         -- [effect id] = magnitude, as I.MSS.getActiveEffect / activeEffects see it
+    activeSpells = {},    -- the actor's active spells: { id, activeSpellId, options }
+    health = { base = 100, modifier = 0, damage = 0, current = 100 },
+    fatigue = { base = 100, modifier = 0, damage = 0, current = 100 },
+    spellRecords = {},    -- [lowercased id] = spell record
+    enchantRecords = {},  -- [lowercased id] = enchantment record
+    staticRecords = {},   -- [id] = { model = }
+    skillRecords = {},    -- [skill id] = { school = { hitSound = } }
+    sounds = {},          -- log of sounds played
+    nearbyActors = {},
+    created = 0,          -- records and objects made through the fake world
+    sections = {},        -- [storage section name] = { values = {}, subscribers = {} }
+    missingContent = {},  -- [content file name] = true for one that is not installed
+    taught = {},          -- log of types.Actor.spells(actor):add: { actor, spell }
+    spawnedVfx = {},      -- log of world.vfx.spawn
 }
 local st = M.state
+
+--- A small vector, enough for positions and distances.
+local vec3mt = {}
+vec3mt.__index = vec3mt
+vec3mt.__sub = function(a, b) return M.vec3(a.x - b.x, a.y - b.y, a.z - b.z) end
+function vec3mt.length(v) return math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) end
+function M.vec3(x, y, z) return setmetatable({ x = x, y = y, z = z }, vec3mt) end
+
+--- A game object that records the events sent to it.
+function M.object(fields)
+    local o = fields or {}
+    o.sendEvent = function(self, name, data)
+        table.insert(st.events, { target = self, name = name, data = data })
+    end
+    o.isValid = o.isValid or function() return true end
+    return o
+end
+
+--- Runs simulation time forward, firing the timers that come due, in order.
+function M.advance(seconds)
+    local target = st.time + seconds
+    while true do
+        local nextIndex, nextAt = nil, math.huge
+        for i, t in ipairs(st.timers) do
+            if t.at <= target and t.at < nextAt then nextIndex, nextAt = i, t.at end
+        end
+        if not nextIndex then break end
+        local timer = table.remove(st.timers, nextIndex)
+        st.time = timer.at
+        timer.fn()
+    end
+    st.time = target
+end
+
+--- The events sent to one target, or of one name, most recent last.
+function M.eventsNamed(name)
+    local out = {}
+    for _, e in ipairs(st.events) do if e.name == name then out[#out + 1] = e end end
+    return out
+end
 
 local function statObject(tbl)
     return setmetatable({}, {
@@ -99,7 +157,7 @@ end
 
 packages['openmw.util'] = {
     vector2 = function(x, y) return { x = x, y = y } end,
-    vector3 = function(x, y, z) return { x = x, y = y, z = z } end,
+    vector3 = function(x, y, z) return M.vec3(x, y, z) end,
     clamp = function(v, a, b) return math.max(a, math.min(b, v)) end,
     round = function(v) return math.floor(v + 0.5) end,
     makeStrictReadOnly = function(t) return t end,
@@ -110,7 +168,11 @@ packages['openmw.core'] = {
     getGMST = function(name) return st.gmst[name] end,
     getSimulationTime = function() return st.time end,
     getRealTime = function() return st.time end,
-    contentFiles = { has = function(_, n) return true end },
+    -- Called plainly (core.contentFiles.has(name)) as the API documents, or as a method by some mods.
+    contentFiles = { has = function(a, b)
+        local name = type(a) == "string" and a or b
+        return not st.missingContent[name]
+    end },
     -- Reads the mod's own l10n file, so a test that checks a message really checks the message.
     -- Only the flat `key: "text"` entries; the settings descriptions are block scalars and no test
     -- looks at them, so those come back as their key.
@@ -130,13 +192,42 @@ packages['openmw.core'] = {
         return function(key) return strings[key] or key end
     end,
     sound = {
-        stopSound = function(id, obj) st.stoppedSounds = st.stoppedSounds or {}; table.insert(st.stoppedSounds, id) end,
+        -- The 0.51 name: stopSound3d. A stub under any other name would hide a call to one that does not exist.
+        stopSound3d = function(id, obj) st.stoppedSounds = st.stoppedSounds or {}; table.insert(st.stoppedSounds, id) end,
+        playSound3d = function(id) table.insert(st.sounds, id) end,
+        playSoundFile3d = function(path) table.insert(st.sounds, path) end,
     },
-    magic = { ENCHANTMENT_TYPE = {}, EFFECT_TYPE = {} },
-    stats = { Skill = { record = function() return { skillGain = { 1, 1, 1, 1 } } end } },
+    sendGlobalEvent = function(name, data) table.insert(st.globalEvents, { name = name, data = data }) end,
+    magic = {
+        ENCHANTMENT_TYPE = {},
+        EFFECT_TYPE = { ResistPoison = "resistpoison", WeaknessToPoison = "weaknesstopoison", Paralyze = "paralyze" },
+        RANGE = { Self = 0, Touch = 1, Target = 2 },
+        -- Every effect exists, unless a test says it went missing.
+        effects = { records = setmetatable({}, { __index = function(_, id)
+            if st.missingEffects and st.missingEffects[id] then return nil end
+            return { id = id }
+        end }) },
+        SPELL_TYPE = { Spell = 0, Ability = 1, Power = 5 },
+        spells = {
+            records = setmetatable({}, { __index = function(_, id)
+                return type(id) == "string" and st.spellRecords[string.lower(id)] or nil
+            end }),
+            createRecordDraft = function(t) return t end,
+        },
+        enchantments = {
+            records = setmetatable({}, { __index = function(_, id)
+                return type(id) == "string" and st.enchantRecords[string.lower(id)] or nil
+            end }),
+            createRecordDraft = function(t) t.isEnchantment = true; return t end,
+        },
+    },
+    stats = { Skill = {
+        record = function() return { skillGain = { 1, 1, 1, 1 } } end,
+        records = setmetatable({}, { __index = function(_, id) return st.skillRecords[id] end }),
+    } },
 }
 -- contentFiles.has is called as a method in some scripts and plainly in others.
-setmetatable(packages['openmw.core'].contentFiles, { __call = function(_, n) return true end })
+setmetatable(packages['openmw.core'].contentFiles, { __call = function(_, n) return not st.missingContent[n] end })
 
 local WEAPON_TYPE = {
     ShortBladeOneHand = 0, LongBladeOneHand = 1, LongBladeTwoHand = 2, BluntOneHand = 3,
@@ -163,29 +254,103 @@ packages['openmw.types'] = {
         STANCE = { Nothing = 0, Weapon = 1, Spell = 2 },
         EQUIPMENT_SLOT = { CarriedRight = 16, CarriedLeft = 15 },
         getStance = function() return st.stance end,
-        getEquipment = function(_, slot) return st.equipped end,
-        stats = { attributes = attributesProxy, dynamic = {} },
-        objectIsInstance = function() return true end,
+        setStance = function(_, stance) st.stance = stance end,
+        spells = function(actor)
+            return { add = function(_, id) table.insert(st.taught, { actor = actor, spell = id }) end }
+        end,
+        getEquipment = function(_, slot)
+            if slot == nil then return { [16] = st.equipped } end
+            return st.equipped
+        end,
+        setEquipment = function(_, equipment) st.equipped = equipment[16] end,
+        getSelectedSpell = function() return st.selectedSpell end,
+        stats = { attributes = attributesProxy, dynamic = {
+            health = function() return statObject(st.health) end,
+            fatigue = function() return statObject(st.fatigue) end,
+        } },
+        objectIsInstance = function(o) return o ~= nil and not o.isItem end,
+        activeEffects = function()
+            return { getEffect = function(_, id) return { magnitude = st.effects[id] or 0 } end }
+        end,
+        activeSpells = function()
+            local list = {}
+            for _, spell in ipairs(st.activeSpells) do list[#list + 1] = spell end
+            return setmetatable(list, { __index = {
+                add = function(_, options)
+                    st.nextActiveSpellId = (st.nextActiveSpellId or 0) + 1
+                    table.insert(st.activeSpells, { id = options.id, activeSpellId = st.nextActiveSpellId,
+                                                    options = options })
+                end,
+                remove = function(_, activeSpellId)
+                    for i, spell in ipairs(st.activeSpells) do
+                        if spell.activeSpellId == activeSpellId then table.remove(st.activeSpells, i); return end
+                    end
+                end,
+            } })
+        end,
+        inventory = function(actor) return { owner = actor } end,
     },
     NPC = {
         objectIsInstance = function(o) return o ~= nil end,
+        isWerewolf = function() return st.werewolf == true end,
         stats = { skills = skillsProxy },
     },
-    Player = { objectIsInstance = function() return true end },
+    -- Everyone is the player unless marked otherwise.
+    Player = { objectIsInstance = function(o) return not (o ~= nil and o.notPlayer) end },
     Weapon = {
         TYPE = WEAPON_TYPE,
         objectIsInstance = function(o) return o ~= nil and o.recordId ~= nil end,
         record = function(idOrObj)
             local id = type(idOrObj) == "string" and idOrObj or (idOrObj and idOrObj.recordId)
-            return id and st.weaponRecords[string.lower(id)]
+            -- As the engine: ids are case-insensitive, except a generated record's, which only
+            -- parses as "Generated:0x..." (ESM::RefId::deserializeText) - lowercased, it names nothing.
+            if id == nil or string.find(id, "^generated:") then return nil end
+            return st.weaponRecords[string.lower(id)]
         end,
         records = st.weaponRecords,
+        createRecordDraft = function(t)
+            local draft = {}
+            for k, v in pairs(t.template or {}) do draft[k] = v end
+            for k, v in pairs(t) do if k ~= "template" then draft[k] = v end end
+            return draft
+        end,
     },
     Armor = { objectIsInstance = function() return false end },
-    Item = { itemData = function() return {} end },
+    Item = { itemData = function(item)
+        item.data = item.data or {}
+        return item.data
+    end },
     Miscellaneous = {},
-    Static = {},
+    Static = { records = setmetatable({}, { __index = function(_, id) return st.staticRecords[id] end }) },
     Creature = {},
+}
+
+-- A fake world for the global script: records get generated ids, objects are plain tables.
+packages['openmw.world'] = {
+    vfx = { spawn = function(model, position, options)
+        table.insert(st.spawnedVfx, { model = model, position = position, options = options })
+    end },
+    createRecord = function(draft)
+        st.created = st.created + 1
+        local record = {}
+        for k, v in pairs(draft) do record[k] = v end
+        record.id = "Generated:0x" .. st.created
+        if draft.isEnchantment then
+            st.enchantRecords[string.lower(record.id)] = record
+        elseif draft.effects then
+            st.spellRecords[string.lower(record.id)] = record
+        else
+            st.weaponRecords[string.lower(record.id)] = record
+        end
+        return record
+    end,
+    createObject = function(recordId)
+        st.created = st.created + 1
+        local object = M.object({ recordId = recordId, isItem = true })
+        object.moveInto = function(self, inventory) self.movedInto = inventory end
+        object.remove = function(self) self.removed = true; self.isValid = function() return false end end
+        return object
+    end,
 }
 
 packages['openmw.animation'] = {
@@ -195,6 +360,7 @@ packages['openmw.animation'] = {
     BLEND_MASK = { LowerBody = 1, Torso = 2, LeftArm = 4, RightArm = 8, UpperBody = 14, All = 15 },
     BONE_GROUP = { LowerBody = 0, Torso = 1, LeftArm = 2, RightArm = 3 },
     hasGroup = function(_, g) return st.groups[g] == true end,
+    isPlaying = function(_, g) return st.playing ~= nil and st.playing[g] == true end,
     hasBone = function(_, b) return st.bones and st.bones[b] == true end,
     getTextKeyTime = function(_, key) return st.textKeys[string.lower(key)] end,
     getCurrentTime = function(_, g) return st.groups[g] and 0 or nil end,
@@ -214,28 +380,54 @@ packages['openmw.animation'] = {
 }
 
 packages['openmw.self'] = setmetatable(
-    { object = {}, recordId = "player", controls = { sneak = false, run = false },
-      type = packages['openmw.types'].Player },
+    { object = M.object({ name = "self" }), recordId = "player", controls = { sneak = false, run = false },
+      type = packages['openmw.types'].Player, position = M.vec3(0, 0, 0),
+      -- self is a GameObject too; an event sent to it is logged against its object.
+      sendEvent = function(self, name, data)
+          table.insert(st.events, { target = self.object, name = name, data = data })
+      end },
     { __index = function() return nil end })
 
+packages['openmw.debug'] = { isGodMode = function() return st.godMode == true end }
 packages['openmw.camera'] = { getMode = function() return st.cameraMode or 0 end, MODE = { FirstPerson = 0, ThirdPerson = 1 } }
-packages['openmw.nearby'] = {}
+packages['openmw.nearby'] = setmetatable({}, { __index = function(_, k)
+    if k == "actors" then return st.nearbyActors end
+end })
 packages['openmw.vfs'] = {
     fileExists = function(path) return st.files ~= nil and st.files[path] == true end,
     open = function() return nil end,
     pathsWithPrefix = function() return function() return nil end end,
 }
+-- Sections keep their values and tell their subscribers, so a test can change another mod's setting
+-- and see the scripts react.
+local function section(name)
+    local sec = st.sections[name]
+    if not sec then
+        sec = { values = {}, subscribers = {} }
+        st.sections[name] = sec
+    end
+    return {
+        asTable = function() local t = {}; for k, v in pairs(sec.values) do t[k] = v end; return t end,
+        get = function(_, key) return sec.values[key] end,
+        set = function(_, key, value)
+            sec.values[key] = value
+            for _, fn in ipairs(sec.subscribers) do fn(name, key) end
+        end,
+        subscribe = function(_, fn) table.insert(sec.subscribers, fn) end,
+        setLifeTime = function(_, lifeTime) sec.lifeTime = lifeTime end,
+    }
+end
+M.section = section
 packages['openmw.storage'] = {
-    globalSection = function()
-        return { asTable = function() return {} end, subscribe = function() end, get = function() end }
-    end,
-    playerSection = function()
-        return { asTable = function() return {} end, subscribe = function() end, get = function() end }
-    end,
-    LIFE_TIME = { Temporary = 0, Persistent = 1 },
+    globalSection = section,
+    playerSection = section,
+    LIFE_TIME = { Persistent = 0, GameSession = 1, Temporary = 2 },
 }
-packages['openmw.async'] = { callback = function(f) return f end,
-                             newUnsavableSimulationTimer = function() end }
+-- callback is called as async:callback(fn), like everything else on async.
+packages['openmw.async'] = { callback = function(a, b) if type(a) == "function" then return a end return b end,
+                             newUnsavableSimulationTimer = function(_, delay, fn)
+                                 table.insert(st.timers, { at = st.time + delay, fn = fn })
+                             end }
 packages['openmw.ui'] = { showMessage = function(m) st.messages = st.messages or {}; table.insert(st.messages, m) end,
                           TYPE = {}, ALIGNMENT = {}, content = function(t) return t end, create = function(t) return t end }
 packages['openmw_aux.util'] = {
@@ -266,6 +458,7 @@ I.AnimationController = {
     end,
 }
 I.MSS = {
+    getActiveEffect = function(id) return st.effects[id] or 0 end,
     getEquipmentInfo = function(slot)
         if slot ~= 16 or st.equipped == nil then return nil end
         st.equipInfo = st.equipInfo or {}
@@ -279,7 +472,7 @@ I.MSS = {
     end,
 }
 I.SkillProgression = {
-    SKILL_USE_TYPES = { Weapon_SuccessfulHit = 0 },
+    SKILL_USE_TYPES = { Weapon_SuccessfulHit = 0, Spellcast_Success = 0 },
     addSkillUsedHandler = function(f) table.insert(M.skillUsedHandlers, f) end,
     skillUsed = function(id, options)
         st.skillUses = st.skillUses or {}
