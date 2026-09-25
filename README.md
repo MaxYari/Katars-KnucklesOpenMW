@@ -55,7 +55,7 @@ If you want to know more details and know what to expect, look under the spoiler
 
 ## ⚔ Recommended mods
 
-- [The Combat Juice](https://github.com/MaxYari/TheCombatJuiceOpenMW), also by me - a layer of
+- [The Combat Juice](https://www.nexusmods.com/morrowind/mods/60362), also by me - a layer of
   subtle "oomph" all over the combat, visual and audible, without touching any mechanics - every
   punch feels like it lands.
 - [Inventory Extender](https://www.nexusmods.com/morrowind/mods/59205) - shows the Hand to Hand type
