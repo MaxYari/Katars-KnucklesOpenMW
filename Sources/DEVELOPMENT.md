@@ -116,7 +116,9 @@ Drawing a short blade or a blunt weapon plays a sound. Bare hands do not, and ne
 
 Three: Ebony Rose, Mage Fury, and the wooden knuckles - which hit for half the iron set but take an
 enchantment as well as silver does, since it is the medium, not the metal, that holds one. None of
-the three is in any levelled list: nobody sells them and no chest rolls them.
+the three is in any levelled list: nobody sells them and no chest rolls them. They are placed in the
+world by `KatarWorldPlacements.omwaddon`, which is made by hand in OpenMW-CS - unlike `Katar.omwaddon`,
+it is not generated, so edit it there.
 
 Ebony Rose and Mage Fury are enchanted with magic effects of this mod's own, so their tooltips and your active effects
 name and explain what they do. The engine carries those effects the way it carries any other -

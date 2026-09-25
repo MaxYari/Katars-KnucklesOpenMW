@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Writes Katar.omwaddon: the WEAP records for every katar and knuckleduster, stand-ins for the two
-uniques' enchantments (see ENCHANTMENTS), Bound Fist's spell and weapons, and the vanilla levelled
-lists extended with the weapons (see LEVELLED_STAND_INS - this needs --master, to read them from).
+uniques' enchantments (see ENCHANTMENTS), Bound Fist's spell and weapons, the notes (see NOTES), and
+the vanilla levelled lists extended with the weapons (see LEVELLED_STAND_INS - this needs --master, to
+read them from).
 
 Damage is derived, not hand-picked: each weapon takes the vanilla shortsword of its own material and
 scales it - katars to 80%, knuckledusters to 50% (DAMAGE_FACTOR) - which is the rule the mod
@@ -69,21 +70,22 @@ SPEED = {"katar": 0.90, "knuckle": 1.00}
 REACH = {"katar": 1.00, "knuckle": 0.80}
 WEAPON_TYPE = {"katar": SHORT_BLADE, "knuckle": BLUNT_ONE_HAND}
 
-# id, kind, material, display name, mesh, icon, extra value multiplier, flags
+# id, kind, material, display name, mesh, extra value multiplier, flags. Each weapon's inventory icon
+# is named after its mesh (icon_for), so neither is ever out of step with the other.
 ITEMS = [
-    ("katar_steel",            "katar",   "steel",   "Steel Katar",             "steel_katar.nif",           "steel_katar.tga",   1.0, 0),
-    ("katar_silver",           "katar",   "silver",  "Silver Katar",            "silver_katar.nif",          "steel_katar.tga",   1.0, SILVER_FLAG),
-    ("katar_ebony",            "katar",   "ebony",   "Ebony Katar",             "ebony_guarded_katar.nif",   "steel_katar.tga",   1.0, 0),
-    ("katar_ebony_rose",       "katar",   "ebony",   "Ebony Rose",              "ebony_rose.nif",            "steel_katar.tga",   0.9, 0),
-    ("katar_daedric",          "katar",   "daedric", "Daedric Katar",           "daedric_katar.nif",         "steel_katar.tga",   1.0, 0),
-    ("knuckle_iron",           "knuckle", "iron",    "Iron Knuckles",           "iron_knuckle.nif",          "iron_knuckle.tga",  1.0, 0),
-    ("knuckle_chitin",         "knuckle", "chitin",  "Chitin Knuckles",         "chitin_knuckle.nif",        "chitin_knuckle.tga", 1.0, 0),
-    ("knuckle_silver",         "knuckle", "silver",  "Silver Knuckles",         "silver_knuckle.nif",        "silver_knuckle.tga", 1.0, SILVER_FLAG),
-    ("knuckle_orcish",         "knuckle", "orcish",  "Orcish Knuckles",         "orcish_knuckle.nif",        "iron_knuckle.tga",  1.0, 0),
-    ("knuckle_daedric",        "knuckle", "daedric", "Daedric Knuckles",        "daedric_knuckle_basic.nif", "iron_knuckle.tga",  1.0, 0),
-    ("knuckle_daedric_spiked", "knuckle", "daedric", "Daedric Spiked Knuckles", "daedric_knuckle_sharp.nif", "iron_knuckle.tga",  1.2, 0),
-    ("knuckle_wood",           "knuckle", "iron",    "Wooden Knuckles",         "wooden_knuckle.nif",        "iron_knuckle.tga",  1.0, 0),
-    ("knuckle_mage_fury",      "knuckle", "iron",    "Mage Fury",               "mage_fury.nif",             "iron_knuckle.tga",  1.0, 0),
+    ("katar_steel",            "katar",   "steel",   "Steel Katar",             "steel_katar.nif",           1.0, 0),
+    ("katar_silver",           "katar",   "silver",  "Silver Katar",            "silver_katar.nif",          1.0, SILVER_FLAG),
+    ("katar_ebony",            "katar",   "ebony",   "Ebony Katar",             "ebony_guarded_katar.nif",   1.0, 0),
+    ("katar_ebony_rose",       "katar",   "ebony",   "Ebony Rose",              "ebony_rose.nif",            0.9, 0),
+    ("katar_daedric",          "katar",   "daedric", "Daedric Katar",           "daedric_katar.nif",         1.0, 0),
+    ("knuckle_iron",           "knuckle", "iron",    "Iron Knuckles",           "iron_knuckle.nif",          1.0, 0),
+    ("knuckle_chitin",         "knuckle", "chitin",  "Chitin Knuckles",         "chitin_knuckle.nif",        1.0, 0),
+    ("knuckle_silver",         "knuckle", "silver",  "Silver Knuckles",         "silver_knuckle.nif",        1.0, SILVER_FLAG),
+    ("knuckle_orcish",         "knuckle", "orcish",  "Orcish Knuckles",         "orcish_knuckle.nif",        1.0, 0),
+    ("knuckle_daedric",        "knuckle", "daedric", "Daedric Knuckles",        "daedric_knuckle_basic.nif", 1.0, 0),
+    ("knuckle_daedric_spiked", "knuckle", "daedric", "Daedric Spiked Knuckles", "daedric_knuckle_sharp.nif", 1.2, 0),
+    ("knuckle_wood",           "knuckle", "iron",    "Wooden Knuckles",         "wooden_knuckle.nif",        1.0, 0),
+    ("knuckle_mage_fury",      "knuckle", "iron",    "Mage Fury",               "mage_fury.nif",             1.0, 0),
 ]
 
 # The slim ebony katar trades reach and bulk for speed.
@@ -155,13 +157,31 @@ BOUND_WEAPONS = [
 ]
 
 
+# Notes to leave in the world, made as vanilla makes its own (bk_notetoinorra is one): a scroll-type
+# BOOK on the folded note mesh, weighing 0.1 and worth 1, its text in the Magic Cards font with a <BR>
+# closing every line. An empty line leaves a blank one. Vanilla does not null-terminate the TEXT.
+NOTE_MESH, NOTE_ICON = "m\\Text_Note_02.nif", "m\\Tx_note_02.tga"
+NOTE_HEADER = '<DIV ALIGN="LEFT"><FONT COLOR="000000" SIZE="3" FACE="Magic Cards"><BR>\r\n'
+
+NOTES = {
+    # id: (title, [lines])
+    "h2h_note_piece_found": ("About the piece you found", [
+        "Hey, I didn't catch you. I wasn't able to fix them properly, sorry.",
+        "Yael said it's weakly responding to magic. Hope that helps.",
+        "It's up to you now, but if you decide to ditch them, I'm sure I can find a good buyer - just let me know.",
+        "",
+        "- M",
+    ]),
+}
+
+
 def bound_items():
     """BOUND_WEAPONS as ITEMS rows, with their weight, value and capacity overridden to nothing."""
     by_id = {item[0]: item for item in ITEMS}
     rows = []
     for rid, base_id, display in BOUND_WEAPONS:
         base = by_id[base_id]
-        rows.append((rid,) + base[1:3] + (display,) + base[4:7] + (MAGICAL_FLAG,))
+        rows.append((rid,) + base[1:3] + (display,) + base[4:6] + (MAGICAL_FLAG,))
         OVERRIDES.setdefault(rid, dict(OVERRIDES.get(base_id, {}))).update(
             {"weight": 0, "value": 0, "enchant": 0})
     return rows
@@ -189,7 +209,7 @@ def best_attack(chop, slash, thrust):
 
 
 def stats(item):
-    _id, kind, material, _name, _mesh, _icon, value_mult, _flags = item
+    _id, kind, material, _name, _mesh, value_mult, _flags = item
     chop, slash, thrust, weight, value, health, _enchant = SHORTSWORDS[material]
     dmg = DAMAGE_FACTOR[kind]
     overrides = dict(OVERRIDES.get(_id, {}))
@@ -249,8 +269,25 @@ def spel_record(rid, spec):
     return record("SPEL", body)
 
 
+def book_record(rid, spec):
+    title, lines = spec
+    text = NOTE_HEADER + "".join(line + "<BR>\r\n" for line in lines)
+    # weight, value, is a scroll, the skill it teaches (-1: none), enchantment capacity
+    bkdt = struct.pack("<fiiii", 0.1, 1, 1, -1, 100)
+    body = sub("NAME", zstr(rid)) + sub("MODL", zstr(NOTE_MESH)) + sub("FNAM", zstr(title)) \
+        + sub("BKDT", bkdt) + sub("ITEX", zstr(NOTE_ICON)) + sub("TEXT", text.encode("ascii"))
+    return record("BOOK", body)
+
+
+def icon_for(mesh):
+    """The inventory icon: Icons/katars/<the mesh's name>.tga. The mesh is named after the Blender empty
+    the weapon was exported from (tools/mw_export.py), so the icon is too."""
+    return "katars\\" + os.path.splitext(mesh)[0] + ".tga"
+
+
 def weap_record(item):
-    rid, _kind, _material, display, mesh, icon, _mult, flags = item
+    rid, _kind, _material, display, mesh, _mult, flags = item
+    icon = icon_for(mesh)
     s = stats(item)
     wpdt = struct.pack(
         "<fiHHffH6BI",
@@ -379,6 +416,10 @@ def build(master_path, meshes_dir):
             items.append(item)
     for item in missing:
         print("  skipping %-24s meshes/%s is not there yet" % (item[0], item[4]))
+    for item in items:
+        icon = os.path.join("Icons", icon_for(item[4]).replace("\\", os.sep))
+        if not os.path.exists(icon):
+            print("  warning: %-24s has no icon yet, %s" % (item[0], icon))
     present = {i[0] for i in items}
 
     # An enchantment is only written if a weapon that is in the plugin uses it.
@@ -399,12 +440,13 @@ def build(master_path, meshes_dir):
     records = b"".join(ench_record(rid, spec) for rid, spec in enchantments)
     records += b"".join(spel_record(rid, spec) for rid, spec in spells)
     records += b"".join(weap_record(i) for i in items)
+    records += b"".join(book_record(rid, spec) for rid, spec in NOTES.items())
     records += b"".join(levi_record(levelled[key], extra) for key, extra in sorted(additions.items()))
 
     author = b"Max Yari".ljust(32, b"\0")
     description = b"Katars and Knuckledusters - hand-to-hand weapons.".ljust(256, b"\0")
     hedr = struct.pack("<fi", 1.3, 0) + author + description \
-        + struct.pack("<i", len(items) + len(enchantments) + len(spells) + len(additions))
+        + struct.pack("<i", len(items) + len(enchantments) + len(spells) + len(NOTES) + len(additions))
     assert len(hedr) == 300, len(hedr)
 
     header = sub("HEDR", hedr)
@@ -443,8 +485,8 @@ def main():
     print("\nlevelled lists:")
     for key, extra in sorted(additions.items()):
         print("  %-30s + %s" % (key, ", ".join("%s (%d)" % pair for pair in extra)))
-    print("\nwrote %s (%d bytes, %d weapons, %d enchantments, %d spells, %d levelled lists)"
-          % (args.out, len(data), len(items), len(enchantments), len(spells), len(additions)))
+    print("\nwrote %s (%d bytes, %d weapons, %d enchantments, %d spells, %d notes, %d levelled lists)"
+          % (args.out, len(data), len(items), len(enchantments), len(spells), len(NOTES), len(additions)))
 
 
 if __name__ == "__main__":

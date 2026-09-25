@@ -1,9 +1,8 @@
-# ⚔ Katars and Knuckledusters
+# ⚔ Katars and Knuckles
 
 ![Katars & Knuckles](imgs/banner.png)
 
-Hand-to-hand weapons for OpenMW. Strap a blade or a set of knuckles to your fists and fight with the
-**Hand to Hand** skill - your punches, only with some steel in them.
+Hand-to-hand weapons for OpenMW. Katars and Knuckledusters. They mostly use a **Hand to Hand** skill but also receive a small bonus from blunt/blade skill. Same goes for skill leveling.
 
 **13 weapons**: 5 katars and 8 sets of knuckledusters, in wood, chitin, iron, steel, silver, orcish,
 ebony and daedric. **3 of them are rare**, with a trick of their own each - finding them and working
@@ -20,23 +19,46 @@ Developed for OpenMW. **Requires OpenMW 0.51+**.
 
 ## ⚔ What they do
 
-- The game files katars under Short Blade and knuckledusters under Blunt Weapon, but you fight with
-  both using **Hand to Hand**: it decides whether you hit, and it gets most of the experience.
-  Keeping the weapon skill up is worth a small bonus.
-- Every hit also bruises like a punch, wearing the target's fatigue down until they drop - and once
-  they are down, it hurts. Katars cut harder, knuckledusters bruise harder.
-- A second copy of the weapon goes in your off hand, and they move and fight with ReAnimation's
-  hand-to-hand animations.
+- "Officially" Katars are shortblades and knuckledusters are blunt weapons, that what you will see on a tooltip in the world. Dont trust that - they use and level Hand to Hand and they also damage victim's stamina akin to regular H2H.
+- Yet countrary to regular H2H they also deal damage, albeit small. In general knuckleduster deal lower physical damage but higher stamina damage and Katars are the opposite.
+- Most of the new weapons are available at your weapon traders as well as random loot. Uniques are... well... unique and need to be found in the world.
+- Conjured fist weapons change their looks based on your conjuration skill.
+
+If you want to know more details and know what to expect, look under the spoilers below, otherwise just play the game :)
 
 <details>
-<summary>Spoiler: what they all look like</summary>
-
-If you would rather spoil the fun and see every katar and knuckleduster before you find them, here
-they are:
+<summary>How all the weapons look like</summary>
 
 ![All the weapons](imgs/all_katars.png)
 
 </details>
+
+<details>
+<summary>Where to find uniques (only light spoilers with vague tips)</summary>
+
+- The lesser of uniques (barely a unique) is made of driftwood by someone with a lot of time on their hands to watch ships in the sea.
+
+- The middle of the uniqes is of an arcane origin and as such is drawn to places of high magic. It also rather fancies inland lakes.
+
+- The highest of the three is of a dark and vicious nature, its kiss is poison and its owner schemes deep undergound. 
+
+<details>
+<summary>Concrete locations: (full spoilers)</summary>
+
+ Aaaaaaah, you sneaky bastard, I didn't fill this in yet. Go play the game, cmon.
+
+</details>
+
+</details>
+
+## ⚔ Recommended mods
+
+- [The Combat Juice](https://github.com/MaxYari/TheCombatJuiceOpenMW), also by me - a layer of
+  subtle "oomph" all over the combat, visual and audible, without touching any mechanics - every
+  punch feels like it lands.
+- [Inventory Extender](https://www.nexusmods.com/morrowind/mods/59205) - shows the Hand to Hand type
+  and the fatigue damage in weapon tooltips.
+
 
 ## ⚔ How to install
 
@@ -54,6 +76,7 @@ using the launcher or completely manually (it's also very easy).
 
 3) Enable these in the "Content Files" tab of the OpenMW launcher, after ReAnimation:
    - `Katar.omwaddon`
+   - `KatarWorldPlacements.omwaddon` - puts the rare weapons in the world. Needs Tribunal.
    - `H2HWeapons.omwscripts`
    - `H2HWeapons_SpellTraders.omwscripts` - optional, it is what lets spell merchants teach Bound Fist.
 
@@ -71,8 +94,6 @@ set the mod's copy of it to match: Options -> Scripts -> Katars and Knuckleduste
 mod's settings are there too.
 
 Optional:
-- [Inventory Extender](https://www.nexusmods.com/morrowind/mods/59205) - shows the Hand to Hand type
-  and the fatigue damage in weapon tooltips.
 - [Unofficial Tamriel Rebuilt Spells](https://www.nexusmods.com/morrowind/mods/58693) - Bound Fist
   then grows stronger with your Conjuration, following that mod's bound item settings (turn on its
   "Scale bound items").
