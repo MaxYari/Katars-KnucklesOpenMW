@@ -41,7 +41,6 @@ check(api.interface.version == 3.2, "API version bumped", api.interface.version)
 check(api.interface.TIMING_MATCHING ~= nil, "TIMING_MATCHING exported")
 check(api.interface.TIMING_MATCHING.ToOverride == "toOverride", "ToOverride value")
 check(api.interface.TIMING_MATCHING.None == "None", "None value")
-check(type(api.interface.addOverrideCondition) == "function", "addOverrideCondition exported")
 
 --- timing matching ------------------------------------------------------------------------------------
 local katarRuns = 0
@@ -107,25 +106,147 @@ local plainOpts = {
 stubs.I.AnimationController.playBlendedAnimation("weapontwohand", plainOpts)
 check(plainOpts.speed == 3, "default timing matching does not touch the parent's speed", plainOpts.speed)
 
---- extra conditions ---------------------------------------------------------------------------------
-local allow = true
-api.interface.addOverrideCondition("TestKatar", function() return allow end)
-allow = false
-katarRuns = 0
-st.played = {}
-playParent("slash start", "slash max attack", WEAPON_SPEED)
--- the stub logs the parent's own play too, so one entry means only the parent ran
-check(#st.played == 1, "a vetoed set plays nothing of its own", #st.played)
-check(st.played[1].group == "weapononehand", "only the parent was played", st.played[1].group)
-check(katarRuns == 0, "a vetoed set never reaches its own condition", katarRuns)
+--- override ranking ---------------------------------------------------------------------------------
+-- The general set is registered first, the way ReAnimation's own loads before a weapon mod's.
+st.groups.rankgeneral = true
+st.groups.rankspecial = true
+st.groups.ranklayer = true
+local specialWanted = true
+local generalAsked = 0
+api.interface.addAttackVariants({
+    id = "RankGeneral",
+    parentAttackGroupname = "rankparent",
+    armatureType = 1,
+    condition = function() generalAsked = generalAsked + 1; return true end,
+    attacks = { slash = { { "rankgeneral" } }, chop = { { "rankgeneral" } } },
+})
+api.interface.addAttackVariants({
+    id = "RankSpecial",
+    parentAttackGroupname = "rankparent",
+    armatureType = 1,
+    overridePriority = 1,
+    condition = function() return specialWanted end,
+    attacks = { slash = { { "rankspecial" } } },
+})
+-- An unranked override on the same parent, which the ranking must leave alone.
+api.interface.addAnimationOverride({
+    id = "RankLayer",
+    parent = "rankparent",
+    groupname = "ranklayer",
+    armatureType = 1,
+    condition = function() return true end,
+    options = function() return {} end,
+    startOnAnimEvent = true,
+})
 
-allow = true
-st.played = {}
-playParent("slash start", "slash max attack", WEAPON_SPEED)
-check(#st.played == 2 and st.played[1].group == "katar", "the veto lifts again", #st.played)
+local ranked = api.interface.animations.rankparent
+check(ranked[1].id == "RankSpecial" and ranked[2].id == "RankGeneral" and ranked[3].id == "RankLayer",
+      "a higher rank is asked first, whatever the registration order")
+local general = ranked[2]
 
-check(api.interface.removeOverrideCondition("TestKatar", function() end) == false,
-      "removing a condition that was never added returns false")
+local function playRanked(attackType)
+    st.played = {}
+    local startKey, stopKey = attackType .. " start", attackType .. " max attack"
+    stubs.I.AnimationController.playBlendedAnimation("rankparent", {
+        startKey = startKey, stopKey = stopKey, startkey = startKey, stopkey = stopKey,
+        speed = 1, priority = 7, blendMask = 15,
+    })
+    local groups = {}
+    for _, p in ipairs(st.played) do groups[p.group] = true end
+    return groups
+end
+
+local g = playRanked("slash")
+check(g.rankspecial and not g.rankgeneral, "the higher set takes an attack it lists, the lower stands down")
+check(generalAsked == 0, "and the lower set is not even asked", generalAsked)
+check(g.ranklayer, "an unranked override on the same parent still plays")
+check(general.enabled == false, "an outranked set does not claim the parent is hidden")
+
+g = playRanked("chop")
+check(g.rankgeneral and not g.rankspecial, "an attack type the higher set does not list goes to the lower one")
+
+specialWanted = false
+g = playRanked("slash")
+check(g.rankgeneral and not g.rankspecial, "the lower set plays again once the higher's condition fails")
+check(general.running == true, "and is left running")
+
+specialWanted = true
+st.cancelled = {}
+g = playRanked("slash")
+check(g.rankspecial and not g.rankgeneral, "the higher set takes over again")
+local handlerCancelledGeneral = false
+for _, group in ipairs(st.cancelled) do handlerCancelledGeneral = handlerCancelledGeneral or group == "rankgeneral" end
+check(general.running == true and not handlerCancelledGeneral,
+      "the handler leaves the running lower set alone", table.concat(st.cancelled, ","))
+
+-- The parent is still playing, so what stops the lower set here is the ranking alone.
+st.groups.rankparent = true
+st.cancelled = {}
+api.engineHandlers.onUpdate(0.016)
+check(general.running == false and #st.cancelled == 1 and st.cancelled[1] == "rankgeneral",
+      "onUpdate stops the outranked set that was still running", table.concat(st.cancelled, ","))
+check(ranked[1].running == true, "and leaves the higher one running")
+
+--- ranking on the poll path ----------------------------------------------------------------------------
+-- Three polled overrides on one parent, registered out of rank order.
+local want, asked = {}, {}
+local function pollOverride(id, rank)
+    st.groups[id] = true
+    asked[id] = 0
+    api.interface.addAnimationOverride({
+        id = id,
+        parent = "pollparent",
+        groupname = id,
+        armatureType = 1,
+        stance = api.interface.STANCE.Any,
+        overridePriority = rank,
+        condition = function() asked[id] = asked[id] + 1; return want[id] == true end,
+        stopCondition = function(self) return not self:condition() end,
+        options = function() return {} end,
+        startOnUpdate = true,
+    })
+end
+pollOverride("polllow", 0)
+pollOverride("pollhigh", 2)
+pollOverride("pollmid", 1)
+st.groups.pollparent = true
+
+local function tick() api.engineHandlers.onUpdate(0.016) end
+local function runningIds()
+    local out = {}
+    for _, a in ipairs(api.interface.animations.pollparent) do
+        if a.running then out[#out + 1] = a.id end
+    end
+    return table.concat(out, ",")
+end
+
+-- New registrations are polled once the tracked list is rebuilt, which a stance change does. The
+-- parent's play also hands them their parentOptions.
+st.stance = 0
+tick()
+stubs.I.AnimationController.playBlendedAnimation("pollparent", { priority = 5 })
+st.stance = 1
+
+want.polllow = true
+tick()
+check(runningIds() == "polllow", "the only one wanting starts", runningIds())
+
+want.pollhigh, want.pollmid = true, true
+tick()
+check(runningIds() == "pollhigh", "the highest one wanting takes over in one frame, the others stop", runningIds())
+
+asked.polllow, asked.pollmid = 0, 0
+tick(); tick()
+check(asked.polllow == 0 and asked.pollmid == 0, "lower ones are not asked while a higher one runs",
+      asked.polllow .. "," .. asked.pollmid)
+
+want.pollhigh = false
+tick()
+check(runningIds() == "pollmid", "when it stops, the next one down starts in the same frame", runningIds())
+
+want.pollmid = false
+tick()
+check(runningIds() == "polllow", "and the one below that", runningIds())
 
 print(string.format("\n%d checks, %d failures", checks, fails))
 os.exit(fails == 0 and 0 or 1)

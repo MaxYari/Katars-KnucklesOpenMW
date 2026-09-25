@@ -1,4 +1,4 @@
-# Blending into xh2hSlash only.
+# Blending into xh2hThrust only.
 #
 # Per-animation rules are appended AFTER the global ruleset
 # (AnimBlendRules::addOverrideRules) and the bottom-most matching rule wins, so
@@ -13,7 +13,7 @@ blending_rules:
   # Entry into this attack. The global 0.1 reads as a snap over the pose gap
   # these animations open up, particularly when interrupting a tail.
   - from: "*"
-    to: "*:slash*"
+    to: "*:thrust*"
     easing: "sineOut"
     duration: 0.2
 
