@@ -6,9 +6,10 @@ leaves the off-hand one wherever the skeleton's rest pose put it, because nothin
 the bone existed has a track for it. The two weapons then sit differently in their hands.
 
 A keyframe track is relative to the bone's parent, so it needs the same conjugation into the left
-hand's frame that the rest transform does - see mirror_bone.py. Translations and their tangents are
-sign-flipped; rotations are quaternions, where conjugating by a reflection maps the axis through it
-and negates the angle. Copying the track across unchanged buries the weapon in the forearm.
+hand's frame that the rest transform does - see mirror_bone.py - and then the katar's half turn
+about its blade, which only the track carries. Translations and their tangents are sign-flipped;
+rotations are quaternions, where conjugating by a reflection maps the axis through it and negates
+the angle. Copying the track across unchanged buries the weapon in the forearm.
 
 Run it after every export; it replaces an existing Weapon Bone.L track rather than stacking another.
 
@@ -98,7 +99,10 @@ def mirror_data(data, signs):
         if keys.shape[1] < 5:
             raise ValueError("rotation keys are %d wide, not the [time, w, x, y, z] this handles"
                              % keys.shape[1])
-        keys[:, 1:5] = mirror_bone.conjugate_quaternion(keys[:, 1:5], signs)
+        # Conjugated as the rest transform is, then the katar's half turn, which lives here in its
+        # animation rather than on the bone - see mirror_bone.SPIN_AXIS.
+        keys[:, 1:5] = mirror_bone.apply_spin_quaternion(
+            mirror_bone.conjugate_quaternion(keys[:, 1:5], signs))
         data.rotations.keys = keys
 
     # Scales are scalars; nothing to mirror.

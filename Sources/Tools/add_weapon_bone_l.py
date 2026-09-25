@@ -4,11 +4,13 @@ The bone is placed by conjugating 'Weapon Bone''s transform within its own hand'
 left hand's - the two frames differ by a sign flip, which is fitted here from the rig's own
 left/right bone pairs rather than assumed. This has to agree with Sources/Tools/patch_skeleton.py,
 which fits the same thing on the exported skeletons: animate against one and the game uses the
-other.
+other. Like that one, it is the plain mirror - a weapon modelled blade up +Y hangs from it the
+right way up; the katar's half turn is keyed in the katar's actions (import_h2h_actions.py).
 
 Idempotent: run it again after moving anything and it re-places the bone, the controller and the
 constraints together."""
 import bpy
+from bpy_extras.io_utils import axis_conversion
 from mathutils import Matrix, Vector
 
 SRC = 'Weapon Bone'      # the right-hand controller to copy from
@@ -52,8 +54,21 @@ assert margin >= 2.0, ("no clear mirror convention in this rig", signs, fit_erro
 print("rig mirrors with diag%s (fit %.4f, %.0fx clear of the next)" % (str(signs), fit_error, margin))
 SIGN_MATRIX = Matrix.Diagonal(tuple(signs) + (1.0,))
 
+# The mirror that is plain in the exported .nif is not the plain one here. io_scene_mw turns every
+# bone's axes on import, and not all the same way - "Bip01" bones one way, the weapon bones another
+# (nif_import.py: biped_axis_correction, other_axis_correction) - so on the weapon's side the flip
+# lands on a different axis: diag(1, -1, 1) rather than the hand's diag(1, 1, -1). Mirroring with
+# the hand's flip on both sides, as this used to, is the .nif mirror plus a half turn about the
+# blade, which hangs a vanilla weapon upside down.
+BIPED_AXES = axis_conversion('-X', 'Z', 'Y', 'Z').to_4x4()
+OTHER_AXES = axis_conversion('Y', 'Z', '-Z', '-Y').to_4x4()
+NIF_SIGNS = BIPED_AXES @ SIGN_MATRIX @ BIPED_AXES.inverted()
+WEAPON_SIGNS = OTHER_AXES.inverted() @ NIF_SIGNS @ OTHER_AXES
+assert all(abs(WEAPON_SIGNS[r][c]) < 1e-6 for r in range(3) for c in range(3) if r != c), WEAPON_SIGNS
+print("in Blender's axes the weapon side flips diag%s" % str(tuple(round(WEAPON_SIGNS[i][i]) for i in range(3))))
+
 in_right_hand = bip.data.bones[HAND_R].matrix_local.inverted() @ bip.data.bones[SRC].matrix_local
-placement = bip.data.bones[HAND_L].matrix_local @ (SIGN_MATRIX @ in_right_hand @ SIGN_MATRIX)
+placement = bip.data.bones[HAND_L].matrix_local @ (SIGN_MATRIX @ in_right_hand @ WEAPON_SIGNS)
 
 bpy.context.view_layer.objects.active = bip
 bpy.ops.object.mode_set(mode='EDIT')
@@ -75,7 +90,7 @@ finally:
 bpy.ops.object.mode_set(mode='OBJECT')
 
 check = bip.data.bones[HAND_L].matrix_local.inverted() @ bip.data.bones[NEW].matrix_local
-want = SIGN_MATRIX @ in_right_hand @ SIGN_MATRIX
+want = SIGN_MATRIX @ in_right_hand @ WEAPON_SIGNS
 for r in range(4):
     for c in range(4):
         assert abs(check[r][c] - want[r][c]) < 1e-4, ("placement mismatch", r, c, check[r][c], want[r][c])

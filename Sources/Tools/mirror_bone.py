@@ -16,7 +16,8 @@ identical - puts the off-hand weapon about 2.8 units into the forearm on the fir
 still letting the blade point more or less forwards, so a one-axis check does not catch it.
 
 Used by patch_skeleton.py for the rest transform and by mirror_weapon_track.py for the keyframe
-track. Both have to agree, which is why the rule lives here and not in either of them.
+track. Both have to agree, which is why the rule lives here and not in either of them. Only the
+track gets the half turn below: it is the katar's, not the bone's.
 """
 import itertools
 
@@ -31,6 +32,62 @@ MIRRORED_BONES = [
     "Finger01", "Finger11", "Finger21", "Finger31", "Finger41",
     "Thigh", "Calf", "Foot", "Toe0",
 ]
+
+
+# --- the half turn -------------------------------------------------------------------------------
+# S . M . S is a similarity transform, so its determinant is det(M): the off-hand frame comes out a
+# ROTATION of the main-hand one, never a reflection. The weapon is therefore rotated into place
+# rather than mirrored, which leaves the face that should point away from the body pointing across
+# it - the blade still aims forwards, but the weapon is on its wrong side.
+#
+# A true mirror is not available here: a NIF node carries one uniform float scale, and a negative
+# one would invert triangle winding without OpenMW reversing the face culling to match. So the
+# weapon gets a half turn about the axis it is long on instead, which puts the outward face back
+# outwards. It also turns the weapon over, which is invisible on a weapon that is symmetric across
+# that axis and is the trade this mod accepts.
+#
+# It is applied to the katar's animation tracks only (mirror_weapon_track.py), never to the bone's
+# rest (patch_skeleton.py). The axis is the katar's: vanilla weapons are modelled blade up +Y, and
+# this turn flips Y, so the same turn on the bone would hang any of them upside down. The plain
+# conjugation flips Z instead, across which they are all symmetric.
+SPIN_AXIS = 0  # X: the axis the blade runs along - see the extents of any katar .nif
+
+
+def spin_matrix():
+    """The half turn about SPIN_AXIS, as a 4x4."""
+    signs = [-1.0, -1.0, -1.0]
+    signs[SPIN_AXIS] = 1.0
+    return np.diag(signs + [1.0])
+
+
+def apply_spin(matrix):
+    """Post-multiply, so the weapon spins in place and the bone's origin does not move."""
+    return np.asarray(matrix, dtype=float) @ spin_matrix()
+
+
+def spin_quaternion():
+    """The same half turn as (w, x, y, z)."""
+    q = np.zeros(4)
+    q[1 + SPIN_AXIS] = 1.0
+    return q
+
+
+def quaternion_multiply(a, b):
+    """Hamilton product of rows of (w, x, y, z) by a single quaternion."""
+    a = np.atleast_2d(np.asarray(a, dtype=float))
+    w1, x1, y1, z1 = a[:, 0], a[:, 1], a[:, 2], a[:, 3]
+    w2, x2, y2, z2 = b
+    return np.stack([
+        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+    ], axis=1)
+
+
+def apply_spin_quaternion(quats):
+    """The quaternion form of apply_spin: right-multiplication is post-multiplication."""
+    return quaternion_multiply(quats, spin_quaternion())
 
 
 def sign_matrix(signs):
@@ -113,6 +170,29 @@ def self_test():
                 [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
             ])
             assert np.allclose(got, expected, atol=1e-9), (signs, got, expected)
+
+    # apply_spin_quaternion has to agree with apply_spin on the matrix.
+    for _ in range(16):
+        q = rng.normal(size=4)
+        q /= np.linalg.norm(q)
+        w, x, y, z = q
+        R = np.eye(4)
+        R[:3, :3] = [
+            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+        ]
+        expected = apply_spin(R)[:3, :3]
+        w, x, y, z = apply_spin_quaternion(q[None, :])[0]
+        got = np.array([
+            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+        ])
+        assert np.allclose(got, expected, atol=1e-9), (got, expected)
+
+    # a half turn twice is the identity
+    assert np.allclose(apply_spin(apply_spin(np.eye(4))), np.eye(4), atol=1e-12)
     return True
 
 
