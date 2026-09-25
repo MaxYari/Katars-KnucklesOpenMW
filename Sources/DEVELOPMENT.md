@@ -312,6 +312,9 @@ script, so a rebuild is reproducible:
   `Weapon Bone` in a `.kf`. Run it over the animations after every export.
 - `Sources/Tools/mirror_bone.py` - the one definition of how this rig mirrors, shared by both of
   the above. Run it directly to self-test the quaternion maths.
+- `Sources/Tools/make_test_crate.py` - writes `Katars_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon`:
+  a crate with one of every item this mod adds, by the stump with the axe in it near the Seyda Neen
+  lighthouse. For testing only, left out of the release. Re-run it after adding an item.
 - `Sources/Tools/make_plugin.py` - writes `Katar.omwaddon` from the vanilla shortsword table, with
   vanilla stand-ins for the uniques' enchantments. The real ones use custom magic effects, which an
   ESM file cannot name, so `scripts/MaxYari/H2HWeapons/content.lua` replaces them when the game starts.
