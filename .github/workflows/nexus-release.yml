@@ -1,8 +1,16 @@
 name: Release to Nexus Mods
 
-# Every push to main runs the script tests, packs the mod and uploads it as a new version of the
-# main file on the Nexus page below, with the last commit message as its changelog.
-# Put [skip nexus] in a commit message to push without uploading.
+# Every push to main runs the script tests. It packs the mod and uploads it as a new version of the
+# main file on the Nexus page below only when the last commit pushed has a message starting with
+# [nexus] (any case), and only once the tests pass. Anything else is pushed without uploading.
+#
+# That commit's description - everything under its first line - becomes both the file description
+# and the version's changelog. Co-authored-by / Signed-off-by style trailers are left out. With no
+# description, the first line is used instead, minus the [nexus] tag. For example:
+#
+#   [nexus] Fixed thrown idles
+#
+#   The sneak idle no longer plays over the star one.
 #
 # The version is the first `version = ...` in VERSION_SOURCE. If Nexus already has it (you didn't
 # bump it), a counter is appended on Nexus only: 1.0 -> 1.0.1 -> 1.0.2 ... until you bump it.
@@ -13,6 +21,8 @@ name: Release to Nexus Mods
 #
 # Can also be run by hand: Actions tab -> Release to Nexus Mods -> Run workflow, or
 #   gh workflow run nexus-release.yml [-f version=1.1] [-f changelog="..."]
+# A manual run always uploads, and changelog (when given) replaces the commit's description in both
+# places.
 #
 # One-time setup, before the first push to main:
 #   1. Create the mod page on Nexus and upload any file to it by hand.
@@ -31,7 +41,7 @@ on:
         description: Version to publish (default - the one in the version source file)
         required: false
       changelog:
-        description: Changelog text (default - the last commit message)
+        description: Changelog and file description text (default - the last commit's description)
         required: false
 
 permissions:
@@ -51,25 +61,32 @@ env:
   VERSION_SOURCE: scripts/MaxYari/H2HWeapons/player.lua
 
 jobs:
-  nexus:
-    # Manual runs have no head commit, so they always upload
-    if: ${{ !contains(github.event.head_commit.message, '[skip nexus]') }}
+  # The scripts are the part that can quietly break, and they run against fakes for the openmw API,
+  # so they need nothing but a Lua interpreter and ReAnimation next to them. Runs on every push.
+  tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # The scripts are the part that can quietly break, and they run against fakes for the
-      # openmw API, so they need nothing but a Lua interpreter and ReAnimation next to them.
       - name: Script tests
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq lua5.4
-          git clone --depth 1 https://github.com/MaxYari/ReAnimation.git "$RUNNER_TEMP/ReAnimation" \
+          git clone --depth 1 https://github.com/MaxYari/OpenMWReAnimation.git "$RUNNER_TEMP/ReAnimation" \
             || echo "::warning::ReAnimation checkout failed, skipping the tests that need it"
           if [ -d "$RUNNER_TEMP/ReAnimation" ]; then
             H2H_REANIMATION="$RUNNER_TEMP/ReAnimation" bash Sources/Tools/tests/run.sh
           fi
 
-      - name: Work out version and changelog
+  nexus:
+    needs: tests
+    # Pushes upload only when the last pushed commit asks for it. startsWith ignores case. Manual runs
+    # have no head commit, so they always upload.
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, '[nexus]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out version, changelog and description
         id: meta
         env:
           NEXUSMODS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
@@ -99,12 +116,21 @@ jobs:
           echo "Publishing version $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+          if [ -n "$INPUT_CHANGELOG" ]; then
+            notes="$INPUT_CHANGELOG"
+          else
+            # The commit's description, without trailers or leading blank lines. $( ) drops the
+            # trailing ones.
+            notes=$(git log -1 --format=%b | sed -E '/^[A-Za-z-]+-by: /Id' | sed '/./,$!d')
+            if [ -z "$notes" ]; then
+              notes=$(git log -1 --format=%s | sed -E 's/^\[nexus\][[:space:]]*//I')
+            fi
+          fi
+          printf 'Changelog and file description:\n%s\n' "$notes"
           {
-            echo "changelog<<CHANGELOG_EOF"
-            # Last commit message without Co-authored-by / Signed-off-by style trailers
-            if [ -n "$INPUT_CHANGELOG" ]; then printf '%s\n' "$INPUT_CHANGELOG"
-            else git log -1 --format=%B | sed -E '/^[A-Za-z-]+-by: /Id' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'; fi
-            echo "CHANGELOG_EOF"
+            echo "notes<<NOTES_EOF"
+            printf '%s\n' "$notes"
+            echo "NOTES_EOF"
           } >> "$GITHUB_OUTPUT"
 
       # Image URLs are pinned to this commit, so the pasted description keeps working
@@ -133,6 +159,7 @@ jobs:
           display_name: ${{ env.FILE_DISPLAY_NAME }}
           category: main
           version: ${{ steps.meta.outputs.version }}
-          changelog: ${{ steps.meta.outputs.changelog }}
+          description: ${{ steps.meta.outputs.notes }}
+          changelog: ${{ steps.meta.outputs.notes }}
           update_mod_version: true
           archive_existing_version: true
