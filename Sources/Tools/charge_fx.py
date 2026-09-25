@@ -19,8 +19,14 @@ Two jobs, because they are two halves of one look:
    reason hand-attached particles look detached or wrongly ordered. Local-space particles stay in
    the emitter's frame and inherit the first-person render bin like any other geometry.
 
-    python3 charge_fx.py --alpha meshes/mage_knuckle.nif --shape Crystal
-    python3 charge_fx.py --effect meshes/mage_knuckle_charged.nif --centre 3.88,0,0 --extent 0.7,2.2,0.7
+   With --from-mesh the effect is fitted to the weapon itself, from the bounds of the shapes whose
+   names contain --shapes: one shimmer and one glow inside each of them, or with --between a single
+   one in the gap between them - Mage Fury's, whose light sits between its two crystals. Re-run it
+   after every export and the effect follows the crystals wherever they have moved to.
+
+    python3 charge_fx.py --alpha meshes/mage_fury.nif --shape Crystal
+    python3 charge_fx.py --effect meshes/mage_fury_charged.nif --from-mesh meshes/mage_fury.nif --between
+    python3 charge_fx.py --effect out.nif --centre 3.88,0,0 --extent 0.7,2.2,0.7
 """
 import argparse
 import os
@@ -65,7 +71,7 @@ try:
                          NiBSParticleNode, NiColorData, NiMaterialProperty, NiNode,
                          NiParticleColorModifier, NiParticleGrowFade, NiParticleSystemController,
                          NiSourceTexture, NiStream, NiTexturingProperty, NiTexturingPropertyMap,
-                         NiZBufferProperty)
+                         NiTriShape, NiZBufferProperty)
 except ImportError as exc:
     sys.exit("Could not find the es3 library (%s). Install Greatness7's io_scene_mw Blender add-on, "
              "or point IO_SCENE_MW at its 'lib' folder." % exc)
@@ -79,25 +85,108 @@ def walk(node):
 
 
 def add_alpha(path, shape_name):
+    """Every shape whose name contains shape_name (any case) - a weapon may have more than one."""
     stream = NiStream()
     stream.load(path)
 
+    wanted = shape_name.lower()
+    report, changed = [], False
     for node in walk(stream.roots[0]):
-        if getattr(node, "name", "") != shape_name:
+        name = getattr(node, "name", "") or ""
+        if wanted not in name.lower() or not isinstance(node, NiTriShape):
             continue
         props = list(node.properties or [])
+        if not any(isinstance(p, NiMaterialProperty) for p in props):
+            report.append("%r has no material, so there is no alpha to blend with - fix the export"
+                          % name)
+            continue
         if any(isinstance(p, NiAlphaProperty) for p in props):
-            return "%s already has a NiAlphaProperty" % shape_name
+            report.append("%r already has a NiAlphaProperty" % name)
+            continue
         alpha = NiAlphaProperty()
         alpha.flags = ALPHA_FLAGS
         node.properties = props + [alpha]
+        changed = True
+        report.append("added NiAlphaProperty(0x%04x) to %r - it will blend now" % (ALPHA_FLAGS, name))
+    if changed:
         stream.save(path)
-        return "added NiAlphaProperty(0x%04x) to %r - it will blend now" % (ALPHA_FLAGS, shape_name)
-    return "no shape called %r in this file" % shape_name
+    return "\n".join(report) or "no shape named like %r in this file" % shape_name
+
+
+def shape_bounds(path, shape_name):
+    """(name, low corner, high corner) of every shape named like shape_name, in the mesh's own frame.
+
+    The frame the effect is hung in is the weapon's root, so each shape's vertices are carried up
+    through every node above it.
+    """
+    stream = NiStream()
+    stream.load(path)
+    wanted = shape_name.lower()
+    volumes = []
+
+    def visit(node, parent):
+        local = np.eye(4)
+        rotation = getattr(node, "rotation", None)
+        if rotation is not None:
+            local[:3, :3] = np.asarray(rotation, dtype=float) * float(getattr(node, "scale", 1.0))
+        translation = getattr(node, "translation", None)
+        if translation is not None:
+            local[:3, 3] = translation
+        world = parent @ local
+        name = getattr(node, "name", "") or ""
+        if isinstance(node, NiTriShape) and wanted in name.lower() and node.data is not None:
+            vertices = np.asarray(node.data.vertices, dtype=float)
+            placed = vertices @ world[:3, :3].T + world[:3, 3]
+            volumes.append((name, placed.min(axis=0), placed.max(axis=0)))
+        for child in getattr(node, "children", None) or []:
+            if child is not None:
+                visit(child, world)
+
+    visit(stream.roots[0], np.eye(4))
+    return volumes
+
+
+def volumes_inside(bounds, fill):
+    """One volume per shape. `fill` shrinks each box: a crystal is a gem, not a box, and a sparkle in
+    the box's corner would sit outside it."""
+    return [(name, tuple((low + high) / 2), tuple((high - low) / 2 * fill))
+            for name, low, high in bounds]
+
+
+def volume_between(bounds, fill):
+    """One volume filling the gap between the shapes.
+
+    The shapes are taken to sit side by side along whichever axis their centres are furthest apart
+    on: the gap runs from the inner face of one to the inner face of the next along it, and across
+    it the volume is as big as the shapes themselves are.
+    """
+    if len(bounds) < 2:
+        sys.exit("--between needs at least two shapes, found %d" % len(bounds))
+    lows = np.array([b[1] for b in bounds])
+    highs = np.array([b[2] for b in bounds])
+    centres = (lows + highs) / 2
+    axis = int(np.argmax(centres.max(axis=0) - centres.min(axis=0)))
+    order = np.argsort(centres[:, axis])
+    first, last = order[0], order[-1]
+    # Between the two outermost shapes' inner faces; anything in between is inside the gap anyway.
+    gap_low, gap_high = highs[first][axis], lows[last][axis]
+    if gap_high <= gap_low:
+        sys.exit("the shapes overlap along their shared axis; there is no gap between them")
+
+    centre = centres.mean(axis=0)
+    centre[axis] = (gap_low + gap_high) / 2
+    extent = ((highs - lows) / 2).mean(axis=0)
+    extent[axis] = (gap_high - gap_low) / 2
+    label = "between %d shapes" % len(bounds)
+    return [(label, tuple(centre), tuple(extent * fill))]
+
+
+# How much of the big glow's additive contribution to keep. 1.0 is as bright as the sprite.
+GLOW_OPACITY = 0.5
 
 
 def make_particle_system(name, centre, extent, texture, size, birth_rate, lifespan, colour,
-                         speed, additive):
+                         speed, additive, opacity=1.0):
     """One local-space particle system, confined to a box around `centre`."""
     emitter = NiNode()
     emitter.name = name + " Emitter"
@@ -137,7 +226,7 @@ def make_particle_system(name, centre, extent, texture, size, birth_rate, lifesp
     material.ambient_color = np.array(colour, dtype=float)
     material.diffuse_color = np.array(colour, dtype=float)
     material.emissive_color = np.array(colour, dtype=float)  # self-lit, like every vanilla sparkle
-    material.alpha = 1.0
+    material.alpha = float(opacity)
 
     alpha = NiAlphaProperty()
     alpha.flags = ALPHA_FLAGS_ADDITIVE if additive else ALPHA_FLAGS
@@ -196,9 +285,11 @@ def make_particle_system(name, centre, extent, texture, size, birth_rate, lifesp
     return emitter, node, quota
 
 
-def build_effect(path, centre, extent, texture, size, birth_rate, lifespan, colour,
+def build_effect(path, volumes, texture, size, birth_rate, lifespan, colour,
                  glow_texture, glow_size):
-    """A shimmer confined inside the crystal, plus a soft glow standing in for a light.
+    """A shimmer confined inside each crystal, plus a soft glow standing in for a light.
+
+    `volumes` is a list of (label, centre, half extents), one per crystal.
 
     OpenMW's NIF loader has no light records at all - no NiPointLight, NiLight, NiSpotLight or
     NiAmbientLight anywhere in its dispatch (components/nifosg/nifloader.cpp) - so a mesh cannot
@@ -212,30 +303,37 @@ def build_effect(path, centre, extent, texture, size, birth_rate, lifespan, colo
 
     # Drift has to stay inside the stone, so the emitter box is inset by as far as a particle can
     # travel in its lifetime.
-    drift = speed_drift = 0.0
     sparkle_speed = 0.12
     drift = sparkle_speed * lifespan
-    inset = tuple(max(0.05, e - drift) for e in extent)
 
-    sparkle_emitter, sparkle_node, sparkle_quota = make_particle_system(
-        "Charge", centre, inset, texture, size, birth_rate, lifespan, colour,
-        sparkle_speed, additive=False)
+    children, lines = [], ["wrote %s" % os.path.basename(path)]
+    for index, (label, centre, extent) in enumerate(volumes):
+        suffix = "" if len(volumes) == 1 else " %d" % (index + 1)
+        inset = tuple(max(0.05, e - drift) for e in extent)
 
-    # The glow sits still at the centre; a long life and a low birth rate keep one or two alive.
-    glow_emitter, glow_node, _ = make_particle_system(
-        "Charge Glow", centre, (0.05, 0.05, 0.05), glow_texture, glow_size, 0.8, 2.5, colour,
-        0.0, additive=True)
+        sparkle_emitter, sparkle_node, _ = make_particle_system(
+            "Charge" + suffix, centre, inset, texture, size, birth_rate, lifespan, colour,
+            sparkle_speed, additive=False)
 
-    root.children = [sparkle_emitter, sparkle_node, glow_emitter, glow_node]
+        # The glow sits still at the centre; a long life and a low birth rate keep one or two alive.
+        glow_emitter, glow_node, _ = make_particle_system(
+            "Charge Glow" + suffix, centre, (0.05, 0.05, 0.05), glow_texture, glow_size, 0.8, 2.5,
+            colour, 0.0, additive=True, opacity=GLOW_OPACITY)
 
+        children += [sparkle_emitter, sparkle_node, glow_emitter, glow_node]
+        lines.append("   %-22s centre %s, sparkle box %s" % (
+            label, np.round(centre, 2).tolist(), np.round(np.array(inset) * 2, 2).tolist()))
+
+    root.children = children
     stream = NiStream()
     stream.roots = [root]
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     stream.save(path)
-    return ("wrote %s\n   sparkle: size %.2f, %.1f/s, %.1fs life, drift %.2f, box %s\n"
-            "   glow:    size %.2f, additive, breathing\n   both local-space, centred %s"
-            % (os.path.basename(path), size, birth_rate, lifespan, drift,
-               np.round(np.array(inset) * 2, 2).tolist(), glow_size, np.round(centre, 2).tolist()))
+    lines.append("   sparkle: size %.2f, %.1f/s, %.1fs life, drift %.2f; "
+                 "glow: size %.2f, additive at %.0f%% opacity"
+                 % (size, birth_rate, lifespan, drift, glow_size, GLOW_OPACITY * 100))
+    lines.append("   all local-space")
+    return "\n".join(lines)
 
 
 def triple(text):
@@ -248,15 +346,21 @@ def main():
     ap.add_argument("--alpha", help="weapon mesh to add a NiAlphaProperty to")
     ap.add_argument("--shape", default="Crystal", help="which shape in it")
     ap.add_argument("--effect", help="path of the particle .nif to write")
+    ap.add_argument("--from-mesh", help="fit the effect to the shapes named like --shapes in this mesh")
+    ap.add_argument("--shapes", default="crystal", help="what the crystals' names contain (any case)")
+    ap.add_argument("--between", action="store_true",
+                    help="with --from-mesh: one effect in the gap between the shapes, not one in each")
+    ap.add_argument("--fill", type=float, default=0.6,
+                    help="share of each crystal's bounding box (or of the gap) the sparkles may use")
     ap.add_argument("--centre", type=triple, default=(3.88, 0.0, 0.0),
-                    help="centre of the crystal, in the weapon's local space")
+                    help="without --from-mesh: centre of the crystal, in the weapon's local space")
     ap.add_argument("--extent", type=triple, default=(0.7, 2.2, 0.7),
-                    help="half-extents of the emitter box")
+                    help="without --from-mesh: half-extents of the emitter box")
     ap.add_argument("--texture", default="vfx_myst_flare01.dds")
     ap.add_argument("--size", type=float, default=0.45)
     ap.add_argument("--birth-rate", type=float, default=11.0)
     ap.add_argument("--lifespan", type=float, default=1.2)
-    ap.add_argument("--glow-texture", default="vfx_myst_glow.dds")
+    ap.add_argument("--glow-texture", default="vfx_myst_hotflare.dds")
     ap.add_argument("--glow-size", type=float, default=2.6)
     ap.add_argument("--colour", type=triple, default=(0.45, 0.70, 1.0))
     args = ap.parse_args()
@@ -264,7 +368,14 @@ def main():
     if args.alpha:
         print(add_alpha(args.alpha, args.shape))
     if args.effect:
-        print(build_effect(args.effect, args.centre, args.extent, args.texture,
+        if args.from_mesh:
+            bounds = shape_bounds(args.from_mesh, args.shapes)
+            if not bounds:
+                sys.exit("no shape named like %r in %s" % (args.shapes, args.from_mesh))
+            volumes = (volume_between if args.between else volumes_inside)(bounds, args.fill)
+        else:
+            volumes = [("--centre", args.centre, args.extent)]
+        print(build_effect(args.effect, volumes, args.texture,
                            args.size, args.birth_rate, args.lifespan, args.colour,
                            args.glow_texture, args.glow_size))
     if not args.alpha and not args.effect:
