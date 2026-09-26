@@ -7,7 +7,8 @@ animation folder under the katar's names, ready for scripts/MaxYari/H2HWeapons/a
 play over the one-handed groups the engine uses for these weapons. Three things change on the way:
 
 1. The groups are renamed: handtohand -> katar, idlehh -> idlekatar, walkforwardhh ->
-   walkforwardkatar and so on (GROUPS). Footstep keys (SoundGen) are left alone.
+   walkforwardkatar and so on (GROUPS). Footstep keys (SoundGen) become SoundGenRef: the one-handed
+   animation underneath sounds its own, and these would sound every step twice (footstep_refs.py).
 
 2. Weapon Bone is put where the katar sits. The fist animations hold it at the rig's rest pose; the
    katar set holds it at the pose that seats a katar in the grip, and the weapons are modelled for
@@ -33,6 +34,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mirror_weapon_track  # noqa: E402  (also puts the es3 library on the path)
+import footstep_refs  # noqa: E402
 from es3.nif import NiStream, NiStringExtraData, NiTextKeyExtraData  # noqa: E402
 
 # ReAnimation's file (no extension) -> this mod's.
@@ -63,7 +65,7 @@ GROUPS = {
 for _move in ("walk", "run", "sneak"):
     for _way in ("forward", "back", "left", "right"):
         GROUPS[_move + _way + "hh"] = _move.capitalize() + _way.capitalize() + "Katar"
-KEEP = {"soundgen"}
+FOOTSTEPS = {"soundgen", "soundgenref"}
 
 SEAT_BONE = "Weapon Bone"
 KEY_LINE = re.compile(r"^(\s*)([^:]+?)(\s*:.*)$")
@@ -74,8 +76,8 @@ def rename_line(line, path):
     if not m:
         return line
     group = m.group(2).strip().lower()
-    if group in KEEP:
-        return line
+    if group in FOOTSTEPS:
+        return footstep_refs.to_ref(line)
     if group not in GROUPS:
         sys.exit("%s has a key in group %r, which this does not know what to call - add it to GROUPS"
                  % (os.path.basename(path), m.group(2)))

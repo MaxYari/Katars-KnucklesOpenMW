@@ -3,5 +3,6 @@
 LOAD: scripts/MaxYari/H2HWeapons/content.lua
 GLOBAL: scripts/MaxYari/H2HWeapons/global.lua
 PLAYER: scripts/MaxYari/H2HWeapons/player.lua
+NPC: scripts/MaxYari/H2HWeapons/npc.lua
 NPC, CREATURE, PLAYER: scripts/MaxYari/H2HWeapons/actor.lua
-PLAYER: scripts/MaxYari/H2HWeapons/animations.lua
+NPC, PLAYER: scripts/MaxYari/H2HWeapons/animations.lua

@@ -259,7 +259,8 @@ local function struckByVenom(attacker, burst)
         end
     end
 
-    -- Only the player's script listens: the strikes towards a burst are theirs to count.
+    -- The wielder's script listens - the player's or an NPC's: the strikes towards a burst are theirs
+    -- to count (rose.lua). A creature has none, and the event goes nowhere.
     attacker:sendEvent("H2HWeapons_VenomStrike", { victim = omwself.object, burst = burst })
 end
 

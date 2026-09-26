@@ -35,6 +35,13 @@ M.WEAPON_SKILL = {
     [M.KIND.Knuckle] = "bluntweapon",
 }
 
+-- The draw and sheathe sounds the engine plays for each kind (character.cpp:1417, :1477), which bare
+-- hands do not make - and so these should not either.
+M.DRAW_SOUNDS = {
+    [M.KIND.Katar] = { "Item Weapon Shortblade Up", "Item Weapon Shortblade Down" },
+    [M.KIND.Knuckle] = { "Item Weapon Blunt Up", "Item Weapon Blunt Down" },
+}
+
 -- Matched against the record id, so another mod's katars and knuckledusters are picked up too
 -- without needing to know about this one - and against the mesh's file name, which is all a
 -- generated record keeps to say what it is: one an enchanter made from a katar, or a Bound Fist

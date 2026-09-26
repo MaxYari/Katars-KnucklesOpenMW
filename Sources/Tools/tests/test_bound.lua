@@ -151,7 +151,9 @@ G.H2HWeapons_DismissFist({ item = dropped })
 check(dropped.removed == true and #st.spawnedVfx == 1, "and with a puff from the ground")
 
 -- The merchants, a content file of their own (H2HWeapons_SpellTraders.omwscripts).
-check(global.engineHandlers.onActorActive == nil, "the main mod teaches nobody; that is the traders script's job")
+st.taught = {}
+global.engineHandlers.onActorActive(stubs.object({ recordId = "Masalinie Merian" }))
+check(#st.taught == 0, "the main mod teaches nobody; that is the traders script's job")
 local list = require("scripts/MaxYari/H2HWeapons/traders/list")
 local traders = require("scripts/MaxYari/H2HWeapons/traders/traders")
 local sellers = list[U.BOUND_FIST_SPELL]

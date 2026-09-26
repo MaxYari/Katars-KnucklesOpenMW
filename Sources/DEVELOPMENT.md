@@ -97,10 +97,10 @@ A second copy of the weapon is put in your left hand while the weapon is drawn, 
 *Compatibility* below, and turn it off in the settings if it gets in the way.
 
 Animations pose the weapon bone to seat a weapon in the grip, so the off-hand one needs the same
-track or it sits wherever the skeleton's rest pose left it. This mod's own animations carry it. Any
-animation that does not - anything from another animation mod, and third person, where this mod has
-no animations of its own - leaves the off-hand weapon at rest, which reads as it sitting low or loose
-in the hand, and for a katar with a decorated face, as that face turned in.
+track or it sits wherever the skeleton's rest pose left it. This mod's own animations carry it, in
+first person and third. Any animation that does not - anything from another animation mod - leaves
+the off-hand weapon at rest, which reads as it sitting low or loose in the hand, and for a katar with
+a decorated face, as that face turned in.
 `Sources/Tools/mirror_weapon_track.py` adds the track to a `.kf`, and can be pointed at any animation
 folder:
 
@@ -112,13 +112,28 @@ python3 Sources/Tools/mirror_weapon_track.py <animation folder>
 
 Drawing a short blade or a blunt weapon plays a sound. Bare hands do not, and neither do these.
 
+### NPCs
+
+NPCs carry these as they carry any weapon - bought, looted, from the levelled lists - and choose and
+swing them by the skill the engine gives them: Short Blade for a katar, Blunt Weapon for
+knuckledusters. There is no Hand to Hand swap for them and no experience to split, but everything
+that shows is the same as yours: the second weapon in the off hand, the katar moveset, the silent
+draw, the bruising on whoever they hit, and Ebony Rose's burst. They never channel a spell into Mage
+Fury, and its strikes cost them nothing.
+
+In third person - an NPC, or you with the camera pulled back - the moveset is the first-person one
+with vanilla's third-person hand-to-hand legs under it (see *Building from source*): the arms keep
+their first-person guard, fists up, the head keeps looking ahead through every swing, and the hips,
+legs and footwork are the game's own. It plays for
+male, female and beast bodies, beasts with their own legs.
+
 ## The uniques
 
 Three: Ebony Rose, Mage Fury, and the wooden knuckles - which hit for half the iron set but take an
 enchantment as well as silver does, since it is the medium, not the metal, that holds one. None of
 the three is in any levelled list: nobody sells them and no chest rolls them. They are placed in the
 world by `KatarWorldPlacements.omwaddon`, which is made by hand in OpenMW-CS - unlike `Katar.omwaddon`,
-it is not generated, so edit it there.
+it is not generated, so edit it there. Ebony Rose also has an owner, below.
 
 Ebony Rose and Mage Fury are enchanted with magic effects of this mod's own, so their tooltips and your active effects
 name and explain what they do. The engine carries those effects the way it carries any other -
@@ -145,6 +160,15 @@ only what the engine keys to its built-in effects and so cannot give a new one.
   honours **Resist Poison** and **Weakness to Poison**; **Cure Poison** does not wash it out. A
   killing blow is handed to the engine as a Damage Health cast by whoever poisoned the victim, so the
   kill is theirs by the engine's own rules - murder included, when it is one.
+- **Its owner** is Dandras Vules, the Dark Brotherhood's master in Mournhold (Tribunal). He is handed
+  it the first time he comes into the world, by script rather than by editing his record, and fights
+  with it - bursts and all. The combat AI picks its weapon before every swing, by damage and by what
+  the enchantment casts on a strike (`weaponpriority.cpp`), and his own Adamantium Jinkblade of
+  Wounds - Paralyze and 10 points of Poison on every strike - would win that easily. An enchantment
+  without the charge for one more cast is not counted, so each time he comes into the world while he
+  has the Rose, the Jinkblade is left without charge: it takes a quarter of an hour to recharge that
+  far, and until then he fights with the Rose. It is still on him, and recharges as any enchanted
+  weapon does once taken.
 
 **Mage Fury** (`knuckle_mage_fury`) - iron knuckledusters with a crystal set in them.
 
@@ -229,6 +253,11 @@ can add damage to a weapon hit - and anyone can be struck. It has no per-frame h
 on a hit (and leaves at once unless the weapon is one of these), when an NPC casts (to notice Bound
 Fist), and a few times a second only while that actor is poisoned by Ebony Rose or holds a Bound Fist.
 
+Two more run on every NPC, for NPCs who wield these. `npc.lua` has no per-frame handler either: it
+hangs off the NPC's own animation events, and looks at the hand twice a second only while a
+one-handed weapon is out. `animations.lua` registers the moveset with ReAnimation, whose own per-frame
+check only runs while the NPC has a weapon drawn.
+
 The per-frame work is the player's: the stance, the camera mode, and the equipped weapon, which Max
 Yari's Script Services reads for this mod and ReAnimation both, at most ten times a second.
 
@@ -270,6 +299,36 @@ should. That is also why these weapons have such low speeds - 0.9 for katars, 1.
 knuckledusters: the fist's animations are quick to begin with, and at 1.0 about as quick as a
 sword's at 2.0.
 
+The walk, run and sneak are kept in step with what they play over by how far through its loop each
+one is. Katars move over ReAnimation's short blade set, one step cycle to the loop like the fist's.
+Knuckledusters have no blunt set and move over the one-handed one, which in first person is laid out
+differently: the walk and run an 8-frame lead-in and then three step cycles to the loop, the sneak
+two cycles. One cycle cannot follow that, and drifted off the footsteps. So there, and only in first
+person, they play the fist's cycles laid out the same way (`xKatar1hMovement.kf` and
+`xKatar1hSneakMovement.kf`, `walkforwardkatar1h`, `sneakforwardkatar1h` and so on). The walk's text
+keys are the one-handed walk's to the frame; the sneak's cycle is stretched to 34 frames, which puts
+both its loops within 2% of the one-handed sneak's and every footstep within about a frame of theirs
+- ReAnimation's moveset builder scales the directions by fixed factors, and the one-handed sneak was
+not built with them. Third person plays the plain ones: every one-handed loop there is one cycle too.
+
+A loop of the same steps can still be longer or shorter than the one it plays over - the katar walk
+is 21% longer than the third-person one-handed walk, and a few percent off the short blade walk and
+the one-handed sneak - so it plays at the ratio of the two lengths, read from their start and stop
+keys, and keeps up rather than trailing behind. Past a third longer or shorter the two are not the
+same steps, and it plays at the parent's speed.
+
+None of them sound their own footsteps. The animation underneath still plays and sounds its own, and
+the engine sounds a `SoundGen` key from any animation that has one - as do the Lua mods listening
+for them - so the fist's footsteps in ours sounded every step twice. They are kept as `SoundGenRef`
+keys, which nothing listens for: a record of where our steps fall, which the third-person build
+matches its legs by.
+
+The third-person set is the same animations under the same names, with vanilla's hand-to-hand legs
+merged in (`Sources/Tools/make_third_person_anims.py`), in the folders of the third-person skeletons:
+`Animations/xbase_anim` for everyone, and `Animations/xbase_animkna` over it for beasts, with their
+own legs. So one set of registrations covers both views and every NPC - whichever the engine has
+loaded is what plays.
+
 **One-handed attacks.** The katar moveset and ReAnimation's own one-handed set both live on the
 `weapononehand` animation group, and only one may be active at a time. This mod's set is registered
 with `overridePriority = 1`, one above ReAnimation's, so ReAnimation's stands down while a katar or
@@ -306,6 +365,19 @@ script, so a rebuild is reproducible:
   one is kept because it documents the grip-bar centring the records depend on.
 - `Sources/Tools/import_h2h_set.py` - makes the katar moveset from ReAnimation's hand-to-hand
   animations: renames their groups, seats the weapon bone, and mirrors it onto `Weapon Bone.L`.
+- `Sources/Tools/make_third_person_anims.py` - makes the third-person moveset from the first-person
+  one, with ReAnimation's FBA merge (`Sources/Tools/FBACompat/fba_merge.py` in its repository, found
+  beside this mod): our upper body over the legs, hips and root motion of vanilla's third-person
+  hand-to-hand, their time warped through the text keys both share so ours are kept exactly - the
+  attack timings are ours - and footsteps matched to footsteps. No chest lean, the whole hip lunge,
+  the whole walking sway. Morrowind's skeletons hang the thighs (and a beast's tail) off
+  `Bip01 Spine`, so when the merge turns the spine to keep our upper body upright, they are turned
+  back. The upper body's bone offsets are moved from the first-person skeleton's to the third-person
+  one's. Through every swing and draw the head keeps looking ahead as it does in the idle: in first
+  person the head turns into a punch with the rest of the upper body, up to 95 degrees, which the
+  camera never shows. The engine's head tracking still turns it toward whoever an NPC fights. Reads
+  the vanilla animations out of Morrowind.bsa. Re-run it after every export of the
+  first-person set.
 - `Sources/Tools/patch_skeleton.py` - adds `Weapon Bone.L`: `--bones-out Animations` writes the
   grafted-bone files, `-o meshes` the patched skeleton copies.
 - `Sources/Tools/mirror_weapon_track.py` - gives `Weapon Bone.L` the mirrored keyframe track of
@@ -326,6 +398,21 @@ script, so a rebuild is reproducible:
 - `Sources/Tools/import_h2h_actions.py` - brings ReAnimation's hand-to-hand `[Raw]` actions into the
   Blender file as the katar's, the Blender side of `import_h2h_set.py`: renamed actions and text
   keys, the weapon bone seated, and `Weapon Bone.L` keyed at the mirrored seat with the katar's turn.
+- `Sources/Tools/footstep_refs.py` - renames `SoundGen` keys to `SoundGenRef` in the `.kf` files it
+  is given, or back. `import_h2h_set.py`, `make_katar_1h_movement.py` and
+  `make_third_person_anims.py` all run it on what they write; safe to run twice.
+- `Sources/Tools/make_katar_1h_movement.py` - lays `[Raw] Katar Walk` and `[Raw] Katar Sneak` out as
+  the first-person one-handed walk and sneak are, as `[Raw] Katar Walk 1h` and `[Raw] Katar Sneak 1h`,
+  and with `--export` runs ReAnimation's own `build_and_export_moveset.py` (from its
+  `Sources/Reanimv3.blend`) on them - bake, moveset builder, export - then mirrors `Weapon Bone.L` in
+  and checks the loops against ReAnimation's `x1hMovement.kf` and `x1hSneakMovement.kf`. Re-run it
+  after changing the katar walk or sneak. First person only: the third-person build leaves the files
+  out.
+
+  ```
+  blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/make_katar_1h_movement.py -- \
+      --save --export Animations/xbase_anim.1st
+  ```
 - `Sources/Tools/tests/run.sh` - runs the script tests against fakes for the openmw API.
 
 The weapon exporter runs inside Blender:

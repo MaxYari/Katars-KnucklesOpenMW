@@ -68,6 +68,11 @@ M.BURST_CHAIN = 3    -- ... each within this many seconds of the one before
 -- the blow landed (spellcasting.cpp).
 M.UNITS_PER_FOOT = 22
 
+-- Its owner, who is handed it by global.lua: Dandras Vules, the Dark Brotherhood's master in
+-- Mournhold (Tribunal) - and the enchanted shortsword he carried before it.
+M.ROSE_OWNER = "dandras vules"
+M.ROSE_OWNER_WEAPON = "adamantium_shortsword_db"
+
 --- Mage Fury -----------------------------------------------------------------------------------------
 -- A spell cast successfully with these on charges them; the next three strikes each deliver a third
 -- of that spell's harmful effects to whoever they hit.

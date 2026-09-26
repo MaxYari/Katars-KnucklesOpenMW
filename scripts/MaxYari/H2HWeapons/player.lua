@@ -20,11 +20,15 @@ local I = require('openmw.interfaces')
 local omwself = require('openmw.self')
 local storage = require('openmw.storage')
 local types = require('openmw.types')
+local nearby = require('openmw.nearby')
 local ui = require('openmw.ui')
 local util = require('openmw.util')
 
 local formulas = require(mp .. "scripts/formulas")
+local hands = require(mp .. "scripts/hands")
+local roseState = require(mp .. "scripts/rose")
 local settings = require(mp .. "scripts/settings")
+local swing = require(mp .. "scripts/swing")
 local U = require(mp .. "scripts/uniques")
 local weapons = require(mp .. "scripts/weapons")
 
@@ -57,15 +61,6 @@ local function fill(text, values)
         return tostring(value)
     end))
 end
-
--- The engine's own long animation group for each of these weapon types, plus weapononehand, which
--- is what both fall back to when the specific group has no animation - which, in vanilla, is always
--- (character.cpp:575-600). Used only to skip other mods' playBlended calls cheaply.
-local WEAPON_GROUPS = {
-    weapononehand = true,
-    shortbladeonehand = true,
-    bluntonehand = true,
-}
 
 --- Settings page ----------------------------------------------------------------------------------
 -- The settings themselves are global (see global.lua): the fatigue damage is worked out on whoever
@@ -354,38 +349,34 @@ local function onMageFuryStrike(e)
 end
 
 --- Hung on the hands ------------------------------------------------------------------------------
--- Two things hang off bones as looping VFX, which is the only way a script can put a model on one:
--- the off-hand copy of the weapon, on "Weapon Bone.L" - the mirror of the engine's own weapon bone
--- that this mod's skeleton meshes add - and a charged weapon's glow, on both weapon bones. The glow
--- is a "<mesh>_charged.nif" beside the weapon's mesh (weapons.chargeModelOfId): a particle system
--- authored in the weapon's own local space, so hanging it on the bone drops it inside the weapon.
+-- Two things hang off bones (hands.lua): the off-hand copy of the weapon, on "Weapon Bone.L", and a
+-- charged weapon's glow, on both weapon bones. The glow is a "<mesh>_charged.nif" beside the weapon's
+-- mesh (weapons.chargeModelOfId): a particle system authored in the weapon's own local space, so
+-- hanging it on the bone drops it inside the weapon.
 --
 -- Switching between first and third person swaps the whole model, skeleton and all, and everything
 -- attached to it goes too. So the view is watched - first person or not, which is what picks the
 -- model - and a couple of frames after it changes, once the new model exists, everything is attached
 -- again from scratch. A teleport or a load starts over the same way. So does passing time - resting,
 -- waiting, jail, travel, training - which strips every actor nearby of its effects (Actors::rest,
--- removeEffects) and puts back only magic effects' own. Otherwise something is attached or taken off
--- only when what should be there changes.
+-- removeEffects) and puts back only magic effects' own; the NPCs around are told to do the same.
 --
 -- The off hand shows while the right hand does. The engine shows and hides the weapon on the weapon
 -- group's "equip attach" and "unequip detach" keys (CharacterController::handleTextKey), partway
 -- through drawing and sheathing, so those are followed here too: the stance changes the moment a
 -- sheathe starts, the weapon only when the hand gets to it. A stance changed with no such animation
 -- - a load, a script - is taken as it is once no key has come for a moment.
-local ATTACHMENTS = {
-    { vfxId = "H2HWeapons_OffHand", bone = "Weapon Bone.L" },
-    { vfxId = "H2HWeapons_Charge_R", bone = "Weapon Bone" },
-    { vfxId = "H2HWeapons_Charge_L", bone = "Weapon Bone.L" },
-}
 local OFF_HAND, GLOW_RIGHT, GLOW_LEFT = 1, 2, 3
+local onBones = hands.new(omwself, {
+    [OFF_HAND] = { vfxId = "H2HWeapons_OffHand", bone = "Weapon Bone.L" },
+    [GLOW_RIGHT] = { vfxId = "H2HWeapons_Charge_R", bone = "Weapon Bone" },
+    [GLOW_LEFT] = { vfxId = "H2HWeapons_Charge_L", bone = "Weapon Bone.L" },
+})
 local REATTACH_DELAY = 2
 
-local attached = {}       -- [attachment] = the model on it, as far as this script knows
 local firstPerson = nil   -- nil: start over on the next update
 local reattachIn = 0
 
-local WEAPON_KEY_GROUPS = { "weapononehand", "shortbladeonehand", "bluntonehand" }
 local WEAPON_KEY_WAIT = 1.5
 -- Screens that pass time, after which everything attached has been taken off (see above).
 local TIME_PASSING_MODES = { Rest = true, Jail = true, Travel = true, Training = true }
@@ -394,11 +385,11 @@ local weaponShown = nil   -- whether the right hand shows the weapon; nil: take 
 local lastStance = nil
 local stanceChangedAt = 0
 
-for _, group in ipairs(WEAPON_KEY_GROUPS) do
+for _, group in ipairs(swing.WEAPON_GROUP_LIST) do
     I.AnimationController.addTextKeyHandler(group, function(_, key)
-        if key == "equip attach" then
+        if key == swing.SHOW_KEY then
             weaponShown = true
-        elseif key == "unequip detach" then
+        elseif key == swing.HIDE_KEY then
             weaponShown = false
         end
     end)
@@ -414,55 +405,13 @@ local function followWeaponShown(stance)
     end
     if weaponShown ~= inStance and now - stanceChangedAt > WEAPON_KEY_WAIT then weaponShown = inStance end
 end
-local boneWarned = {}
-
-local function warnMissingBone(bone)
-    if boneWarned[bone] then return end
-    boneWarned[bone] = true
-    -- The bone is grafted onto whichever skeleton the engine loads, from
-    -- animations/<that skeleton>/h2h_weapon_bone_l.nif (Animation::injectCustomBones) - which only
-    -- happens with "use additional animation sources" on.
-    print("[H2HWeapons] this actor's skeleton has no '" .. bone .. "' bone, so nothing can be shown " ..
-        "on it. It is added from Animations/<skeleton>/h2h_weapon_bone_l.nif, and only with 'Use " ..
-        "additional animation sources' on (launcher: Settings -> Visuals -> Animations). A skeleton " ..
-        "this mod has no folder for will not get it: re-run Sources/Tools/patch_skeleton.py " ..
-        "--bones-out on it.")
-end
-
-local function attach(index, model)
-    if attached[index] == model then return end
-    local slot = ATTACHMENTS[index]
-    if attached[index] then animation.removeVfx(omwself, slot.vfxId) end
-    attached[index] = model
-    if model == nil then return end
-    -- The engine throws for a bone that is not there. A missing one is still recorded as attached,
-    -- so it is asked about once per change rather than every frame.
-    if not animation.hasBone(omwself, slot.bone) then
-        warnMissingBone(slot.bone)
-        return
-    end
-    animation.addVfx(omwself, model, {
-        vfxId = slot.vfxId,
-        boneName = slot.bone,
-        loop = true,
-        useAmbientLight = false,
-    })
-end
-
-local function detachAll()
-    for i = 1, #ATTACHMENTS do
-        -- Harmless when the model they were on is already gone.
-        if attached[i] then animation.removeVfx(omwself, ATTACHMENTS[i].vfxId) end
-        attached[i] = nil
-    end
-end
 
 local function updateAttachments(stance)
     followWeaponShown(stance)
     local isFirstPerson = camera.getMode() == FIRST_PERSON
     if isFirstPerson ~= firstPerson then
         firstPerson = isFirstPerson
-        detachAll()
+        onBones.detachAll()
         reattachIn = REATTACH_DELAY
     end
     if reattachIn > 0 then
@@ -473,107 +422,25 @@ local function updateAttachments(stance)
     local drawn = equippedKind and weaponShown
     local offHand = (drawn and cfg.showOffHandWeapon and equippedModel) or nil
     local glow = (drawn and isCharged() and equippedChargeModel) or nil
-    attach(OFF_HAND, offHand)
-    attach(GLOW_RIGHT, glow)
+    onBones.attach(OFF_HAND, offHand)
+    onBones.attach(GLOW_RIGHT, glow)
     -- Only a hand holding something can glow.
-    attach(GLOW_LEFT, (offHand and glow) or nil)
+    onBones.attach(GLOW_LEFT, (offHand and glow) or nil)
+end
+
+-- Time passed: everything on everyone's bones nearby is gone. NPCs keep their own (npc.lua).
+local function afterTimePassed()
+    onBones.forget()
+    local me = omwself.object
+    for _, actor in ipairs(nearby.actors) do
+        if actor ~= me and types.NPC.objectIsInstance(actor) then actor:sendEvent("H2HWeapons_Reattach", {}) end
+    end
 end
 
 --- Ebony Rose ------------------------------------------------------------------------------------
--- Whoever it strikes reports the strike (actor.lua). Strikes on one enemy run on while each lands
--- within BURST_CHAIN seconds of the one before - every strike renews the countdown - and the swing
--- that would be the third in a run bursts, if that enemy is poisoned when it winds up, by the venom
--- or by any other poison. Whether it is to burst has to be settled on the wind-up, before the blow
--- lands, so the one it lands on is taken to be the one the run was on.
---
--- The burst is a second enchantment, and an item cannot change its enchantment, so that swing is made
--- with a copy of the katar that carries it: global.lua makes one when the swing winds up, it goes in
--- the hand for the swing, and at the follow-through the original goes back and the copy is folded
--- into it. The two are the same weapon type, so the engine neither interrupts the swing nor plays a
--- draw (CharacterController only re-draws for a change of type), and the original never leaves the
--- inventory, so hotkeys never notice.
-local rose = {
-    target = nil,        -- the enemy the run of strikes is on
-    strikes = 0,         -- how many in the run
-    lastStrike = -math.huge,
-    swinging = false,    -- between the wind-up and the follow-through
-    staging = false,     -- a copy has been asked for and has not come
-    swap = nil,          -- { original, copy, at } while the copy is in hand
-}
-local POISONS = { core.magic.EFFECT_TYPE.Poison or "poison", U.VENOM_EFFECT }
-
-local function onVenomStrike(e)
-    if e.burst or e.victim == nil then
-        rose.target = nil
-        rose.strikes = 0
-        return
-    end
-    local now = core.getSimulationTime()
-    if e.victim ~= rose.target or now - rose.lastStrike > U.BURST_CHAIN then
-        rose.target = e.victim
-        rose.strikes = 0
-    end
-    rose.strikes = rose.strikes + 1
-    rose.lastStrike = now
-end
-
-local function isPoisoned(actor)
-    local effects = types.Actor.activeEffects(actor)
-    for i = 1, #POISONS do
-        if weapons.effectExists(POISONS[i]) then
-            local effect = effects:getEffect(POISONS[i])
-            if effect and effect.magnitude > 0 then return true end
-        end
-    end
-    return false
-end
-
--- Whether the swing winding up now is the one that bursts.
-local function burstDue()
-    local target = rose.target
-    if target == nil or rose.strikes < U.BURST_STRIKES - 1 then return false end
-    if core.getSimulationTime() - rose.lastStrike > U.BURST_CHAIN then return false end
-    return target:isValid() and isPoisoned(target)
-end
-
-local function stageBurst()
-    if rose.swap or rose.staging or equippedInfo == nil then return end
-    if not burstDue() then return end
-    rose.staging = true
-    core.sendGlobalEvent("H2HWeapons_StageBurst", { actor = omwself.object, item = equippedInfo.item })
-end
-
-local function returnCopy(original, copy)
-    core.sendGlobalEvent("H2HWeapons_BurstDone", { original = original, copy = copy })
-end
-
-local function onBurstStaged(e)
-    rose.staging = false
-    if e.copy == nil then return end
-    -- Too late for this swing, or the weapon has changed hands meanwhile: next swing, then.
-    if not rose.swinging or types.Actor.getStance(omwself) ~= WEAPON_STANCE
-        or types.Actor.getEquipment(omwself, CARRIED_RIGHT) ~= e.original then
-        returnCopy(e.original, e.copy)
-        return
-    end
-    local equipment = types.Actor.getEquipment(omwself)
-    equipment[CARRIED_RIGHT] = e.copy
-    types.Actor.setEquipment(omwself, equipment)
-    rose.swap = { original = e.original, copy = e.copy, at = core.getSimulationTime() }
-end
-
-local function endBurstSwap()
-    local swap = rose.swap
-    if swap == nil then return end
-    rose.swap = nil
-    -- The original goes back - unless the player has changed weapons mid-swing, which stands.
-    local equipment = types.Actor.getEquipment(omwself)
-    if equipment[CARRIED_RIGHT] == swap.copy then
-        equipment[CARRIED_RIGHT] = swap.original
-        types.Actor.setEquipment(omwself, equipment)
-    end
-    returnCopy(swap.original, swap.copy)
-end
+-- The burst's bookkeeping is rose.lua's, shared with the NPCs who carry it; this only tells it when a
+-- swing winds up and follows through (below).
+local rose = roseState.new(omwself)
 
 --- Draw and sheathe sound -------------------------------------------------------------------------
 -- The engine plays a weapon's draw and sheathe sound for anything that is not hand-to-hand
@@ -581,10 +448,6 @@ end
 -- silenced too. There is no hook for a sound about to play, so it is stopped instead: the engine
 -- plays it after the animation it belongs to, which is the event we see, so the stop lands on the
 -- next update - well under a frame of audio.
-local DRAW_SOUNDS = {
-    [weapons.KIND.Katar] = { "Item Weapon Shortblade Up", "Item Weapon Shortblade Down" },
-    [weapons.KIND.Knuckle] = { "Item Weapon Blunt Up", "Item Weapon Blunt Down" },
-}
 local SILENCE_UPDATES = 8
 
 local silenceSounds = nil
@@ -601,23 +464,8 @@ end
 -- One handler for the whole script, so the attack and equip sections are read once. It runs for
 -- every playBlended on the player, including other mods', so anything that is not one of the weapon
 -- groups leaves on the first table lookup.
-local ATTACK_TYPES = { "chop ", "slash ", "thrust " }
-local FOLLOW_START = "follow start"
-local FOLLOW_START_OFFSET = -#FOLLOW_START
-
-local function isWindUpStart(key)
-    if string.sub(key, -6) ~= " start" then return false end
-    for i = 1, #ATTACK_TYPES do
-        if string.find(key, ATTACK_TYPES[i], 1, true) == 1 then
-            -- "slash start" is the wind up; "slash large follow start" is not.
-            return string.find(key, FOLLOW_START, FOLLOW_START_OFFSET, true) == nil
-        end
-    end
-    return false
-end
-
 I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options)
-    if not WEAPON_GROUPS[groupname] then return end
+    if not swing.WEAPON_GROUPS[groupname] then return end
 
     local startKey = options.startKey or options.startkey
     if startKey == nil then return end
@@ -627,7 +475,7 @@ I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options
         -- weapon's group, so the current item is the right one to ask either way.
         refreshEquipped()
         if cfg.silenceDrawSound and equippedKind then
-            silenceSounds = DRAW_SOUNDS[equippedKind]
+            silenceSounds = weapons.DRAW_SOUNDS[equippedKind]
             silenceLeft = SILENCE_UPDATES
         end
         return
@@ -635,18 +483,16 @@ I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options
 
     if not equippedKind then return end
 
-    if isWindUpStart(startKey) then
+    if swing.isWindUpStart(startKey) then
         applySkillSwap(equippedKind)
-        rose.swinging = true
-        if equippedSpecial == SPECIAL.Venom then stageBurst() end
+        rose.windUp(equippedInfo and equippedInfo.item)
         if equippedSpecial == SPECIAL.MageFury and equippedInfo then
             fury.chargeAtWindUp = types.Item.itemData(equippedInfo.item).enchantmentCharge
         end
-    elseif string.find(startKey, FOLLOW_START, FOLLOW_START_OFFSET, true) then
+    elseif swing.isFollowStart(startKey) then
         -- The hit has been rolled and dealt by now.
-        rose.swinging = false
         revertSkillSwap()
-        endBurstSwap()
+        rose.followStart()
     end
 end)
 
@@ -784,20 +630,15 @@ local function onUpdate(dt)
 
     -- Sheathing or swapping mid-swing has to put the skill back, and so does a swing that never
     -- reached its follow-through. The same goes for the copy of Ebony Rose held for a burst.
-    if stance ~= WEAPON_STANCE then rose.swinging = false end
     if swappedSkill and (changed or stance ~= WEAPON_STANCE
         or core.getSimulationTime() - swappedAt > SWAP_TIMEOUT) then
         revertSkillSwap()
     end
-    if rose.swap and (stance ~= WEAPON_STANCE
-        or core.getSimulationTime() - rose.swap.at > SWAP_TIMEOUT) then
-        endBurstSwap()
-    end
+    rose.check(stance)
     if pendingBurstReturn then
-        -- Saved mid-swing: the copy was in hand. Put things back as the follow-through would have.
-        rose.swap = pendingBurstReturn
+        -- Saved mid-swing: the copy was in hand.
+        rose.restore(pendingBurstReturn)
         pendingBurstReturn = nil
-        endBurstSwap()
     end
 
     if fury.strikes > 0 and core.getSimulationTime() >= fury.fadesAt then clearFury() end
@@ -830,17 +671,16 @@ return {
         --- Strikes left on Mage Fury's charge.
         mageFuryStrikes = function() return fury.strikes end,
         --- Whether Ebony Rose's next swing bursts.
-        isBurstArmed = function() return burstDue() end,
+        isBurstArmed = function() return rose.burstDue() end,
     },
     eventHandlers = {
-        H2HWeapons_VenomStrike = onVenomStrike,
-        H2HWeapons_BurstStaged = onBurstStaged,
+        H2HWeapons_VenomStrike = rose.onVenomStrike,
+        H2HWeapons_BurstStaged = rose.onBurstStaged,
         H2HWeapons_MageFuryCharged = onMageFuryCharged,
         H2HWeapons_MageFuryStrike = onMageFuryStrike,
-        -- Passing time took off everything attached; forget it, and it goes back on. An effect still
-        -- there is not added twice (Animation::addEffect keeps a looping one to one per bone).
+        -- Passing time took off everything attached; forget it, and it goes back on.
         UiModeChanged = function(e)
-            if e and TIME_PASSING_MODES[e.oldMode] then attached = {} end
+            if e and TIME_PASSING_MODES[e.oldMode] then afterTimePassed() end
         end,
         -- Spell Framework Plus' report of a cast it made. Listened to, never consumed.
         MagExp_CastResult = onCastReport,
@@ -854,14 +694,14 @@ return {
             return {
                 swappedSkill = swappedSkill,
                 swappedDelta = swappedDelta,
-                burstSwap = rose.swap and { original = rose.swap.original, copy = rose.swap.copy } or nil,
+                burstSwap = rose.save(),
                 fury = { spell = fury.spell, name = fury.name, strikes = fury.strikes,
                          fadesAt = fury.fadesAt, shown = fury.shown },
             }
         end,
         onLoad = function(data)
             -- The model is new; whatever was attached went with the old one.
-            attached = {}
+            onBones.forget()
             firstPerson = nil
             weaponShown = nil
             lastStance = nil
@@ -875,7 +715,7 @@ return {
                 revertSkillSwap()
             end
             if data.burstSwap then
-                pendingBurstReturn = { original = data.burstSwap.original, copy = data.burstSwap.copy, at = 0 }
+                pendingBurstReturn = data.burstSwap
             end
             if data.fury and (data.fury.strikes or 0) > 0 then
                 fury.spell = data.fury.spell

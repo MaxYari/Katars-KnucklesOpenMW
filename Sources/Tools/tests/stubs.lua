@@ -76,6 +76,7 @@ M.state = {
     missingContent = {},  -- [content file name] = true for one that is not installed
     taught = {},          -- log of types.Actor.spells(actor):add: { actor, spell }
     spawnedVfx = {},      -- log of world.vfx.spawn
+    inventories = setmetatable({}, { __mode = "k" }), -- [actor] = { items }, as moveInto puts them
 }
 local st = M.state
 
@@ -288,7 +289,16 @@ packages['openmw.types'] = {
                 end,
             } })
         end,
-        inventory = function(actor) return { owner = actor } end,
+        -- What is in an actor's inventory: st.inventories[actor], filled by moveInto.
+        inventory = function(actor)
+            return { owner = actor, find = function(_, id)
+                for _, item in ipairs(st.inventories[actor] or {}) do
+                    if string.lower(item.recordId) == string.lower(id) and item:isValid() then return item end
+                end
+                return nil
+            end }
+        end,
+        isDead = function(actor) return actor ~= nil and actor.dead == true end,
     },
     NPC = {
         objectIsInstance = function(o) return o ~= nil end,
@@ -347,7 +357,14 @@ packages['openmw.world'] = {
     createObject = function(recordId)
         st.created = st.created + 1
         local object = M.object({ recordId = recordId, isItem = true })
-        object.moveInto = function(self, inventory) self.movedInto = inventory end
+        object.moveInto = function(self, inventory)
+            self.movedInto = inventory
+            if inventory and inventory.owner then
+                self.parentContainer = inventory.owner
+                st.inventories[inventory.owner] = st.inventories[inventory.owner] or {}
+                table.insert(st.inventories[inventory.owner], self)
+            end
+        end
         object.remove = function(self) self.removed = true; self.isValid = function() return false end end
         return object
     end,
@@ -366,7 +383,7 @@ packages['openmw.animation'] = {
     getCurrentTime = function(_, g) return st.groups[g] and 0 or nil end,
     getCompletion = function() return 0 end,
     getSpeed = function() return 1 end,
-    setSpeed = function() end,
+    setSpeed = function(_, g, speed) st.speeds = st.speeds or {}; st.speeds[g] = speed end,
     cancel = function(_, g) st.cancelled = st.cancelled or {}; table.insert(st.cancelled, g) end,
     addVfx = function(_, model, opts)
         st.vfx = { model = model, opts = opts }

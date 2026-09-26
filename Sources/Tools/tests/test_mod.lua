@@ -135,9 +135,22 @@ onUpdate(0.016)
 check(st.vfx ~= nil, "and a draw with no attach key brings it back")
 -- Resting takes every effect off (Actors::rest); closing the rest screen puts the off hand back.
 st.vfxById, st.vfx = {}, nil
+local restingNpc = stubs.object({ name = "npc nearby" })
+local restingCreature = stubs.object({ name = "creature nearby" })
+local npcType = require('openmw.types').NPC
+local isNpc = npcType.objectIsInstance
+npcType.objectIsInstance = function(o) return o ~= restingCreature and isNpc(o) end
+st.nearbyActors = { restingNpc, restingCreature, require('openmw.self').object }
+st.events = {}
 player.eventHandlers.UiModeChanged({ oldMode = "Rest", newMode = nil })
 onUpdate(0.016)
 check(st.vfxById["H2HWeapons_OffHand"] ~= nil, "after resting the off hand is put back")
+local told = {}
+for _, e in ipairs(stubs.eventsNamed("H2HWeapons_Reattach")) do told[e.target.name] = true end
+check(told["npc nearby"] and not told["creature nearby"] and not told["self"],
+      "and the NPCs around are told to put theirs back")
+npcType.objectIsInstance = isNpc
+st.nearbyActors = {}
 st.vfxById, st.vfx = {}, nil
 player.eventHandlers.UiModeChanged({ oldMode = "Inventory", newMode = nil })
 onUpdate(0.016)

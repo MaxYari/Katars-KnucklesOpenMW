@@ -118,6 +118,8 @@ check(noteEffect and noteEffect.name == "Volatile Venom (3rd strike on the poiso
 check(note and note.area == 0, "with no area of its own, so no strike explodes for it")
 check(noteEffect and noteEffect.harmful == false and noteEffect.hitStatic == U.NO_VFX_STATIC
       and noteEffect.hitSound == U.SILENT_SOUND, "and nothing to see, hear or take offence at")
+check(noteEffect and noteEffect.baseCost == 0,
+      "and worth nothing, so the combat AI does not count it against the Rose")
 check(content.statics.records[U.NO_VFX_STATIC].model == "meshes/katars/vfx_none.nif"
       and content.sounds.records[U.SILENT_SOUND].volume == 0, "a model with nothing in it, a silent sound")
 local burst = content.enchantments.records[U.BURST_ENCHANT]

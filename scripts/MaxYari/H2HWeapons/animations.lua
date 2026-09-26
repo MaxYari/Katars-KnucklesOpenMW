@@ -5,6 +5,12 @@
 -- the generic one-handed animations (1h) when those have none (character.cpp:795). Everything here
 -- lists all three rather than guessing.
 --
+-- In first person and in third, on the player and on every NPC: the third-person set is the same
+-- animations under the same names, with vanilla's hand-to-hand legs merged in under them
+-- (Animations/xbase_anim*, built by Sources/Tools/make_third_person_anims.py), so one set of
+-- registrations serves both - whichever the engine has loaded for the view is what plays. ReAnimation
+-- runs on NPCs too, and an NPC is always third person to it.
+--
 -- Built the way ReAnimation builds its throwing-star set on top of the thrown one: idle and
 -- locomotion outrank their parent, the jump and equip hide it, and the attacks are attack variants.
 -- The animations keep the fist's timing. TIMING_MATCHING.ToOverride re-times the hidden parent to
@@ -17,20 +23,31 @@ local animation = require('openmw.animation')
 local core = require('openmw.core')
 local I = require('openmw.interfaces')
 local omwself = require('openmw.self')
-local ui = require('openmw.ui')
+local types = require('openmw.types')
 
 local weapons = require(mp .. "scripts/weapons")
 
 if not core.contentFiles.has("ReAnimation_API.omwscripts") then
-    print("[H2HWeapons] ERROR: ReAnimation is missing. It is a hard dependency - without it these " ..
-        "weapons have no animations of their own.")
-    ui.showMessage("Katars and Knuckledusters: ReAnimation is missing, please install it.")
+    -- Said once, by the player's copy; openmw.ui is not there for an NPC's anyway.
+    if types.Player.objectIsInstance(omwself) then
+        print("[H2HWeapons] ERROR: ReAnimation is missing. It is a hard dependency - without it these " ..
+            "weapons have no animations of their own.")
+        require('openmw.ui').showMessage("Katars and Knuckledusters: ReAnimation is missing, please install it.")
+    end
     return
 end
 
 local RA = I.ReAnimation
+if RA == nil then
+    -- Installed, but loaded after this mod: its interface is not there yet when this script starts.
+    if types.Player.objectIsInstance(omwself) then
+        print("[H2HWeapons] ERROR: ReAnimation is loaded after H2HWeapons.omwscripts. Move it above " ..
+            "this mod in the launcher's Content Files, or these weapons have no animations of their own.")
+    end
+    return
+end
 local gutils = RA.gutils
-local FIRST_PERSON = RA.ARMATURE_TYPE.FirstPerson
+local ANY_VIEW = RA.ARMATURE_TYPE.Any
 local BG = animation.BONE_GROUP
 local controls = omwself.controls
 
@@ -101,7 +118,15 @@ end
 -- Two ranked overrides on the same parents, only one of which ever plays: sneaking (2) over standing
 -- (1), both over ReAnimation's own one-handed sneak idles (0). First person has no "idlesneak" of its
 -- own - a sneaking weapon user is still playing idle1s - so controls.sneak is the only way to tell,
--- and startOnUpdate is what notices it change.
+-- and startOnUpdate is what notices it change. Third person has one, and plays it for anyone sneaking,
+-- weapon or not (CharacterController::refreshIdleAnims only adds the weapon's suffix to a plain idle),
+-- so there it is a parent of its own and says so itself.
+local SNEAK_IDLE = "idlesneak"
+
+local function sneaking(self)
+    return self.parent == SNEAK_IDLE or controls.sneak
+end
+
 local function idleCondition(self)
     -- startOnUpdate reads parentOptions, which is only filled once the parent has been seen
     -- playing; a parent already running when the save loaded never passes through the handler.
@@ -112,7 +137,7 @@ RA.addAnimationOverride({
     id = "H2HWeaponIdle",
     parent = oneHanded("idle"),
     groupname = "idlekatar",
-    armatureType = FIRST_PERSON,
+    armatureType = ANY_VIEW,
     overridePriority = 1,
     condition = idleCondition,
     stopCondition = function(self) return not isHandToHandWeapon() end,
@@ -120,14 +145,16 @@ RA.addAnimationOverride({
     startOnAnimEvent = true,
     startOnUpdate = true,
 })
+local sneakParents = oneHanded("idle")
+sneakParents[#sneakParents + 1] = SNEAK_IDLE
 RA.addAnimationOverride({
     id = "H2HWeaponIdleSneak",
-    parent = oneHanded("idle"),
+    parent = sneakParents,
     groupname = "idlekatarsneak",
-    armatureType = FIRST_PERSON,
+    armatureType = ANY_VIEW,
     overridePriority = 2,
-    condition = function(self) return idleCondition(self) and controls.sneak end,
-    stopCondition = function(self) return not (isHandToHandWeapon() and controls.sneak) end,
+    condition = function(self) return idleCondition(self) and sneaking(self) end,
+    stopCondition = function(self) return not (isHandToHandWeapon() and sneaking(self)) end,
     options = outrankParent,
     startOnAnimEvent = true,
     startOnUpdate = true,
@@ -139,15 +166,47 @@ RA.addAnimationOverride({
 -- actor's current speed (character.cpp:2402), so a speed copied once goes stale. The speed is copied
 -- every frame, nudged by the phase error so the two cycles stay aligned - an animation's time cannot
 -- be set directly, and a cancel-and-replay would blend.
+--
+-- The phase is how far through its track each one is, so a loop of the same steps but a different
+-- length has to play at a different speed to keep up: ours is 21% longer than the third-person
+-- one-handed walk, and a few percent off the short blade walk and the one-handed sneak. The speed is
+-- scaled by the ratio of the two lengths; the nudge alone would get there, but only by trailing the
+-- parent by half the difference, as a share of the loop. Past MAX_LENGTH_RATIO the two are not the
+-- same steps (one cycle to a loop against two or three) and matching their lengths would only play
+-- ours at the wrong pace; that is left to the nudge, as before.
 local PHASE_GAIN = 2          -- speed nudge per unit of phase error; halves a small error in ~0.4 s
 local PHASE_MAX_NUDGE = 0.25  -- never more than 25% off the parent's speed
 local PHASE_DEADZONE = 0.002  -- about 2 ms of a 1 s cycle; below it, plain parent speed
+local MAX_LENGTH_RATIO = 4 / 3
+
+-- The length of a group's track from one key to another, in the file that plays it: getTextKeyTime
+-- looks through the loaded files latest first, as play() does (animation.cpp:845).
+local function trackLength(group, startKey, stopKey)
+    local from = animation.getTextKeyTime(omwself, group .. ": " .. startKey)
+    local to = animation.getTextKeyTime(omwself, group .. ": " .. stopKey)
+    if from and to and to > from then return to - from end
+    return nil
+end
+
+-- Our track's length against the parent's, over the part both play: from the keys the parent was
+-- started with, which ours is started with too - "start" to "stop" for the engine's own movement
+-- (character.cpp:759).
+local function lengthRatio(self, opts)
+    local startKey = opts.startkey or opts.startKey or "start"
+    local stopKey = opts.stopkey or opts.stopKey or "stop"
+    local ours = trackLength(self.groupname, startKey, stopKey)
+    local theirs = trackLength(self.parent, startKey, stopKey)
+    if not (ours and theirs) then return 1 end
+    local ratio = ours / theirs
+    if ratio > MAX_LENGTH_RATIO or ratio < 1 / MAX_LENGTH_RATIO then return 1 end
+    return ratio
+end
 
 local function syncMove(self)
     local parentSpeed = animation.getSpeed(omwself, self.parent)
     if not parentSpeed then return end
 
-    local speed = parentSpeed
+    local speed = parentSpeed * (self.lengthRatio or 1)
     local parentDone = animation.getCompletion(omwself, self.parent)
     local done = animation.getCompletion(omwself, self.groupname)
     if parentDone and done then
@@ -155,7 +214,7 @@ local function syncMove(self)
         err = err - math.floor(err + 0.5) -- wrap to [-0.5, 0.5): both cycles loop
         if math.abs(err) > PHASE_DEADZONE then
             local nudge = math.max(-PHASE_MAX_NUDGE, math.min(PHASE_MAX_NUDGE, err * PHASE_GAIN))
-            speed = parentSpeed * (1 + nudge)
+            speed = speed * (1 + nudge)
         end
     end
 
@@ -173,6 +232,9 @@ local function moveOptions(self, pOptions)
         opts.speed = animation.getSpeed(omwself, self.parent) or opts.speed
         opts.startPoint = animation.getCompletion(omwself, self.parent) or opts.startPoint
     end
+    -- Worked out on every start: the parent, and the file it plays from, change with the view.
+    self.lengthRatio = lengthRatio(self, opts)
+    opts.speed = (opts.speed or 1) * self.lengthRatio
     return opts
 end
 
@@ -183,8 +245,33 @@ for _, base in ipairs({ "walkforward", "walkback", "walkleft", "walkright",
         id = "H2HWeaponMove_" .. base,
         parent = oneHanded(base),
         groupname = base .. "katar",
-        armatureType = FIRST_PERSON,
+        armatureType = ANY_VIEW,
         overridePriority = 1,
+        condition = isHandToHandWeapon,
+        stopCondition = function(self) return not isHandToHandWeapon() end,
+        options = moveOptions,
+        onUpdate = syncMove,
+        startOnAnimEvent = true,
+        startOnUpdate = true,
+    })
+end
+
+-- The first-person one-handed walk, run and sneak are not laid out like the fist's: the walk and run
+-- are an 8-frame lead-in and then three step cycles to the loop, the sneak two cycles, where the
+-- fist's - and the short blade's a katar moves over - are one. Knuckledusters move over them (there is
+-- no blunt set), and a one-cycle loop phase-matched to a longer one drifts off its footsteps. Over
+-- those, the katar's cycles laid out the one-handed way (xKatar1hMovement.kf and
+-- xKatar1hSneakMovement.kf, from Sources/Tools/make_katar_1h_movement.py), ranked above the plain
+-- ones. First person only: third person has no such files, and there the plain ones play.
+for _, base in ipairs({ "walkforward", "walkback", "walkleft", "walkright",
+                        "runforward", "runback", "runleft", "runright",
+                        "sneakforward", "sneakback", "sneakleft", "sneakright" }) do
+    RA.addAnimationOverride({
+        id = "H2HWeaponMove1h_" .. base,
+        parent = base .. "1h",
+        groupname = base .. "katar1h",
+        armatureType = RA.ARMATURE_TYPE.FirstPerson,
+        overridePriority = 2,
         condition = isHandToHandWeapon,
         stopCondition = function(self) return not isHandToHandWeapon() end,
         options = moveOptions,
@@ -202,7 +289,7 @@ RA.addAnimationOverride({
     id = "H2HWeaponJump",
     parent = oneHanded("jump"),
     groupname = "jumpkatar",
-    armatureType = FIRST_PERSON,
+    armatureType = ANY_VIEW,
     overridePriority = 1,
     condition = isHandToHandWeapon,
     options = hideParent,
@@ -234,7 +321,7 @@ RA.addAnimationOverride({
     id = "H2HWeaponEquip",
     parent = "weapononehand",
     groupname = "katar",
-    armatureType = FIRST_PERSON,
+    armatureType = ANY_VIEW,
     stance = RA.STANCE.Any,
     overridePriority = 1,
     condition = function(self)
@@ -273,7 +360,7 @@ RA.addAnimationOverride({
 RA.addAttackVariants({
     id = "H2HWeaponAttacks",
     parentAttackGroupname = "weapononehand",
-    armatureType = FIRST_PERSON,
+    armatureType = ANY_VIEW,
     subAttackMode = RA.SUB_ATTACK_MODE.RoundRobin,
     timingMatching = RA.TIMING_MATCHING.ToOverride,
     overridePriority = 1,

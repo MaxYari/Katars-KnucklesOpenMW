@@ -125,6 +125,10 @@ local function define()
             continuousVfx = false,
             isAppliedOnce = true,
             unreflectable = true,
+            -- Worth nothing. The combat AI rates a weapon's on-strike effects by their cost
+            -- (spellpriority.cpp, rateEffect), and one that is not harmful, cast on someone else, it
+            -- counts against the weapon: at Poison's cost this line would have NPCs leave the Rose.
+            baseCost = 0,
             color = colour(0.62, 0.22, 0.85),
         }
 

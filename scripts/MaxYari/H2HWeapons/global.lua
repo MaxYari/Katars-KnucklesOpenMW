@@ -106,6 +106,8 @@ local made = {
     -- settings, or its defaults. Kept in the save so an NPC who casts before the report arrives
     -- still gets the right one.
     boundScaling = { enabled = true, values = U.BOUND_SCALING_DEFAULTS },
+    -- Whether Ebony Rose's owner has been handed it (below).
+    roseGiven = false,
 }
 
 --- Ebony Rose's burst -------------------------------------------------------------------------------
@@ -328,6 +330,34 @@ local function dismissFist(e)
     item:remove()
 end
 
+--- Ebony Rose's owner -----------------------------------------------------------------------------
+-- The Dark Brotherhood's master in Mournhold (Tribunal) is handed the Rose the first time he comes
+-- into the world, and takes it in hand (npc.lua); if he is dead by then, it is on his body.
+--
+-- He fights with a short blade, and the Rose is one. But the combat AI picks its weapon again before
+-- every swing, by its damage and by what its enchantment casts on a strike (weaponpriority.cpp,
+-- rateWeapon), and his own Adamantium Jinkblade's Paralyze and Poison outweigh anything the Rose hits
+-- for. An enchantment without the charge for one more cast is not counted at all, so each time he
+-- comes into the world while he has the Rose, the Jinkblade is left with none: it takes a quarter of
+-- an hour to recharge that far (fMagicItemRechargePerSecond), and until then he fights with the Rose.
+-- Taken off him, the Jinkblade recharges as any enchanted weapon does.
+local function onActorActive(actor)
+    if string.lower(actor.recordId) ~= U.ROSE_OWNER then return end
+    if types.Weapon.records[U.EBONY_ROSE] == nil then return end
+    local inventory = types.Actor.inventory(actor)
+    local dead = types.Actor.isDead(actor)
+    if not made.roseGiven then
+        made.roseGiven = true
+        local rose = world.createObject(U.EBONY_ROSE, 1)
+        rose:moveInto(inventory)
+        if not dead then actor:sendEvent("H2HWeapons_Wield", { item = rose }) end
+    elseif dead or inventory:find(U.EBONY_ROSE) == nil then
+        return
+    end
+    local jinkblade = inventory:find(U.ROSE_OWNER_WEAPON)
+    if jinkblade ~= nil and not dead then types.Item.itemData(jinkblade).enchantmentCharge = 0 end
+end
+
 return {
     eventHandlers = {
         H2HWeapons_StageBurst = stageBurst,
@@ -341,6 +371,7 @@ return {
         end,
     },
     engineHandlers = {
+        onActorActive = onActorActive,
         onSave = function() return made end,
         onLoad = function(data)
             if not data then return end
@@ -348,6 +379,7 @@ return {
             made.furySpells = data.furySpells or {}
             made.boundWeapons = data.boundWeapons or {}
             made.boundScaling = data.boundScaling or made.boundScaling
+            made.roseGiven = data.roseGiven or false
         end,
     },
 }

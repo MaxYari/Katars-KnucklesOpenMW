@@ -109,6 +109,50 @@ stubs.I.AnimationController.playBlendedAnimation("walkforward1s", { speed = 1, p
 local walked = false
 for _, p in ipairs(st.played) do if p.group == "walkforwardkatar" then walked = true end end
 check(walked, "walking plays the fist's walk")
+-- A loop of the same steps but another length keeps up by playing at the ratio of the two lengths:
+-- ours here is 1.2 times the parent's, so it starts at 1.2 times the parent's speed and is held there.
+key("walkforward1s: start", 5.6); key("walkforward1s: stop", 6.6)
+key("walkforwardkatar: start", 12.2); key("walkforwardkatar: stop", 13.4)
+local function walkSpeed()
+    st.played = {}
+    stubs.I.AnimationController.playBlendedAnimation("walkforward1s", { startKey = "start", startkey = "start",
+        stopKey = "stop", stopkey = "stop", speed = 1, priority = 5, blendMask = 15, loops = 999 })
+    local started
+    for _, p in ipairs(st.played) do if p.group == "walkforwardkatar" then started = p.options.speed end end
+    st.speeds = {}
+    api.engineHandlers.onUpdate(0.016)
+    return started, st.speeds.walkforwardkatar
+end
+local started, held = walkSpeed()
+check(started and math.abs(started - 1.2) < 1e-6, "a longer loop of the same steps starts at the ratio of the lengths", started)
+check(held and math.abs(held - 1.2) < 1e-6, "and is held there", held)
+-- Twice the length is not the same steps, and is left to the phase nudge alone, as before.
+key("walkforwardkatar: stop", 14.2)
+started, held = walkSpeed()
+check(started and math.abs(started - 1) < 1e-6 and held and math.abs(held - 1) < 1e-6,
+      "a loop of other steps plays at the parent's speed", tostring(started) .. " " .. tostring(held))
+-- Over the one-handed walk - knuckledusters', having no blunt walk - first person has the fist's laid
+-- out as that walk is, three step cycles to its loop, and plays that one instead.
+st.groups.walkforward1h = true
+st.groups.walkforwardkatar1h = true
+local function walk1h()
+    st.played = {}
+    stubs.I.AnimationController.playBlendedAnimation("walkforward1h", { speed = 1, priority = 5, blendMask = 15, loops = 999 })
+    local groups = {}
+    for _, p in ipairs(st.played) do groups[p.group] = true end
+    return groups
+end
+local over1h = walk1h()
+check(over1h["walkforwardkatar1h"] and not over1h["walkforwardkatar"],
+      "over the one-handed walk, first person plays the walk laid out the one-handed way")
+st.groups.sneakforward1h = true
+st.groups.sneakforwardkatar1h = true
+st.played = {}
+stubs.I.AnimationController.playBlendedAnimation("sneakforward1h", { speed = 1, priority = 5, blendMask = 15, loops = 999 })
+local sneak1h = {}
+for _, p in ipairs(st.played) do sneak1h[p.group] = true end
+check(sneak1h["sneakforwardkatar1h"] and not sneak1h["sneakforwardkatar"],
+      "and over the one-handed sneak, the sneak laid out the one-handed way")
 st.played = {}
 stubs.I.AnimationController.playBlendedAnimation("jump1s", { startKey = "start", startkey = "start", speed = 1, priority = 5, blendMask = 15 })
 local jumped = false
@@ -133,6 +177,36 @@ check(groups["katar"] ~= true, "a dagger does not swing with the katar animation
 follow("slash")
 groups = swing()
 check(groups["weapononehand1"] == true, "and ReAnimation's own set takes the dagger's swings again")
+follow("slash")
+
+-- Third person - an NPC, or the player with the camera pulled back - plays the same set: the same
+-- names, loaded from the third-person skeleton's folder instead.
+st.cameraMode = 1
+api.engineHandlers.onUpdate(0.016) -- ReAnimation looks at the view once a frame
+st.equipped = { recordId = "katar_steel" }
+groups = swing()
+check(groups["katar"] or groups["kataralt"], "in third person a katar swings with the katar animation too")
+check(groups["weapononehand1"] ~= true, "where ReAnimation has no set of its own")
+follow("slash")
+over1h = walk1h()
+check(over1h["walkforwardkatar"] and not over1h["walkforwardkatar1h"],
+      "third person has no one-handed layout of the walk, and plays the plain one")
+
+-- Third person has a sneaking idle of its own, played whatever is in hand; with a katar, ours goes over it.
+st.groups.idlesneak = true
+st.played = {}
+stubs.I.AnimationController.playBlendedAnimation("idlesneak",
+    { startKey = "start", startkey = "start", speed = 1, priority = 2, blendMask = 15, loops = 999 })
+local sneakIdle = false
+for _, p in ipairs(st.played) do if p.group == "idlekatarsneak" then sneakIdle = true end end
+check(sneakIdle, "sneaking in third person plays the katar's sneaking idle")
+st.equipped = { recordId = "steel dagger" }
+st.played = {}
+stubs.I.AnimationController.playBlendedAnimation("idlesneak",
+    { startKey = "start", startkey = "start", speed = 1, priority = 2, blendMask = 15, loops = 999 })
+sneakIdle = false
+for _, p in ipairs(st.played) do if p.group == "idlekatarsneak" then sneakIdle = true end end
+check(not sneakIdle, "and a dagger's is left alone")
 
 print(string.format("\n%d checks, %d failures", checks, fails))
 os.exit(fails == 0 and 0 or 1)
