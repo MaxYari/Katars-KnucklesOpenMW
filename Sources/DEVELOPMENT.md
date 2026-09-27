@@ -390,7 +390,9 @@ script, so a rebuild is reproducible:
   person the head turns into a punch with the rest of the upper body, up to 95 degrees, which the
   camera never shows. The engine's head tracking still turns it toward whoever an NPC fights. Reads
   the vanilla animations out of Morrowind.bsa. Re-run it after every export of the
-  first-person set.
+  first-person set. There are no katar turns: in third person `animations.lua` narrows the one-handed
+  turn to the lower body while a katar or knuckleduster is in hand, and the katar idle, which the
+  engine keeps playing through a turn, shows above it.
 - `Sources/Tools/patch_skeleton.py` - adds `Weapon Bone.L`: `--bones-out Animations` writes the
   grafted-bone files, `-o meshes` the patched skeleton copies.
 - `Sources/Tools/mirror_weapon_track.py` - gives `Weapon Bone.L` the mirrored keyframe track of

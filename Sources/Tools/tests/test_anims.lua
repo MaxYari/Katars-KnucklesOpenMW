@@ -234,5 +234,22 @@ sneakIdle = false
 for _, p in ipairs(st.played) do if p.group == "idlekatarsneak" then sneakIdle = true end end
 check(not sneakIdle, "and a dagger's is left alone")
 
+-- Turning on the spot in third person: with a katar the turn keeps only the legs, and the katar's idle,
+-- playing on underneath, shows above them.
+local function turnMask(group)
+    local o = { startKey = "start", startkey = "start", speed = 1, priority = 5, blendMask = 15, loops = 999 }
+    stubs.I.AnimationController.playBlendedAnimation(group, o)
+    return o.blendMask
+end
+st.equipped = { recordId = "katar_steel" }
+check(turnMask("turnleft1h") == 1, "turning in third person with a katar: only the legs turn", turnMask("turnleft1h"))
+check(turnMask("turnright1s") == 1, "either way, on the short blade's turn too", turnMask("turnright1s"))
+st.equipped = { recordId = "steel dagger" }
+check(turnMask("turnleft1h") == 15, "a dagger's turn is left whole", turnMask("turnleft1h"))
+st.equipped = { recordId = "katar_steel" }
+st.cameraMode = 0
+api.engineHandlers.onUpdate(0.016)
+check(turnMask("turnleft1h") == 15, "and in first person nothing is done to the turn", turnMask("turnleft1h"))
+
 print(string.format("\n%d checks, %d failures", checks, fails))
 os.exit(fails == 0 and 0 or 1)

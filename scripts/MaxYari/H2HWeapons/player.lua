@@ -1,13 +1,15 @@
 -- Everything that makes a katar or a knuckleduster behave like a hand-to-hand weapon on the player:
 -- the skill the engine rolls against, where the experience goes, the second weapon in the off hand,
--- the draw sound it should not make, and what the tooltip says - and the wielder's half of the two
--- uniques' magic: Ebony Rose's burst and Mage Fury's stored spell.
+-- the shield or torch it leaves no room for, the draw sound it should not make, and what the tooltip
+-- says - and the wielder's half of the two uniques' magic: Ebony Rose's burst and Mage Fury's stored
+-- spell.
 --
 -- The engine has no hand-to-hand weapon type, so these are a short blade and a blunt weapon as far
 -- as it is concerned. Each piece below puts one of its assumptions back.
 --
 -- Per frame this costs: one getStance, one camera.getMode, one equipment lookup that Max Yari's
--- Script Services answers from its own cache ten times a second, and a handful of compares.
+-- Script Services answers from its own cache ten times a second, and a handful of compares - and,
+-- while one is out, a look at the left hand.
 -- Everything else hangs off animation events and hits, so it runs once per swing or once per draw.
 local mp = "scripts/MaxYari/H2HWeapons/"
 
@@ -24,6 +26,7 @@ local nearby = require('openmw.nearby')
 local ui = require('openmw.ui')
 local util = require('openmw.util')
 
+local carriedLeft = require(mp .. "scripts/carriedleft")
 local formulas = require(mp .. "scripts/formulas")
 local hands = require(mp .. "scripts/hands")
 local roseState = require(mp .. "scripts/rose")
@@ -437,6 +440,12 @@ local function afterTimePassed()
     end
 end
 
+--- The left hand --------------------------------------------------------------------------------
+-- Nothing in it while one is out (carriedleft.lua): out from the moment the stance says so, to the
+-- moment the hand has put it away, which is when the engine hides and shows a shield or torch with
+-- bare fists. Something equipped with the game paused, in the inventory, comes off when it resumes.
+local left = carriedLeft.new(omwself)
+
 --- Ebony Rose ------------------------------------------------------------------------------------
 -- The burst's bookkeeping is rose.lua's, shared with the NPCs who carry it; this only tells it when a
 -- swing winds up and follows through (below).
@@ -645,6 +654,7 @@ local function onUpdate(dt)
     watchForFist()
 
     updateAttachments(stance)
+    left.update(equippedKind and (stance == WEAPON_STANCE or weaponShown) or false)
     silenceDrawSounds()
 end
 
@@ -695,6 +705,7 @@ return {
                 swappedSkill = swappedSkill,
                 swappedDelta = swappedDelta,
                 burstSwap = rose.save(),
+                leftHand = left.save(),
                 fury = { spell = fury.spell, name = fury.name, strikes = fury.strikes,
                          fadesAt = fury.fadesAt, shown = fury.shown },
             }
@@ -717,6 +728,7 @@ return {
             if data.burstSwap then
                 pendingBurstReturn = data.burstSwap
             end
+            left.load(data.leftHand)
             if data.fury and (data.fury.strikes or 0) > 0 then
                 fury.spell = data.fury.spell
                 fury.name = data.fury.name or ""

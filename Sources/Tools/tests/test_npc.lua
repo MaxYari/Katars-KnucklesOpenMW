@@ -121,6 +121,92 @@ check(offHand() == nil and #st.timers == 0, "an NPC out of the world is left alo
 E.onActive()
 stubs.advance(0.2)
 
+--- The left hand -----------------------------------------------------------------------------------
+-- A katar takes both hands, as bare fists do: a shield or torch comes off while it is out, and goes
+-- back once it is put away.
+local torch, shield, spare = item("torch_01"), item("iron_shield"), item("torch_01")
+torch.count, shield.count, spare.count = 1, 1, 3
+st.inventories[selfHandle] = { torch, shield, spare }
+
+st.left = shield
+stubs.advance(0.6)
+check(st.left == nil, "a shield comes off while a katar is out")
+st.left = torch -- the engine, somewhere dark, putting a light back in the hand
+stubs.advance(0.6)
+check(st.left == nil, "and whatever the engine puts back comes off within half a second")
+st.stance = 0
+stubs.advance(0.3)
+check(st.left == nil, "still off while the sheathe is on its way")
+key("unequip detach")
+stubs.advance(0.01)
+check(st.left == torch, "put away, the last one taken off goes back", st.left and st.left.recordId)
+stubs.advance(1)
+check(#st.timers == 0, "and with the katar away, nothing is looked at", #st.timers)
+stubs.advance(2)
+check(st.left == torch, "a torch beside a katar at the belt stays in hand")
+
+st.stance = 1
+play("equip start")
+check(st.left == nil, "drawing takes it off at once")
+key("equip attach")
+st.equipped = dagger
+stubs.advance(0.6)
+check(st.left == torch, "a swap to a dagger gives the left hand back")
+st.equipped = katar
+stubs.advance(0.6)
+check(st.left == nil, "and a swap back, with no animation, takes it off within half a second")
+
+-- Taking a torch off can stack it back in with the others of its kind, and that object is gone.
+torch.isValid = function() return false end
+st.stance = 0
+key("unequip detach")
+stubs.advance(0.01)
+check(st.left == spare, "one stacked back in with the rest: another of them goes back")
+torch.isValid = function() return true end
+
+st.stance = 1
+play("equip start")
+key("equip attach")
+spare.parentContainer = stubs.object({})
+st.stance = 0
+key("unequip detach")
+stubs.advance(0.01)
+check(st.left == nil, "one dropped meanwhile is gone, as it would be from the hand")
+spare.parentContainer = me
+
+st.left = shield
+st.stance = 1
+play("equip start")
+key("equip attach")
+selfHandle.dead = true
+stubs.advance(0.01)
+st.stance = 0
+key("unequip detach")
+stubs.advance(0.6)
+check(st.left == nil, "one who dies with it out keeps what came off in the inventory")
+check(#st.timers == 0, "and is not looked at any longer", #st.timers)
+selfHandle.dead = nil
+
+st.left = shield
+st.stance = 1
+play("equip start")
+key("equip attach")
+local savedLeft = E.onSave()
+check(savedLeft and savedLeft.leftHand and savedLeft.leftHand.item == shield,
+      "a save with it out remembers what came off")
+E.onInactive()
+st.stance = 0
+stubs.advance(0.1)
+E.onLoad(savedLeft)
+E.onActive()
+stubs.advance(0.2)
+check(st.left == shield, "and one loaded with the katar away puts it back")
+
+st.left = nil
+st.stance = 1
+key("equip attach")
+stubs.advance(0.2)
+
 --- Draw and sheathe sound --------------------------------------------------------------------------
 st.stoppedSounds = {}
 play("equip start")

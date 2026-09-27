@@ -316,6 +316,25 @@ for _, base in ipairs({ "walkforward", "walkback", "walkleft", "walkright",
     })
 end
 
+--- Turning --------------------------------------------------------------------------------------------
+-- Turning on the spot plays the weapon's turn - turnleft1s, or the one-handed one it falls back to
+-- (CharacterController::refreshMovementAnims) - on the whole body, over the idle, and so over ours.
+-- The idle plays on underneath: the engine keeps a biped's idle going through its movement
+-- (refreshIdleAnims). So in third person, with one of ours in hand, the turn keeps only the legs, hips
+-- and spine, and the idle above them - the katar's, standing or sneaking - shows through. Not an
+-- override: nothing of ours needs playing, only the turn narrowing.
+local TURNS = {}
+for _, base in ipairs({ "turnleft", "turnright" }) do
+    for _, group in ipairs(oneHanded(base)) do TURNS[group] = true end
+end
+
+I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options)
+    if TURNS[groupname] and isHandToHandWeapon()
+            and gutils.getArmatureType() == RA.ARMATURE_TYPE.ThirdPerson then
+        options.blendMask, options.blendmask = BLEND_MASK.LowerBody, BLEND_MASK.LowerBody
+    end
+end)
+
 --- Jump ---------------------------------------------------------------------------------------------
 -- Plays twice per jump - from "start" in the air, then from "loop stop" for the landing - and the
 -- engine replays it each time, so starting on the event covers both. It stops with its parent: the

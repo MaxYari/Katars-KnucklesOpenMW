@@ -329,6 +329,52 @@ player.interface.setCharged(nil)
 onUpdate(0.016)
 check(st.vfxById["H2HWeapons_Charge_R"] == nil, "setCharged(nil) goes back to following the charge")
 
+--- the left hand ---------------------------------------------------------------------------------------
+-- A katar takes both hands, as bare fists do: a shield or torch comes off while it is out, and goes
+-- back once it is put away. Whatever is equipped meanwhile comes off too, and is the one to go back.
+local playerSelf = require('openmw.self')
+local function carried(recordId, count)
+    return stubs.object({ recordId = recordId, isItem = true, parentContainer = playerSelf.object, count = count })
+end
+local torch, shield = carried("torch_01", 1), carried("iron_shield", 1)
+st.inventories[playerSelf] = { torch, shield }
+st.equipped = { recordId = "katar_steel" }
+st.left = torch
+onUpdate(0.016)
+check(st.left == nil, "a torch comes out of the left hand while a katar is out")
+st.left = shield
+onUpdate(0.016)
+check(st.left == nil, "and so does a shield equipped with it out")
+st.stance = 0
+onUpdate(0.016)
+check(st.left == nil, "still off while the sheathe is on its way")
+stubs.textKey("weapononehand", "unequip detach")
+onUpdate(0.016)
+check(st.left == shield, "put away, the last one taken off goes back")
+st.left = torch
+onUpdate(0.016)
+check(st.left == torch, "one equipped with the katar away stays")
+st.stance = 1
+onUpdate(0.016)
+check(st.left == nil, "until it is drawn")
+st.equipped = { recordId = "steel dagger" }
+onUpdate(0.016)
+check(st.left == torch, "a dagger leaves room for it")
+st.equipped = { recordId = "knuckle_iron" }
+onUpdate(0.016)
+check(st.left == nil, "knuckledusters do not")
+
+local savedLeft = player.engineHandlers.onSave()
+check(savedLeft.leftHand and savedLeft.leftHand.item == torch, "a save with them out remembers what came off")
+st.stance = 0
+player.engineHandlers.onLoad(savedLeft)
+settle()
+check(st.left == torch, "and one loaded with them away puts it back")
+st.left = nil
+st.stance = 1
+st.equipped = { recordId = "knuckle_mage_fury" }
+settle()
+
 --- tooltips --------------------------------------------------------------------------------------------
 -- A stand-in for the layout Inventory Extender builds for a weapon: the shape the modifier walks,
 -- with the named lines it puts in for a melee weapon.

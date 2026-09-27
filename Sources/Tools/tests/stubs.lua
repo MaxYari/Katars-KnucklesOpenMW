@@ -48,6 +48,7 @@ M.state = {
     groups = {},          -- [group] = true
     stance = 1,
     equipped = nil,       -- { recordId = ..., type = ... }
+    left = nil,           -- what is in the left hand: a shield or a torch
     skills = {},          -- [name] = { base, modifier, damage }
     attributes = { strength = { base = 40, modifier = 0 } },
     gmst = {
@@ -260,10 +261,17 @@ packages['openmw.types'] = {
             return { add = function(_, id) table.insert(st.taught, { actor = actor, spell = id }) end }
         end,
         getEquipment = function(_, slot)
-            if slot == nil then return { [16] = st.equipped } end
+            if slot == nil then return { [16] = st.equipped, [15] = st.left } end
+            if slot == 15 then return st.left end
             return st.equipped
         end,
-        setEquipment = function(_, equipment) st.equipped = equipment[16] end,
+        -- An item given by record id is one of that id from the inventory, as the engine picks it.
+        setEquipment = function(actor, equipment)
+            st.equipped = equipment[16]
+            local left = equipment[15]
+            if type(left) == "string" then left = packages['openmw.types'].Actor.inventory(actor):find(left) end
+            st.left = left
+        end,
         getSelectedSpell = function() return st.selectedSpell end,
         stats = { attributes = attributesProxy, dynamic = {
             health = function() return statObject(st.health) end,

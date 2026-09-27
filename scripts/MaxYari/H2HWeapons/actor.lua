@@ -539,7 +539,7 @@ if cso and cso.addOnPlayHandler then
         -- playSwing has no weaponId, so this doesn't come back here
         cso.playSwing(cso.WEAPON.HandToHand, info.volume)
         if kind == weapons.KIND.Knuckle then return false end
-        info.volume = info.volume * 0.66
+        info.volume = info.volume * 0.85
     end)
 end
 -- A katar's own whoosh is only ever the sharp metal one: the dagger's ringing ones and plain ones
