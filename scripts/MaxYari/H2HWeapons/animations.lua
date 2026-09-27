@@ -89,7 +89,7 @@ end
 -- the set from ever matching a uniform engine one. Used for what has to be able to stop while its
 -- parent plays on - swapping a katar for a dagger is a same-type swap that replays nothing, so a
 -- hidden parent would stay hidden with nothing over it.
-local function outrankParent(self, pOptions)
+local function raiseOverParent(self, pOptions, upper, lower)
     local opts = gutils.cloneAnimOptions(pOptions or self.parentOptions)
     local priority = opts.priority
     local function at(group)
@@ -97,12 +97,16 @@ local function outrankParent(self, pOptions)
         return priority[group]
     end
     opts.priority = {
-        [BG.LeftArm] = at(BG.LeftArm) + 1,
-        [BG.RightArm] = at(BG.RightArm) + 1,
-        [BG.Torso] = at(BG.Torso) + 1,
-        [BG.LowerBody] = at(BG.LowerBody) + 2,
+        [BG.LeftArm] = at(BG.LeftArm) + upper,
+        [BG.RightArm] = at(BG.RightArm) + upper,
+        [BG.Torso] = at(BG.Torso) + upper,
+        [BG.LowerBody] = at(BG.LowerBody) + lower,
     }
     return opts
+end
+
+local function outrankParent(self, pOptions)
+    return raiseOverParent(self, pOptions, 1, 2)
 end
 
 -- Hidden: the parent plays on underneath with nothing showing (ReAnimation's own trick for attack
@@ -117,12 +121,26 @@ end
 
 --- Idle ---------------------------------------------------------------------------------------------
 -- Two ranked overrides on the same parents, only one of which ever plays: sneaking (2) over standing
--- (1), both over ReAnimation's own one-handed sneak idles (0). First person has no "idlesneak" of its
--- own - a sneaking weapon user is still playing idle1s - so controls.sneak is the only way to tell,
--- and startOnUpdate is what notices it change. Third person has one, and plays it for anyone sneaking,
--- weapon or not (CharacterController::refreshIdleAnims only adds the weapon's suffix to a plain idle),
--- so there it is a parent of its own and says so itself.
+-- (1). First person has no "idlesneak" of its own - a sneaking weapon user is still playing idle1s -
+-- so controls.sneak is the only way to tell, and startOnUpdate is what notices it change. Third
+-- person has one, and plays it for anyone sneaking, weapon or not (CharacterController::
+-- refreshIdleAnims only adds the weapon's suffix to a plain idle), so there it is a parent of its own
+-- and says so itself.
 local SNEAK_IDLE = "idlesneak"
+
+-- ReAnimation's own first-person sneak idles (idle1hsneak, idle1ssneak) play over these same parents
+-- whenever the player sneaks, one above the parent everywhere and unranked, which ranking does not
+-- stop. The engine shows the highest state on each bone group, and on a tie the one whose name sorts
+-- first (animation.cpp, resetActiveGroups) - theirs, so theirs showed. In first person ours goes one
+-- above them: two above the parent, three on the lower body, which there carries the spine the arms
+-- and the camera hang from; still below the jump. Theirs never play in third person, where
+-- "idlesneak" already has its lower body two up and raising it as far would tie it with walking.
+local function sneakIdleOptions(self, pOptions)
+    if gutils.getArmatureType() == RA.ARMATURE_TYPE.FirstPerson then
+        return raiseOverParent(self, pOptions, 2, 3)
+    end
+    return outrankParent(self, pOptions)
+end
 
 local function sneaking(self)
     return self.parent == SNEAK_IDLE or controls.sneak
@@ -156,7 +174,7 @@ RA.addAnimationOverride({
     overridePriority = 2,
     condition = function(self) return idleCondition(self) and sneaking(self) end,
     stopCondition = function(self) return not (isHandToHandWeapon() and sneaking(self)) end,
-    options = outrankParent,
+    options = sneakIdleOptions,
     startOnAnimEvent = true,
     startOnUpdate = true,
 })
@@ -248,6 +266,13 @@ local function moveOptions(self, pOptions)
     return opts
 end
 
+-- Started on update, the options come from the parent as it was last seen starting (moveOptions),
+-- and one already walking when this script began - a save loaded mid-stride, an NPC walking into the
+-- cell - never was; as the idle's condition, it waits for the next start.
+local function moveCondition(self)
+    return self.parentOptions ~= nil and isHandToHandWeapon()
+end
+
 for _, base in ipairs({ "walkforward", "walkback", "walkleft", "walkright",
                         "runforward", "runback", "runleft", "runright",
                         "sneakforward", "sneakback", "sneakleft", "sneakright" }) do
@@ -257,7 +282,7 @@ for _, base in ipairs({ "walkforward", "walkback", "walkleft", "walkright",
         groupname = base .. "katar",
         armatureType = ANY_VIEW,
         overridePriority = 1,
-        condition = isHandToHandWeapon,
+        condition = moveCondition,
         stopCondition = function(self) return not isHandToHandWeapon() end,
         options = moveOptions,
         onUpdate = syncMove,
@@ -282,7 +307,7 @@ for _, base in ipairs({ "walkforward", "walkback", "walkleft", "walkright",
         groupname = base .. "katar1h",
         armatureType = RA.ARMATURE_TYPE.FirstPerson,
         overridePriority = 2,
-        condition = isHandToHandWeapon,
+        condition = moveCondition,
         stopCondition = function(self) return not isHandToHandWeapon() end,
         options = moveOptions,
         onUpdate = syncMove,

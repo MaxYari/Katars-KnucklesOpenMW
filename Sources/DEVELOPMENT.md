@@ -334,6 +334,12 @@ merged in (`Sources/Tools/make_third_person_anims.py`), in the folders of the th
 own legs. So one set of registrations covers both views and every NPC - whichever the engine has
 loaded is what plays.
 
+**Sneaking idle.** ReAnimation's own first-person sneak idles (`idle1hsneak`, `idle1ssneak`) play
+over the same one-handed idle as ours whenever the player sneaks, unranked, so nothing stops them;
+the engine shows whichever has the higher priority on each bone group, and on a tie the one whose
+name sorts first - theirs. In first person the katar's sneak idle is set one above them on every
+bone group.
+
 **One-handed attacks.** The katar moveset and ReAnimation's own one-handed set both live on the
 `weapononehand` animation group, and only one may be active at a time. This mod's set is registered
 with `overridePriority = 1`, one above ReAnimation's, so ReAnimation's stands down while a katar or

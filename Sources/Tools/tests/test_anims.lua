@@ -103,6 +103,23 @@ check(fistEquip and math.abs(fistEquip.speed - 0.5) < 1e-6, "at half speed, so i
       fistEquip and fistEquip.speed)
 check(equip.blendMask == 0, "over a hidden parent", equip.blendMask)
 
+-- Sneaking in first person: ReAnimation's own sneak idle plays over the same parent too, one above it
+-- everywhere and unranked, and wins a tie. Ours goes above it on every bone group.
+local selfControls = require("openmw.self").controls
+selfControls.sneak = true
+st.played = {}
+stubs.I.AnimationController.playBlendedAnimation("idle1s",
+    { startKey = "start", startkey = "start", speed = 1, priority = 0, blendMask = 15, loops = 999 })
+api.engineHandlers.onUpdate(0.016)
+local sneakPriority
+for _, p in ipairs(st.played) do if p.group == "idlekatarsneak" then sneakPriority = p.options.priority end end
+local above = sneakPriority ~= nil
+for _, group in pairs(require("openmw.animation").BONE_GROUP) do
+    above = above and sneakPriority[group] > 1
+end
+check(above, "sneaking in first person, the katar's sneak idle is above ReAnimation's on every bone group")
+selfControls.sneak = false
+
 -- locomotion and the jump
 st.played = {}
 stubs.I.AnimationController.playBlendedAnimation("walkforward1s", { speed = 1, priority = 5, blendMask = 15, loops = 999 })
