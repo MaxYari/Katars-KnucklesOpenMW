@@ -145,6 +145,14 @@ end
 local over1h = walk1h()
 check(over1h["walkforwardkatar1h"] and not over1h["walkforwardkatar"],
       "over the one-handed walk, first person plays the walk laid out the one-handed way")
+local function walkMask()
+    for _, p in ipairs(st.played) do
+        if p.group == "walkforwardkatar1h" or p.group == "walkforwardkatar" then
+            return p.options.blendMask or p.options.blendmask
+        end
+    end
+end
+check(walkMask() == 15, "first person plays the whole of the walk", walkMask())
 st.groups.sneakforward1h = true
 st.groups.sneakforwardkatar1h = true
 st.played = {}
@@ -191,6 +199,7 @@ follow("slash")
 over1h = walk1h()
 check(over1h["walkforwardkatar"] and not over1h["walkforwardkatar1h"],
       "third person has no one-handed layout of the walk, and plays the plain one")
+check(walkMask() == 14, "on the upper body only, over the one-handed walk's legs", walkMask())
 
 -- Third person has a sneaking idle of its own, played whatever is in hand; with a katar, ours goes over it.
 st.groups.idlesneak = true

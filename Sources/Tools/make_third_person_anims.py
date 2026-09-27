@@ -14,10 +14,14 @@ Where this differs from that build:
     base: idlekatar <- idlehh, walkforwardkatar <- walkforwardhh, jumpkatar <- jumphh, and the
     attacks and equip ("katar", "kataralt") <- handtohand.
   * No chest lean, and the whole hip lunge (so no leg IK): nothing here has to stay out of a camera.
-  * The whole walk and run sway of the spine: in third person the gait is what shows.
-  * Morrowind's skeletons hang the thighs - and a beast's tail - off Bip01 Spine, not the pelvis. The
-    merge turns the spine so our upper body keeps its orientation; the thighs and tail are turned
-    back here, so the legs stay exactly where the third person put them.
+  * The walk, run and sneak play only from the chest up in game (animations.lua): the legs, hips and
+    spine are the one-handed walk's they play over, and with them the actor's pace and footsteps.
+    So ours are keyed from Bip01 Spine1 - where the engine's upper body starts - to sit on the
+    vanilla one-handed walk's spine as it is on average, and inherit whatever that walk does with it:
+    its sway, and another walk's lean. Their legs and spine are left here as they are, unused in game.
+  * Morrowind's skeletons hang the thighs - and a beast's tail - off Bip01 Spine, not the pelvis.
+    Everywhere else the merge turns the spine so our upper body keeps its orientation; the thighs and
+    tail are turned back here, so the legs stay exactly where the third person put them.
   * The upper body's bone offsets are moved from the first-person skeleton's to the third-person
     one's, so fingers and the weapon bones sit where that skeleton has them.
   * The head looks ahead through every swing and draw. In first person the whole upper body, head and
@@ -68,6 +72,7 @@ EXTRA_LOWER = ('Bip01 L Toe0', 'Bip01 R Toe0', 'Bip01 Tail', 'Bip01 Tail1', 'Bip
 # The groups whose head keeps looking ahead (see above), and the idle it looks ahead as in.
 STEADY_HEAD_GROUPS = ('katar', 'kataralt')
 HEAD, NECK = 'Bip01 Head', 'Bip01 Neck'
+CHEST = 'Bip01 Spine1'  # where the engine's upper body starts (animation.cpp, detectBlendMask)
 FORWARD_FROM = ('xKatarIdle.kf', 'idlekatar')
 # First person only: the katar's walk and sneak laid out as the first-person one-handed ones are
 # (make_katar_1h_movement.py), for their own layout. Third person plays the plain ones.
@@ -211,6 +216,21 @@ def main():
     scratch_dir.cleanup()
 
 
+def mean_spine(E, kf, group, groups, samples=60):
+    """A group's spine, held as it is on average over its loop: its world rotation."""
+    keys = groups[group]
+    start, stop = keys.get('loop start', keys['start']), keys.get('loop stop', keys['stop'])
+    total = [0.0, 0.0, 0.0, 0.0]
+    first = None
+    for i in range(samples):
+        q = E.world(kf, 'Bip01 Spine', start + (stop - start) * i / samples)[0]
+        first = first or q
+        if sum(a * b for a, b in zip(q, first)) < 0:
+            q = tuple(-c for c in q)
+        total = [a + b for a, b in zip(total, q)]
+    return E.qnorm(total)
+
+
 # Keys the ones either side of them reproduce within this much are left out: the merge samples every
 # bone 30 times a second, most of them still.
 ANGLE_TOLERANCE = 0.05  # degrees
@@ -261,6 +281,7 @@ def merge(M, E, nifkf, ours_path, theirs_kf, out_path, lower, first_rest, third_
     names = sorted(our_groups, key=lambda g: (min(our_groups[g].values()), g))
 
     segments = []
+    rebased = {}  # locomotion segment -> the spine it is keyed onto
     offset = 0.0
     for name in names:
         keys = our_groups[name]
@@ -275,8 +296,12 @@ def merge(M, E, nifkf, ours_path, theirs_kf, out_path, lower, first_rest, third_
                 ours.steps = [(0.0, 'loop')]
                 theirs.steps = [(0.0, 'loop')]
             seg = M.LocomotionSegment(ours, theirs, theirs_kf, offset)
-            seg.sway = M.SWAY
+            # In game only its upper body plays (animations.lua), on the one-handed walk's legs and
+            # spine: ours is keyed from the chest up to sit on that spine, held as it is on average.
+            seg.sway = 0.0
             seg.mean_sway = M.mean_sway(ours_kf, seg)
+            rebased[seg] = mean_spine(E, theirs_kf, name.replace('katar', '1h') if
+                                      name.replace('katar', '1h') in their_groups else target, their_groups)
         else:
             seg = M.StillSegment(name, keys, ours_kf, theirs_kf, their_groups, offset)
             if seg.own:
@@ -300,6 +325,14 @@ def merge(M, E, nifkf, ours_path, theirs_kf, out_path, lower, first_rest, third_
         for tau in seg.sample_times(spine_extra):
             t_out = seg.offset + tau
             pose = seg.lower_pose(tau)
+            if seg in rebased:
+                # Their legs and spine as they are: the game shows the one-handed walk's instead.
+                seg.waist_twist.append(0.0)
+                for bone in lower:
+                    rot, trans = pose[bone]
+                    new_data[bone].quat_keys.append((t_out, E.qnorm(rot), ()))
+                    new_data[bone].trans['keys'].append((t_out, tuple(trans), ()))
+                continue
             their_spine = pose[M.COMPENSATED_BONE][0]
             ours_world, their_pelvis, theirs_world = M.spine_worlds(ours_kf, seg, tau, pose)
             target = ours_world
@@ -328,10 +361,17 @@ def merge(M, E, nifkf, ours_path, theirs_kf, out_path, lower, first_rest, third_
             if bone in first_rest and bone in third_rest:
                 shift = tuple(b - a for a, b in zip(first_rest[bone], third_rest[bone]))
             steady = bone == HEAD and seg.name in STEADY_HEAD_GROUPS
-            for tau in seg.sample_times(M.key_times(src)):
+            rebase = bone == CHEST and seg in rebased
+            for tau in seg.sample_times(M.key_times(src) | (spine_extra if rebase else set())):
                 t_ours = seg.our_time(tau)
                 t_out = seg.offset + tau
                 rot = E.rotation(src, t_ours)
+                if rebase and rot is not None:
+                    # The chest where ours has it - our spine held upright, as a still segment's
+                    # is - but on their average spine rather than on our own.
+                    ours_spine = E.qmul(M.pelvis_world_rotation(ours_kf, t_ours),
+                                        E.rotation(ours_kf.data(M.COMPENSATED_BONE), t_ours))
+                    rot = E.qmul(E.qconj(rebased[seg]), E.qmul(ours_spine, rot))
                 if steady:
                     # The neck is where ours puts it (these are still segments: the spine keeps our
                     # orientation), so the head's own turn is what is left to look ahead with.

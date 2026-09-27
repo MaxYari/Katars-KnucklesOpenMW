@@ -49,6 +49,7 @@ end
 local gutils = RA.gutils
 local ANY_VIEW = RA.ARMATURE_TYPE.Any
 local BG = animation.BONE_GROUP
+local BLEND_MASK = animation.BLEND_MASK
 local controls = omwself.controls
 
 --- Is a hand-to-hand weapon in hand? ---------------------------------------------------------------
@@ -235,6 +236,15 @@ local function moveOptions(self, pOptions)
     -- Worked out on every start: the parent, and the file it plays from, change with the view.
     self.lengthRatio = lengthRatio(self, opts)
     opts.speed = (opts.speed or 1) * self.lengthRatio
+    -- Third person plays only the upper body. The legs, hips and spine stay the one-handed walk's,
+    -- and with them the footsteps and the pace: the engine moves an actor by the root of whatever
+    -- plays its lower body, and ours, a loop of another length, walked it slower than the steps.
+    -- Ours is keyed from the chest to sit on that spine (make_third_person_anims.py).
+    if gutils.getArmatureType() == RA.ARMATURE_TYPE.ThirdPerson then
+        local mask = opts.blendMask or opts.blendmask or BLEND_MASK.All
+        mask = mask - mask % 2 -- the parent's, less the lower body (BLEND_MASK.LowerBody = 1)
+        opts.blendMask, opts.blendmask = mask, mask
+    end
     return opts
 end
 

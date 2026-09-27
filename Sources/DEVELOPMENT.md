@@ -124,8 +124,9 @@ Fury, and its strikes cost them nothing.
 In third person - an NPC, or you with the camera pulled back - the moveset is the first-person one
 with vanilla's third-person hand-to-hand legs under it (see *Building from source*): the arms keep
 their first-person guard, fists up, the head keeps looking ahead through every swing, and the hips,
-legs and footwork are the game's own. It plays for
-male, female and beast bodies, beasts with their own legs.
+legs and footwork are the game's own. Walking, running and sneaking, only the upper body is ours:
+the legs are the one-handed walk's, so the pace and the footsteps are exactly what they are with any
+one-handed weapon. It plays for male, female and beast bodies, beasts with their own legs.
 
 ## The uniques
 
@@ -311,11 +312,15 @@ both its loops within 2% of the one-handed sneak's and every footstep within abo
 - ReAnimation's moveset builder scales the directions by fixed factors, and the one-handed sneak was
 not built with them. Third person plays the plain ones: every one-handed loop there is one cycle too.
 
+In third person they play on the upper body only, over the one-handed walk's legs, hips and spine.
+The engine moves an actor by the root of whatever animation plays its lower body, so ours - the
+fist's legs, on a loop of another length - walked it slower than the footsteps it heard.
+
 A loop of the same steps can still be longer or shorter than the one it plays over - the katar walk
 is 21% longer than the third-person one-handed walk, and a few percent off the short blade walk and
 the one-handed sneak - so it plays at the ratio of the two lengths, read from their start and stop
-keys, and keeps up rather than trailing behind. Past a third longer or shorter the two are not the
-same steps, and it plays at the parent's speed.
+keys, and keeps up rather than trailing behind, arms in time with the legs. Past a third longer or
+shorter the two are not the same steps, and it plays at the parent's speed.
 
 None of them sound their own footsteps. The animation underneath still plays and sounds its own, and
 the engine sounds a `SoundGen` key from any animation that has one - as do the Lua mods listening
@@ -369,10 +374,12 @@ script, so a rebuild is reproducible:
   one, with ReAnimation's FBA merge (`Sources/Tools/FBACompat/fba_merge.py` in its repository, found
   beside this mod): our upper body over the legs, hips and root motion of vanilla's third-person
   hand-to-hand, their time warped through the text keys both share so ours are kept exactly - the
-  attack timings are ours - and footsteps matched to footsteps. No chest lean, the whole hip lunge,
-  the whole walking sway. Morrowind's skeletons hang the thighs (and a beast's tail) off
-  `Bip01 Spine`, so when the merge turns the spine to keep our upper body upright, they are turned
-  back. The upper body's bone offsets are moved from the first-person skeleton's to the third-person
+  attack timings are ours - and footsteps matched to footsteps. No chest lean, the whole hip lunge.
+  Morrowind's skeletons hang the thighs (and a beast's tail) off `Bip01 Spine`, so when the merge
+  turns the spine to keep our upper body upright, they are turned back. The walk, run and sneak are
+  different: in game they play from the chest up only, over the one-handed walk's legs and spine, so
+  their chest (`Bip01 Spine1`, where the engine's upper body starts) is keyed to sit on the vanilla
+  one-handed walk's spine as it is on average, taking that walk's sway and lean with it. The upper body's bone offsets are moved from the first-person skeleton's to the third-person
   one's. Through every swing and draw the head keeps looking ahead as it does in the idle: in first
   person the head turns into a punch with the rest of the upper body, up to 95 degrees, which the
   camera never shows. The engine's head tracking still turns it toward whoever an NPC fights. Reads
