@@ -5,8 +5,9 @@ the vanilla levelled lists extended with the weapons (see LEVELLED_STAND_INS - t
 read them from).
 
 Damage is derived, not hand-picked: each weapon takes the vanilla shortsword of its own material and
-scales it - katars to 80%, knuckledusters to 50% (DAMAGE_FACTOR) - which is the rule the mod
-documents. Change SHORTSWORDS or the factors and re-run; nothing else needs touching.
+scales it - katars to 80%, knuckledusters to 50% (DAMAGE_FACTOR), rounded to the nearest - which is
+the rule the mod documents. Weight takes the same share of the shortsword's. Silver and daedric take
+their damage from steel and ebony instead (SILVER_OVER_STEEL, DAEDRIC_OVER_EBONY). Change SHORTSWORDS or the factors and re-run; nothing else needs touching.
 
     python3 Sources/Tools/make_plugin.py -o Katar.omwaddon --master "<Morrowind>/Data Files/Morrowind.esm"
 """
@@ -35,24 +36,41 @@ SHORTSWORDS = {
     "daedric": ((10, 26), (10, 26), (12, 24), 24, 20000, 1500, 120),
 }
 
-DAMAGE_FACTOR = {"katar": 0.80, "knuckle": 0.50}
-# Weight and enchantment capacity are both measured against the dagger of the same material, not
-# the shortsword the damage comes from - but at different shares, for different reasons.
+# Two of those shortswords sit out of line with their material everywhere else, and their damage is
+# derived instead (weight, value, condition and capacity stay their own):
 #
-# Weight is what a swing costs you: MWMechanics::applyFatigueLoss charges
-# fFatigueAttackBase (2.0) + weight * attackStrength * fWeaponFatigueMult (0.25), and bare fists
-# pay only the 2.0, having no weapon at all. So weight is tuned against that floor rather than
-# against the weapon it is cut from: a knuckleduster is half a dagger and a katar nine tenths,
-# which puts a full-strength swing at roughly a fifth and a third over a fist's cost at the
-# iron/steel tier.
-DAGGER_WEIGHT_SHARE = {"katar": 0.9, "knuckle": 0.5}
+# * Silver hits harder than steel at the top and softer at the bottom, as vanilla's silver spear
+#   does over its steel one (5-23 against 6-17) - the silver shortsword alone falls short of steel.
+#   Steel's damage, the maximum 30% higher and the minimum 1 lower.
+# * Daedric outdoes ebony: across the vanilla lines that have both, its best attack tops out about
+#   a fifth higher (longsword and war axe 1.19, spear 1.25, mace 1.15) while the minimum stays where
+#   ebony's is - but the daedric shortsword's best attack comes out below the ebony one's. Ebony's
+#   damage, the maximum 20% higher.
+SILVER_OVER_STEEL = {"min_add": -1, "max_mult": 1.3}
+DAEDRIC_OVER_EBONY = {"min_add": 0, "max_mult": 1.2}
 
-# Capacity is a measure of how much weapon there is to enchant, which is not the same question -
-# a katar is two thirds of a dagger there, a knuckleduster a third.
+
+def stronger(attacks, min_add, max_mult):
+    """Each attack's range, the minimum moved by min_add and the maximum scaled by max_mult - left
+    unrounded, so the one rounding is the weapon's own (scale)."""
+    return tuple((low + min_add, high * max_mult) for low, high in attacks)
+
+
+SHORTSWORDS["silver"] = stronger(SHORTSWORDS["steel"][:3], **SILVER_OVER_STEEL) + SHORTSWORDS["silver"][3:]
+SHORTSWORDS["daedric"] = stronger(SHORTSWORDS["ebony"][:3], **DAEDRIC_OVER_EBONY) + SHORTSWORDS["daedric"][3:]
+
+DAMAGE_FACTOR = {"katar": 0.80, "knuckle": 0.50}
+# Weight goes with damage: the same share of the shortsword - a katar 80% of its weight, a
+# knuckleduster half. It is also what a swing costs: MWMechanics::applyFatigueLoss charges
+# fFatigueAttackBase (2.0) + weight * attackStrength * fWeaponFatigueMult (0.25).
+#
+# Enchantment capacity is a measure of how much weapon there is to enchant, which is not the same
+# question, and is measured against the dagger of the same material - a katar two thirds of one, a
+# knuckleduster a third.
 DAGGER_ENCHANT_SHARE = {"katar": 2 / 3, "knuckle": 1 / 3}
 
-# There is no vanilla dagger in orcish or ebony, so the dagger is derived from the shortsword
-# instead. Bethesda weighed every dagger at 0.375 of its shortsword - iron, steel, chitin and
+# There is no vanilla dagger in orcish or ebony, so the dagger (for capacity) is derived from the
+# shortsword instead. Bethesda weighed every dagger at 0.375 of its shortsword - iron, steel, chitin and
 # daedric exactly, silver at 0.400 - so one number covers the whole line.
 DAGGER_WEIGHT_FACTOR = 0.375
 
@@ -188,7 +206,7 @@ def bound_items():
 
 
 def scale(value, factor):
-    """Damage never rounds away to nothing."""
+    """Rounded to the nearest, but never away to nothing."""
     return max(1, min(255, int(value * factor + 0.5)))
 
 
@@ -217,14 +235,13 @@ def stats(item):
     dmg *= overrides.pop("damage_mult", 1.0)
     enchant_material = overrides.pop("enchant_material", material)
 
-    dagger_weight = weight * DAGGER_WEIGHT_FACTOR
     enchant_weight = SHORTSWORDS[enchant_material][3] * DAGGER_WEIGHT_FACTOR
     damage = tuple(scale(v, dmg) for v in best_attack(chop, slash, thrust))
     out = {
         "chop": damage,
         "slash": damage,
         "thrust": damage,
-        "weight": round(dagger_weight * DAGGER_WEIGHT_SHARE[kind] * bulk, 1),
+        "weight": round(weight * DAMAGE_FACTOR[kind] * bulk, 1),
         "enchant": int(round(enchant_weight * DAGGER_ENCHANT_PER_WEIGHT
                              * DAGGER_ENCHANT_SHARE[kind] * bulk)),
         "value": int(value * dmg * value_mult),

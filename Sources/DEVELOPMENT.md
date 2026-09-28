@@ -16,9 +16,14 @@ half the fatigue a bare fist would.
 **Knuckledusters** are blunt weapons. They hit for 50% of that shortsword, and take three quarters
 of the fatigue - they are made for bruising.
 
-- **Damage:** katars 80% of that shortsword, knuckledusters 50% - and the same whichever way you
-  swing, as a fist's is: one range for chop, slash and thrust alike, the shortsword's best attack
-  (the one the game picks with "always use best attack").
+- **Damage:** katars 80% of that shortsword, knuckledusters 50%, rounded to the nearest (never
+  below 1) - and the same whichever way you swing, as a fist's is: one range for chop, slash and
+  thrust alike, the shortsword's best attack (the one the game picks with "always use best attack").
+  Two materials don't use their own vanilla shortsword, which sits out of line with the rest of the
+  material there. **Silver** is steel's with the top 30% higher and the bottom 1 lower, as vanilla's
+  silver spear is over its steel one. **Daedric** is ebony's with the top 20% higher, as daedric
+  weapons run over ebony ones across vanilla (the daedric shortsword alone comes out below ebony's).
+- **Weight:** the same share of that shortsword's as the damage - katars 80%, knuckledusters 50%.
 - **Fatigue damage:** katars 50% of a bare-fisted hit, knuckledusters 75%.
 - **Engine weapon type:** katars Short Blade, knuckledusters Blunt Weapon. Both one handed.
 - **Skill you actually use:** Hand to Hand, for both.
@@ -27,18 +32,15 @@ Thirteen weapons, in wood, iron, chitin, steel, silver, orcish, ebony and daedri
 derived from the vanilla shortswords rather than picked by hand - see `Sources/Tools/make_plugin.py`,
 which is what writes `Katar.omwaddon`.
 
-Weight and enchantment capacity are both measured against the **dagger** of the same material
-rather than the shortsword, at different shares.
-
-**Weight** is what a swing costs you. The engine charges the attacker
+**Weight** goes with damage: the same share of the shortsword - a katar 80% of its weight, a
+knuckleduster half. It is also what a swing costs you: the engine charges the attacker
 `fFatigueAttackBase (2.0) + weight × swing strength × fWeaponFatigueMult (0.25)`, and bare fists pay
-only the flat 2.0, having no weapon at all - so weight is tuned against that floor rather than
-against the blade these are cut from. A knuckleduster is **half a dagger** and a katar **nine tenths
-of one**, which puts a full-strength swing 19% and 34% over a fist's cost at the iron/steel tier
-(a steel dagger is 38%).
+only the flat 2.0, having no weapon at all. At the iron/steel tier that puts a full-strength swing
+80% over a fist's cost with a katar and 50% with a knuckleduster (a steel dagger is 38%, a steel
+shortsword 100%).
 
-**Capacity** is a different question - how much weapon there is to enchant - and there a katar is
-two thirds of a dagger and a knuckleduster a third. The engine has no formula for capacity at all,
+**Capacity** is a different question - how much weapon there is to enchant - and is measured against
+the **dagger** of the same material: a katar is two thirds of a dagger and a knuckleduster a third. The engine has no formula for capacity at all,
 it reads the number off the record; but within any one vanilla weapon line it is a fixed multiple of
 the weight, with the material carrying the weight (daggers run at 6.67 points per unit, shortswords
 at 5.0, right across iron through daedric), and these follow that.
