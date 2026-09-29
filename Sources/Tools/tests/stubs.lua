@@ -309,7 +309,7 @@ packages['openmw.types'] = {
         isDead = function(actor) return actor ~= nil and actor.dead == true end,
     },
     NPC = {
-        objectIsInstance = function(o) return o ~= nil end,
+        objectIsInstance = function(o) return o ~= nil and o.creature == nil end,
         isWerewolf = function() return st.werewolf == true end,
         stats = { skills = skillsProxy },
     },
@@ -340,7 +340,11 @@ packages['openmw.types'] = {
     end },
     Miscellaneous = {},
     Static = { records = setmetatable({}, { __index = function(_, id) return st.staticRecords[id] end }) },
-    Creature = {},
+    -- An object is a creature when it carries its record: { isBiped =, canUseWeapons =, combatSkill = }.
+    Creature = {
+        objectIsInstance = function(o) return o ~= nil and o.creature ~= nil end,
+        record = function(o) return o.creature end,
+    },
 }
 
 -- A fake world for the global script: records get generated ids, objects are plain tables.

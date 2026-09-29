@@ -7,7 +7,8 @@
 -- spell into Mage Fury (actor.lua gives back what their strikes cost). Their animations are
 -- animations.lua's, which runs on NPCs as on the player, and whoever they hit is actor.lua's.
 --
--- This runs on every NPC, so it has no per-frame handler. It hangs off the NPC's own animation events,
+-- This runs on every NPC, and on every creature that can hold these (weapons.canWield) - a dremora
+-- or a skeleton is looked after exactly as an NPC is. So it has no per-frame handler. It hangs off the NPC's own animation events,
 -- and only while a one-handed weapon is out does it look again, twice a second, for what comes with no
 -- animation: a swap to another weapon of the same type, one taken off a corpse, a stance a script set.
 local mp = "scripts/MaxYari/H2HWeapons/"
@@ -17,6 +18,14 @@ local core = require('openmw.core')
 local I = require('openmw.interfaces')
 local omwself = require('openmw.self')
 local types = require('openmw.types')
+
+-- A creature that cannot hold these gets nothing at all: this returns before loading anything, with
+-- no handlers, so it costs a rat nothing per frame. The test is weapons.canWield's, written out here
+-- so that it comes first.
+if types.Creature.objectIsInstance(omwself) then
+    local record = types.Creature.record(omwself)
+    if not (record.isBiped and record.canUseWeapons) then return end
+end
 
 local carriedLeft = require(mp .. "scripts/carriedleft")
 local hands = require(mp .. "scripts/hands")

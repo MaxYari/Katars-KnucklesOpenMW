@@ -431,12 +431,13 @@ local function updateAttachments(stance)
     onBones.attach(GLOW_LEFT, (offHand and glow) or nil)
 end
 
--- Time passed: everything on everyone's bones nearby is gone. NPCs keep their own (npc.lua).
+-- Time passed: everything on everyone's bones nearby is gone. NPCs, and creatures that can hold these,
+-- keep their own (npc.lua).
 local function afterTimePassed()
     onBones.forget()
     local me = omwself.object
     for _, actor in ipairs(nearby.actors) do
-        if actor ~= me and types.NPC.objectIsInstance(actor) then actor:sendEvent("H2HWeapons_Reattach", {}) end
+        if actor ~= me and weapons.canWield(actor) then actor:sendEvent("H2HWeapons_Reattach", {}) end
     end
 end
 

@@ -21,6 +21,17 @@ M.KIND = {
     Knuckle = "knuckle",
 }
 
+-- Who can hold these at all: the player and NPCs, and of creatures only a two-legged one that fights
+-- with weapons - dremora, golden saints, liches, skeletons - which is what gives a creature an
+-- inventory to hold them from (MWClass::Creature::hasInventoryStore) and the NPC animations and
+-- bones to swing them with (CreatureAnimation, Animation::setObjectRoot). animations.lua and npc.lua
+-- open with the same test, written out there so a creature that fails it loads nothing else.
+function M.canWield(actor)
+    if not types.Creature.objectIsInstance(actor) then return true end
+    local record = types.Creature.record(actor)
+    return record.isBiped and record.canUseWeapons
+end
+
 -- Fatigue damage these deal, as a fraction of what a bare-fisted hand-to-hand hit would do. Both
 -- trade health damage for it against the shortsword they are cut from - a katar hits for 80% of
 -- one, knuckledusters for 50% - and knuckledusters, which are made for bruising, trade the most.

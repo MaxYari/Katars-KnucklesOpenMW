@@ -5,7 +5,9 @@
 -- the generic one-handed animations (1h) when those have none (character.cpp:795). Everything here
 -- lists all three rather than guessing.
 --
--- In first person and in third, on the player and on every NPC: the third-person set is the same
+-- In first person and in third, on the player, every NPC, and every creature that can hold these
+-- (weapons.canWield: two-legged and fighting with weapons, as dremora and skeletons do - they play the
+-- NPC animations, these included, and ReAnimation runs on them too): the third-person set is the same
 -- animations under the same names, with vanilla's hand-to-hand legs merged in under them
 -- (Animations/xbase_anim*, built by Sources/Tools/make_third_person_anims.py), so one set of
 -- registrations serves both - whichever the engine has loaded for the view is what plays. ReAnimation
@@ -24,6 +26,14 @@ local core = require('openmw.core')
 local I = require('openmw.interfaces')
 local omwself = require('openmw.self')
 local types = require('openmw.types')
+
+-- A creature that cannot hold these gets nothing at all: this returns before loading anything, with
+-- no handlers, so it costs a rat nothing per frame. The test is weapons.canWield's, written out here
+-- so that it comes first.
+if types.Creature.objectIsInstance(omwself) then
+    local record = types.Creature.record(omwself)
+    if not (record.isBiped and record.canUseWeapons) then return end
+end
 
 local weapons = require(mp .. "scripts/weapons")
 

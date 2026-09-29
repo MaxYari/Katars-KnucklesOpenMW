@@ -3,6 +3,9 @@
 LOAD: scripts/MaxYari/H2HWeapons/content.lua
 GLOBAL: scripts/MaxYari/H2HWeapons/global.lua
 PLAYER: scripts/MaxYari/H2HWeapons/player.lua
-NPC: scripts/MaxYari/H2HWeapons/npc.lua
+# npc.lua and animations.lua run on creatures too, but only a two-legged one that fights with weapons
+# (dremora, golden saints, liches, skeletons; weapons.canWield) keeps them: on any other both return as
+# they load, with no handlers.
+NPC, CREATURE: scripts/MaxYari/H2HWeapons/npc.lua
 NPC, CREATURE, PLAYER: scripts/MaxYari/H2HWeapons/actor.lua
-NPC, PLAYER: scripts/MaxYari/H2HWeapons/animations.lua
+NPC, CREATURE, PLAYER: scripts/MaxYari/H2HWeapons/animations.lua

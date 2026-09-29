@@ -28,11 +28,18 @@ local M = {}
 -- @param actor #GameObject the attacker
 -- @param attackStrength #number 0..1, how far the swing was charged
 -- @param strengthInfluences #number 0, 1 or 2
--- @return #number fatigue damage, or 0 if the actor has no hand-to-hand skill (a creature)
+-- @return #number fatigue damage, or 0 if the actor has no hand-to-hand skill
 function M.handToHandFatigue(actor, attackStrength, strengthInfluences)
-    if not types.NPC.objectIsInstance(actor) then return 0 end
-
-    local skill = types.NPC.stats.skills.handtohand(actor).modified
+    local skill
+    if types.NPC.objectIsInstance(actor) then
+        skill = types.NPC.stats.skills.handtohand(actor).modified
+    elseif types.Creature.objectIsInstance(actor) then
+        -- A creature has one Combat value that stands for every combat skill, Hand-to-hand among them
+        -- (MWClass::Creature::getSkill).
+        skill = types.Creature.record(actor).combatSkill
+    else
+        return 0
+    end
     if not skill or skill <= 0 then return 0 end
 
     local damage = skill * (fMinHandToHandMult + (fMaxHandToHandMult - fMinHandToHandMult) * attackStrength)

@@ -39,11 +39,13 @@ only the flat 2.0, having no weapon at all. At the iron/steel tier that puts a f
 80% over a fist's cost with a katar and 50% with a knuckleduster (a steel dagger is 38%, a steel
 shortsword 100%).
 
-**Capacity** is a different question - how much weapon there is to enchant - and is measured against
-the **dagger** of the same material: a katar is two thirds of a dagger and a knuckleduster a third. The engine has no formula for capacity at all,
-it reads the number off the record; but within any one vanilla weapon line it is a fixed multiple of
-the weight, with the material carrying the weight (daggers run at 6.67 points per unit, shortswords
-at 5.0, right across iron through daedric), and these follow that.
+**Capacity** is a different question - how much weapon there is to enchant. It runs from the **dagger**
+of the same material to its shortsword, which in vanilla holds about twice as much: a knuckleduster
+holds what the dagger does, a katar halfway between the two. The dagger's is vanilla's own where there
+is one; orcish and ebony have none, and theirs is worked out as Bethesda wrote every line - a fixed
+multiple of the weight (daggers run at 6.67 points per unit, shortswords at 5.0, right across iron
+through daedric), on a dagger weighing 0.375 of its shortsword. The game shows a tenth of the raw
+number and drops what is left over (`Enchanting::getMaxEnchantValue`), as it does for vanilla's.
 
 ### Hit chance
 
@@ -130,10 +132,25 @@ legs and footwork are the game's own. Walking, running and sneaking, only the up
 the legs are the one-handed walk's, so the pace and the footsteps are exactly what they are with any
 one-handed weapon. It plays for male, female and beast bodies, beasts with their own legs.
 
+### Creatures
+
+A creature that is two-legged and fights with weapons - dremora, golden saints, liches, skeletons -
+uses these as an NPC does, and several already carry them: the plugin puts katars and knuckledusters
+on the levelled lists they draw from (dremora's excellent melee weapons, skeletons' silver and iron
+ones). The engine gives such a creature everything an NPC has here: an inventory it equips from, the
+NPC animations - `xbase_anim` and its animation folder, so the katar moveset too - and the bones
+grafted from that folder, `Weapon Bone.L` among them (`CreatureAnimation`, `Animation::setObjectRoot`).
+So `animations.lua` and `npc.lua` run on them as on an NPC. The moveset also needs ReAnimation's API on
+them, which a ReAnimation newer than 3.2 attaches to such creatures; with an older one they swing
+these with the one-handed animations. A creature has one Combat value for every combat skill, so its
+hit chance needs nothing, and its bruising is worked out from that Combat
+(`formulas.handToHandFatigue`). Any other creature is let go at once: see *Performance*.
+
 ## The uniques
 
 Three: Ebony Rose, Mage Fury, and the wooden knuckles - which hit for half the iron set but take an
-enchantment as well as silver does, since it is the medium, not the metal, that holds one. None of
+enchantment better than any knuckleduster short of orcish (3), since it is the medium, not the metal,
+that holds one. None of
 the three is in any levelled list: nobody sells them and no chest rolls them. They are placed in the
 world by `KatarWorldPlacements.omwaddon`, which is made by hand in OpenMW-CS - unlike `Katar.omwaddon`,
 it is not generated, so edit it there. Ebony Rose also has an owner, below.
@@ -256,10 +273,13 @@ can add damage to a weapon hit - and anyone can be struck. It has no per-frame h
 on a hit (and leaves at once unless the weapon is one of these), when an NPC casts (to notice Bound
 Fist), and a few times a second only while that actor is poisoned by Ebony Rose or holds a Bound Fist.
 
-Two more run on every NPC, for NPCs who wield these. `npc.lua` has no per-frame handler either: it
-hangs off the NPC's own animation events, and looks at the hand twice a second only while a
-one-handed weapon is out. `animations.lua` registers the moveset with ReAnimation, whose own per-frame
-check only runs while the NPC has a weapon drawn.
+Two more run on every NPC and creature, for those who wield these. On a creature that cannot hold them
+(`weapons.canWield`: anything but a two-legged one that fights with weapons) both return in their
+first lines, before loading anything, and leave no handler behind - ReAnimation's API does the same -
+so a rat costs nothing. `npc.lua` has no per-frame handler either: it hangs off the actor's own
+animation events, and looks at the hand twice a second only while a one-handed weapon is out.
+`animations.lua` registers the moveset with ReAnimation, whose own per-frame check only runs while
+the actor has a weapon drawn.
 
 The per-frame work is the player's: the stance, the camera mode, and the equipped weapon, which Max
 Yari's Script Services reads for this mod and ReAnimation both, at most ten times a second.

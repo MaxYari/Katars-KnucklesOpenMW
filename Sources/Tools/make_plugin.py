@@ -65,11 +65,15 @@ DAMAGE_FACTOR = {"katar": 0.80, "knuckle": 0.50}
 # fFatigueAttackBase (2.0) + weight * attackStrength * fWeaponFatigueMult (0.25).
 #
 # Enchantment capacity is a measure of how much weapon there is to enchant, which is not the same
-# question, and is measured against the dagger of the same material - a katar two thirds of one, a
-# knuckleduster a third.
-DAGGER_ENCHANT_SHARE = {"katar": 2 / 3, "knuckle": 1 / 3}
+# question: it runs from the dagger of the same material to its shortsword, which holds about twice as
+# much. A knuckleduster holds what the dagger does, a katar halfway between the two - the share of the
+# way from one to the other.
+ENCHANT_TOWARD_SHORTSWORD = {"katar": 0.5, "knuckle": 0.0}
 
-# There is no vanilla dagger in orcish or ebony, so the dagger (for capacity) is derived from the
+# Vanilla daggers' capacity (the raw record field), per material.
+DAGGERS_ENCHANT = {"chitin": 10, "iron": 20, "steel": 20, "silver": 16, "daedric": 60}
+
+# There is no vanilla dagger in orcish or ebony, so their dagger (for capacity) is derived from the
 # shortsword instead. Bethesda weighed every dagger at 0.375 of its shortsword - iron, steel, chitin and
 # daedric exactly, silver at 0.400 - so one number covers the whole line.
 DAGGER_WEIGHT_FACTOR = 0.375
@@ -110,16 +114,16 @@ ITEMS = [
 # Per-item departures from the derivation above.
 #   bulk             scales weight and capacity together - a weapon that is simply less of itself
 #   damage_mult      scales the three damage figures only
-#   enchant_material takes the capacity from a different material's dagger
+#   enchant_material takes the capacity from a different material's dagger and shortsword
 # anything else (speed, reach, weight, value) is set outright.
 OVERRIDES = {
     # Three quarters of the guarded ebony katar, and quicker for it - by the same eighth a tanto has
     # over a shortsword.
     "katar_ebony_rose": {"speed": SPEED["katar"] * 9 / 8, "reach": 0.9, "bulk": 0.75},
-    # Wood hits for half of what the iron set does, but takes an enchantment as well as silver -
-    # it is the medium, not the metal, that holds one.
-    # Weight is set outright rather than through bulk, which would drag the capacity down with it.
-    "knuckle_wood": {"damage_mult": 0.5, "enchant_material": "silver", "weight": 0.9, "value": 5},
+    # Wood hits for half of what the iron set does, but takes an enchantment better than any
+    # knuckleduster short of orcish - it is the medium, not the metal, that holds one: 3 in game
+    # (the raw field is ten times what the game shows).
+    "knuckle_wood": {"damage_mult": 0.5, "enchant": 30, "weight": 0.9, "value": 5},
     # Mage Fury is an iron knuckle in every stat - damage, weight, capacity, the lot. What it is worth
     # carrying for is its enchantment, so the numbers stay ordinary and no override is needed.
 }
@@ -235,15 +239,18 @@ def stats(item):
     dmg *= overrides.pop("damage_mult", 1.0)
     enchant_material = overrides.pop("enchant_material", material)
 
-    enchant_weight = SHORTSWORDS[enchant_material][3] * DAGGER_WEIGHT_FACTOR
+    dagger_enchant = DAGGERS_ENCHANT.get(enchant_material)
+    if dagger_enchant is None:
+        dagger_enchant = SHORTSWORDS[enchant_material][3] * DAGGER_WEIGHT_FACTOR * DAGGER_ENCHANT_PER_WEIGHT
+    shortsword_enchant = SHORTSWORDS[enchant_material][6]
+    enchant = dagger_enchant + (shortsword_enchant - dagger_enchant) * ENCHANT_TOWARD_SHORTSWORD[kind]
     damage = tuple(scale(v, dmg) for v in best_attack(chop, slash, thrust))
     out = {
         "chop": damage,
         "slash": damage,
         "thrust": damage,
         "weight": round(weight * DAMAGE_FACTOR[kind] * bulk, 1),
-        "enchant": int(round(enchant_weight * DAGGER_ENCHANT_PER_WEIGHT
-                             * DAGGER_ENCHANT_SHARE[kind] * bulk)),
+        "enchant": int(round(enchant * bulk)),
         "value": int(value * dmg * value_mult),
         "health": int(health * dmg),
         "speed": SPEED[kind],
