@@ -27,6 +27,7 @@ on the OBJECT (applies to all its slots).
 
 MATERIAL NAME TAGS (the usual way to drive this)
     [Metal]       like the iron spear head  -- 206, 60, 132
+    [MetalPolished] bright polished steel/silver -- 255, 40, 132   (= [PolishedMetal])
     [MetalRough]  like the daedric brackets -- 255, 89, 132   (= [RoughMetal])
     [PlateRough]  like the orcish bracket   -- 173, 85, 132   (= [RoughPlate])
     [Glass]       volcanic glass            -- 250, 81, 132
@@ -137,7 +138,8 @@ SPEC_PRESETS = {
 # Put these in the MATERIAL name. They are only honoured when the OBJECT itself
 # carries [Bake], so a material shared with non-baked objects is unaffected.
 #
-#   [Metal]       like the iron spear head   -- our most metallic metal
+#   [Metal]       like the iron spear head   -- keeps ~19% of the painted albedo
+#   [MetalPolished] full metal, glossy       -- bright polished steel, silver blades
 #   [RoughMetal]  like the daedric brackets  -- full metal, rough
 #   [RoughPlate]  like the orcish bracket    -- partial coverage, rough
 #   [NormGen]     albedo-derived relief for this material's area
@@ -148,6 +150,8 @@ SPEC_PRESETS = {
 
 MATERIAL_TAGS = {
     "[metal]":      "iron",           # (206, 60, 132)
+    "[metalpolished]": "polished",    # (255, 40, 132)
+    "[polishedmetal]": "polished",
     # both word orders accepted -- easy to type it either way
     "[roughmetal]": "rough_metal",    # (255, 89, 132)
     "[metalrough]": "rough_metal",
@@ -1760,7 +1764,8 @@ def log_banner():
     log("Bakes every mesh tagged [Bake] down to one albedo texture, plus a")
     log("matching _spec PBR map and a _n normal map.")
     log("Tag MATERIALS to control the result:")
-    log("   [Metal] [MetalRough] [PlateRough] [Glass]   what it is made of")
+    log("   [Metal] [MetalPolished] [MetalRough] [PlateRough] [Glass]")
+    log("                                               what it is made of")
     log("   [NormGen] | [Bump]                          where its relief comes from")
     log("An untagged material bakes as plain non-metal with no relief.")
     log("Run with --help for everything else.")

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Writes Katar.omwaddon: the WEAP records for every katar and knuckleduster, stand-ins for the two
-uniques' enchantments (see ENCHANTMENTS), Bound Fist's spell and weapons, the notes (see NOTES), and
-the vanilla levelled lists extended with the weapons (see LEVELLED_STAND_INS - this needs --master, to
-read them from).
+"""Writes Katar.omwaddon: the WEAP records for every katar and knuckleduster and their shop-enchanted
+versions (see ENCHANTED_VERSIONS), stand-ins for the two uniques' enchantments (see ENCHANTMENTS),
+Bound Fist's spell and weapons, the notes (see NOTES), and the vanilla levelled lists extended with
+the weapons (see LEVELLED_STAND_INS and ENCHANTED_LEVELLED - this needs --master, to read them from).
+Tamriel Data's lists are make_tr_plugin.py's.
 
 Damage is derived, not hand-picked: each weapon takes the vanilla shortsword of its own material and
 scales it - katars to 80%, knuckledusters to 50% (DAMAGE_FACTOR), rounded to the nearest - which is
@@ -84,6 +85,9 @@ DAGGER_WEIGHT_FACTOR = 0.375
 # carrying the weight: daggers run at 6.67 points per unit, shortswords 5.0, tantos 5.5,
 # wakizashis 4.5, right across iron through daedric.
 #
+# The enchanting menu drops whatever is left over past a whole point (getMaxEnchantValue), so a
+# fraction is never usable: the result is rounded to whole points, halves up - silver's 2.6-point
+# katar holds 3.
 DAGGER_ENCHANT_PER_WEIGHT = 6.67
 # Weapon speed scales the attack animation's playback (character.cpp). These play the fist's own
 # animations, which are quick already - at 1.0 about as quick as a sword's at 2.0 - so the speeds sit
@@ -106,7 +110,7 @@ ITEMS = [
     ("knuckle_orcish",         "knuckle", "orcish",  "Orcish Knuckles",         "orcish_knuckle.nif",        1.0, 0),
     ("knuckle_daedric",        "knuckle", "daedric", "Daedric Knuckles",        "daedric_knuckle_basic.nif", 1.0, 0),
     ("knuckle_daedric_spiked", "knuckle", "daedric", "Daedric Spiked Knuckles", "daedric_knuckle_sharp.nif", 1.2, 0),
-    ("knuckle_wood",           "knuckle", "iron",    "Wooden Knuckles",         "wooden_knuckle.nif",        1.0, 0),
+    ("knuckle_wood",           "knuckle", "iron",    "Driftwood Beater",        "wooden_knuckle.nif",        1.0, 0),
     ("knuckle_mage_fury",      "knuckle", "iron",    "Mage Fury",               "mage_fury.nif",             1.0, 0),
 ]
 
@@ -114,18 +118,21 @@ ITEMS = [
 # Per-item departures from the derivation above.
 #   bulk             scales weight and capacity together - a weapon that is simply less of itself
 #   damage_mult      scales the three damage figures only
+#   damage           sets the one damage range outright, as (min, max)
 #   enchant_material takes the capacity from a different material's dagger and shortsword
 # anything else (speed, reach, weight, value) is set outright.
 OVERRIDES = {
     # Three quarters of the guarded ebony katar, and quicker for it - by the same eighth a tanto has
     # over a shortsword.
     "katar_ebony_rose": {"speed": SPEED["katar"] * 9 / 8, "reach": 0.9, "bulk": 0.75},
-    # Wood hits for half of what the iron set does, but takes an enchantment better than any
-    # knuckleduster short of orcish - it is the medium, not the metal, that holds one: 3 in game
-    # (the raw field is ten times what the game shows).
-    "knuckle_wood": {"damage_mult": 0.5, "enchant": 30, "weight": 0.9, "value": 5},
-    # Mage Fury is an iron knuckle in every stat - damage, weight, capacity, the lot. What it is worth
-    # carrying for is its enchantment, so the numbers stay ordinary and no override is needed.
+    # Wood hits for two points less than the iron set's 4-6 at each end (2-4) and wears out twice as
+    # fast, but takes an enchantment better than any knuckleduster short of orcish and daedric - it is
+    # the medium, not the metal, that holds one: 3 in game (the raw field is ten times what it shows).
+    "knuckle_wood": {"damage": (2, 4), "health": 150, "enchant": 30, "weight": 0.9, "value": 5},
+    # Mage Fury is an iron knuckle in every other stat - weight, capacity, the lot - but the crystal set
+    # in it costs it a point at each end of the iron set's 4-6. What it is worth carrying for is its
+    # enchantment.
+    "knuckle_mage_fury": {"damage": (3, 5)},
 }
 
 # Enchantments. The uniques' are vanilla stand-ins: the real ones use custom magic effects, which an
@@ -135,7 +142,8 @@ OVERRIDES = {
 # scripts/MaxYari/H2HWeapons/scripts/uniques.lua.
 ENCH_CAST_ONCE, ENCH_WHEN_STRIKES, ENCH_WHEN_USED, ENCH_CONSTANT = 0, 1, 2, 3
 RANGE_SELF, RANGE_TOUCH = 0, 1
-EFFECT_POISON, EFFECT_SPELL_ABSORPTION, EFFECT_FORTIFY_SKILL, EFFECT_BOUND_DAGGER = 27, 67, 83, 120
+EFFECT_FROST_DAMAGE, EFFECT_POISON, EFFECT_SPELL_ABSORPTION = 16, 27, 67
+EFFECT_FORTIFY_SKILL, EFFECT_BOUND_DAGGER = 83, 120
 SKILL_HAND_TO_HAND = 26
 SPELL_TYPE_SPELL = 0
 
@@ -149,6 +157,11 @@ ENCHANTMENTS = {
     # the way Unofficial TR Spells scales a bound item's enchantment.
     "h2h_bound_fist_effect_en": (ENCH_CONSTANT, 0, 0,
                                  [(EFFECT_FORTIFY_SKILL, RANGE_SELF, 0, 1, 10, 10, SKILL_HAND_TO_HAND)]),
+    # Two of the shop-enchanted versions (ENCHANTED_VERSIONS) carry one vanilla has no record for:
+    # chitin knuckles hold a single point, the least any enchantment costs, and silver knuckles two.
+    # Cost and charge as vanilla's weak ones have them - a point a strike, ten strikes to a charge.
+    "h2h_chitin_shard_en": (ENCH_WHEN_STRIKES, 1, 10, [(EFFECT_FROST_DAMAGE, RANGE_TOUCH, 0, 1, 1, 3)]),
+    "h2h_silver_shard_en": (ENCH_WHEN_STRIKES, 1, 10, [(EFFECT_FROST_DAMAGE, RANGE_TOUCH, 0, 1, 3, 6)]),
 }
 
 # Which weapon carries which.
@@ -176,6 +189,29 @@ BOUND_WEAPONS = [
     ("h2h_bound_knuckle",        "knuckle_daedric",        "Bound Knuckles"),
     ("h2h_bound_knuckle_spiked", "knuckle_daedric_spiked", "Bound Spiked Knuckles"),
     ("h2h_bound_katar",          "katar_daedric",          "Bound Katar"),
+]
+
+# Shop-enchanted versions: seven of the plain weapons as a merchant or a chest might have them, with a
+# weak enchantment that casts on strike. Each enchantment is the weaker of two: the vanilla enchanted
+# weapon of that material and element (Iron Sparkmace, Steel Flameblade, Silver Shardblade, and the
+# glass Wild blades for orcish and ebony), and the most that fits three quarters of a point under the
+# weapon's own capacity - so one bought is always a little weaker than one enchanted by hand. Where
+# the vanilla one is the weaker, its own record is used: it is the same enchantment, and a mod that
+# rebalances it rebalances these too. No daedric, as vanilla has no weak daedric ones.
+#
+# The price is the plain weapon's plus what vanilla adds for that enchantment, over the same weapon
+# without it: Chitin Club 6 to Firebite Club 10, Iron Mace 24 to Iron Sparkmace 45, Steel Shortsword
+# 40 to Steel Flameblade 55, Silver Shortsword 80 to Silver Shardblade 120, Glass Dagger 4000 to the
+# Wild blades' 4100.
+ENCHANTED_VERSIONS = [
+    # id, the plain weapon it is, display name, enchantment, price over the plain one
+    ("knuckle_chitin_shard",    "knuckle_chitin", "Chitin Shardfang",    "h2h_chitin_shard_en", 4),
+    ("knuckle_iron_spark",      "knuckle_iron",   "Iron Sparkfist",      "spark_enu",           21),
+    ("katar_steel_smoulder",    "katar_steel",    "Smouldering Katar",   "cruel flame_en",      15),
+    ("katar_silver_ice",        "katar_silver",   "Silver Ice Talon",    "dire shard_en",       40),
+    ("knuckle_silver_shard",    "knuckle_silver", "Silver Shardknuckle", "h2h_silver_shard_en", 40),
+    ("knuckle_orcish_smoulder", "knuckle_orcish", "Orcish Smoulderfist", "wild flame_en",       100),
+    ("katar_ebony_spark",       "katar_ebony",    "Ebony Sparkneedle",   "wild spark_en",       100),
 ]
 
 
@@ -206,6 +242,19 @@ def bound_items():
         rows.append((rid,) + base[1:3] + (display,) + base[4:6] + (MAGICAL_FLAG,))
         OVERRIDES.setdefault(rid, dict(OVERRIDES.get(base_id, {}))).update(
             {"weight": 0, "value": 0, "enchant": 0})
+    return rows
+
+
+def enchanted_items():
+    """ENCHANTED_VERSIONS as ITEMS rows: the plain weapon under its own id and name, carrying its
+    enchantment, at the plain one's price and the enchantment's on top."""
+    by_id = {item[0]: item for item in ITEMS}
+    rows = []
+    for rid, base_id, display, enchantment, markup in ENCHANTED_VERSIONS:
+        base = by_id[base_id]
+        rows.append((rid,) + base[1:3] + (display,) + base[4:])
+        WEAPON_ENCHANTMENTS[rid] = enchantment
+        OVERRIDES.setdefault(rid, dict(OVERRIDES.get(base_id, {})))["value"] = stats(base)["value"] + markup
     return rows
 
 
@@ -244,13 +293,13 @@ def stats(item):
         dagger_enchant = SHORTSWORDS[enchant_material][3] * DAGGER_WEIGHT_FACTOR * DAGGER_ENCHANT_PER_WEIGHT
     shortsword_enchant = SHORTSWORDS[enchant_material][6]
     enchant = dagger_enchant + (shortsword_enchant - dagger_enchant) * ENCHANT_TOWARD_SHORTSWORD[kind]
-    damage = tuple(scale(v, dmg) for v in best_attack(chop, slash, thrust))
+    damage = overrides.pop("damage", None) or tuple(scale(v, dmg) for v in best_attack(chop, slash, thrust))
     out = {
         "chop": damage,
         "slash": damage,
         "thrust": damage,
         "weight": round(weight * DAMAGE_FACTOR[kind] * bulk, 1),
-        "enchant": int(round(enchant * bulk)),
+        "enchant": int(enchant * bulk / 10 + 0.5) * 10,
         "value": int(value * dmg * value_mult),
         "health": int(health * dmg),
         "speed": SPEED[kind],
@@ -330,7 +379,7 @@ def weap_record(item):
 # --- Levelled lists ----------------------------------------------------------------------------------
 # Where the weapons turn up: vanilla's own levelled lists, placed the way vanilla places its weapons.
 # Each goes into every list the vanilla weapon it stands in for is in, at that weapon's level - its
-# material's shortsword. The three uniques - Ebony Rose, Mage Fury and the wooden knuckles - are in
+# material's shortsword (a weapon may stand in for more than one, a tuple). The three uniques - Ebony Rose, Mage Fury and the Driftwood Beater - are in
 # none: nobody sells them and no chest rolls them. Chests and crates draw on the
 # random_<material>_weapon lists; a merchant's stock and an NPC's own weapon come from the
 # l_n_wpn_melee_* lists in their inventories - so that is how traders get them too, and no NPC record
@@ -349,7 +398,9 @@ LEVELLED_STAND_INS = {
     "knuckle_iron":           "iron shortsword",
     "knuckle_silver":         "silver shortsword",
     # There is no vanilla orcish shortsword; its stats sit between dwarven and ebony, and so does this.
-    "knuckle_orcish":         "dwarven shortsword",
+    # It also goes where vanilla's own orcish weapons are rolled - random_orcish_weapons, by the
+    # warhammer, the only one-handed-or-blunt orcish weapon in it.
+    "knuckle_orcish":         ("dwarven shortsword", "orcish warhammer"),
     "knuckle_daedric":        "daedric shortsword",
     "knuckle_daedric_spiked": "daedric shortsword",
 }
@@ -365,6 +416,30 @@ LEVELLED_SKIP = {
 
 # Knuckledusters are blunt: where their stand-in is on a short blade list, they go on the blunt one.
 BLUNT_LIST_FOR = {"l_n_wpn_melee_short blade": "l_n_wpn_melee_blunt"}
+
+# Where the shop-enchanted versions go: the lists vanilla deals its own weak enchanted weapons from -
+# the enchanted short blade and blunt lists (merchants, and the NPCs and chests that roll them) and the
+# special loot most chests of note draw on. Katars go where enchanted short blades are, knuckledusters
+# where enchanted blunt weapons and staves are, and each only where its material is already on offer
+# at least twice, at the middle of those weapons' levels. Ours are kept to 15% of a list's enchanted
+# weapons at most. Long blade, axe and spear lists are left alone: an NPC rolling one is after a
+# weapon for that skill.
+ENCHANTED_LEVELLED = {
+    "l_m_wpn_melee_short blade": [("katar_steel_smoulder", 7), ("katar_silver_ice", 9),
+                                  ("katar_ebony_spark", 15)],
+    "l_m_wpn_melee_blunt": [("knuckle_chitin_shard", 2), ("knuckle_iron_spark", 5),
+                            ("knuckle_silver_shard", 8), ("knuckle_orcish_smoulder", 12)],
+    "random_loot_special": [("knuckle_iron_spark", 1), ("knuckle_silver_shard", 1),
+                            ("katar_steel_smoulder", 1), ("katar_silver_ice", 1)],
+}
+
+
+def add_enchanted(additions, lists, present, table):
+    """Merge a list -> [(id, level)] table of enchanted versions into the stand-in additions."""
+    for key, extra in table.items():
+        if key in lists:
+            additions.setdefault(key, []).extend((rid, lvl) for rid, lvl in extra if rid in present)
+    return additions
 
 
 def latin_zstr(text):
@@ -403,21 +478,27 @@ def read_levelled_lists(master_path):
     return lists
 
 
-def levelled_additions(lists, present):
-    """{list key: [(item id, level)]} - what goes where, for the weapons that are in the plugin."""
+def levelled_additions(lists, present, stand_in_table=None, skip=None, blunt_list_for=None):
+    """{list key: [(item id, level)]} - what goes where, for the weapons that are in the plugin. The
+    tables default to vanilla's; make_tr_plugin.py passes Tamriel Data's."""
+    stand_in_table = LEVELLED_STAND_INS if stand_in_table is None else stand_in_table
+    skip = LEVELLED_SKIP if skip is None else skip
+    blunt_list_for = BLUNT_LIST_FOR if blunt_list_for is None else blunt_list_for
     kind_of = {item[0]: item[1] for item in ITEMS}
     additions = {}
-    for rid, stand_in in LEVELLED_STAND_INS.items():
+    for rid, stand_ins in stand_in_table.items():
         if rid not in present:
             continue
+        if isinstance(stand_ins, str):
+            stand_ins = (stand_ins,)
         for key, rec in sorted(lists.items()):
-            if key in LEVELLED_SKIP:
+            if key in skip:
                 continue
-            level = next((lvl for item, lvl in rec["items"] if item.lower() == stand_in), None)
+            level = next((lvl for item, lvl in rec["items"] if item.lower() in stand_ins), None)
             if level is None:
                 continue
-            target = BLUNT_LIST_FOR.get(key, key) if kind_of[rid] == "knuckle" else key
-            if target in lists:
+            target = blunt_list_for.get(key, key) if kind_of[rid] == "knuckle" else key
+            if target in lists and rid not in (item for item, _ in additions.get(target, [])):
                 additions.setdefault(target, []).append((rid, level))
     return additions
 
@@ -433,7 +514,7 @@ def levi_record(rec, extra):
 
 def build(master_path, meshes_dir):
     items, missing = [], []
-    for item in ITEMS + bound_items():
+    for item in ITEMS + bound_items() + enchanted_items():
         if meshes_dir and not os.path.exists(os.path.join(meshes_dir, item[4])):
             missing.append(item)
         else:
@@ -457,7 +538,8 @@ def build(master_path, meshes_dir):
     additions, levelled = {}, {}
     if master_path and os.path.exists(master_path):
         levelled = read_levelled_lists(master_path)
-        additions = levelled_additions(levelled, present)
+        additions = add_enchanted(levelled_additions(levelled, present), levelled, present,
+                                  ENCHANTED_LEVELLED)
     else:
         print("  no master given - the weapons go into no levelled list")
 

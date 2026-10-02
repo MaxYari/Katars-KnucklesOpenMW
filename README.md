@@ -7,7 +7,8 @@ Hand-to-hand weapons for OpenMW. Katars and Knuckledusters. They mostly use a **
 **13 weapons**: 5 katars and 8 sets of knuckledusters, in wood, chitin, iron, steel, silver, orcish,
 ebony and daedric. **3 of them are rare**, with a trick of their own each - finding them and working
 out what they do is up to you. The rest turn up the way ordinary weapons do: in merchants' stock, on
-NPCs and in chests.
+NPCs and in chests. Seven of them also come **weakly enchanted** - fire, frost or shock on strike, as
+vanilla's Flameblades and Sparkmaces have - from the shops and chests that deal those.
 
 For conjurers there is **Bound Fist**, a new conjuration spell that binds a daedric hand-to-hand
 weapon to your fists. Which weapon you get depends on your Conjuration - there are visually different
@@ -23,7 +24,7 @@ Developed for OpenMW. **Requires OpenMW 0.51+**.
 
 - "Officially" Katars are shortblades and knuckledusters are blunt weapons, that what you will see on a tooltip in the world. Dont trust that - they use and level Hand to Hand and they also damage victim's stamina akin to regular H2H.
 - Yet countrary to regular H2H they also deal damage, albeit small. In general knuckleduster deal lower physical damage but higher stamina damage and Katars are the opposite.
-- Most of the new weapons are available at your weapon traders as well as random loot. Uniques are... well... unique and need to be found in the world.
+- The new weapons are added to the game's levelled lists - the ones merchants' stock, chests and loot, and NPCs' and enemies' weapons are rolled from - so they turn up as ordinary weapons of their material do: now and then, not in every shop. Uniques are... well... unique and need to be found in the world.
 - Conjured fist weapons change their looks based on your conjuration skill.
 - They take both hands, same as bare fists: your shield or torch comes off while they are out and goes back on once you put them away.
 - NPCs use them too, off-hand weapon and all - and so do armed creatures like dremora and skeletons. In third person the weapons have their own animations - admittedly crude ones, made by merging the first-person moves with vanilla's hand-to-hand legs.
@@ -81,14 +82,17 @@ using the launcher or completely manually (it's also very easy).
 3) Enable these in the "Content Files" tab of the OpenMW launcher, after ReAnimation:
    - `Katar.omwaddon`
    - `KatarWorldPlacements.omwaddon` - puts the rare weapons in the world. Needs Tribunal.
+   - `KatarTamrielRebuilt.omwaddon` - only with Tamriel Rebuilt, after it: puts the weapons in Tamriel
+     Rebuilt's levelled lists too. Needs Tamriel Data.
    - `H2HWeapons.omwscripts`
    - `H2HWeapons_SpellTraders.omwscripts` - optional, it is what lets spell merchants teach Bound Fist.
 
 4) OpenMW Launcher -> Settings -> Visuals -> Animations: "Use Additional Animation Sources" must be
 enabled.
 
-5) The weapons are added to the game's loot and merchant lists. If you use other mods that add to
-those lists too, merge your lists once your load order is set, as you would for any such mods:
+5) The weapons are added to the game's levelled lists - the ones merchants' stock, loot and enemies'
+weapons are rolled from. If you use other mods that edit those lists too, merge your lists once your
+load order is set, as you would for any such mods:
    - Windows: [TES3Merge](https://github.com/NullCascade/TES3Merge) or
      [DeltaPlugin](https://gitlab.com/bmwinger/delta-plugin)
    - Linux: [DeltaPlugin](https://gitlab.com/bmwinger/delta-plugin)
@@ -113,7 +117,8 @@ Have fun!
 ## ⚔ Mod compatibility
 
 - **Skeleton and body replacers**: compatible - no skeleton is replaced.
-- **Tamriel Rebuilt**: its spell merchants teach Bound Fist too.
+- **Tamriel Rebuilt**: its spell merchants teach Bound Fist too, and with `KatarTamrielRebuilt.omwaddon`
+  its merchants, chests and NPCs deal the weapons as vanilla's do.
 - **[Oblivion-Style Spell Casting](https://www.nexusmods.com/morrowind/mods/58653)**: supported.
 - **Retextures**: vanilla textures are used as they are, so retexture packs carry over.
 - **Other animation mods**: fine, unless they also replace ReAnimation's one-handed attacks while a

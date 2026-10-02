@@ -45,7 +45,33 @@ holds what the dagger does, a katar halfway between the two. The dagger's is van
 is one; orcish and ebony have none, and theirs is worked out as Bethesda wrote every line - a fixed
 multiple of the weight (daggers run at 6.67 points per unit, shortswords at 5.0, right across iron
 through daedric), on a dagger weighing 0.375 of its shortsword. The game shows a tenth of the raw
-number and drops what is left over (`Enchanting::getMaxEnchantValue`), as it does for vanilla's.
+number and drops what is left over (`Enchanting::getMaxEnchantValue`), so the result is rounded to
+whole points, halves up, and nothing is lost: the silver katar's 2.6 holds 3, the silver knuckles' 1.6
+holds 2.
+
+### Shop-enchanted versions
+
+Seven of the weapons also come weakly enchanted, the way vanilla's Flameblades and Sparkmaces are -
+plain weapons with a little magic that casts on strike, dealt from the same lists vanilla deals those
+from. Each enchantment is the weaker of two: the vanilla enchanted weapon of that material and element,
+and the most that fits three quarters of a point under the weapon's own capacity - so one bought is
+always a little weaker than one enchanted by hand (the enchanting menu takes anything that rounds
+down to the capacity). Where the vanilla one is the weaker, its own record is used, so a mod that
+rebalances it rebalances these too. Daedric has none, as vanilla has no weak daedric ones.
+
+| Weapon | Enchanted version | On strike | Enchantment |
+| --- | --- | --- | --- |
+| Chitin Knuckles | Chitin Shardfang | Frost 1-3 | `h2h_chitin_shard_en` - the least anything costs, 1 point |
+| Iron Knuckles | Iron Sparkfist | Shock 1-4 | vanilla's `spark_enu` (Iron Sparkmace) |
+| Steel Katar | Smouldering Katar | Fire 3-7 | vanilla's `cruel flame_en` (Steel Flameblade) |
+| Silver Katar | Silver Ice Talon | Frost 3-7 | vanilla's `dire shard_en` (Silver Shardblade) |
+| Silver Knuckles | Silver Shardknuckle | Frost 3-6 | `h2h_silver_shard_en` |
+| Orcish Knuckles | Orcish Smoulderfist | Fire 1-20 | vanilla's `wild flame_en` (Wild Flameblade) |
+| Ebony Katar | Ebony Sparkneedle | Shock 1-20 | vanilla's `wild spark_en` (Wild Sparkblade) |
+
+In every other stat each is its plain weapon. The price is the plain one's plus what vanilla adds for
+that enchantment over the same weapon without it - Iron Mace 24 to Iron Sparkmace 45, Silver
+Shortsword 80 to Silver Shardblade 120, and so on - which comes to 10, 31, 47, 104, 80, 500 and 8100.
 
 ### Hit chance
 
@@ -148,8 +174,8 @@ hit chance needs nothing, and its bruising is worked out from that Combat
 
 ## The uniques
 
-Three: Ebony Rose, Mage Fury, and the wooden knuckles - which hit for half the iron set but take an
-enchantment better than any knuckleduster short of orcish (3), since it is the medium, not the metal,
+Three: Ebony Rose, Mage Fury, and the Driftwood Beater (`knuckle_wood`), wooden knuckles - which hit for two points less than the iron set at each end (2-4) but take an
+enchantment better than any knuckleduster short of orcish and daedric (3), since it is the medium, not the metal,
 that holds one. None of
 the three is in any levelled list: nobody sells them and no chest rolls them. They are placed in the
 world by `KatarWorldPlacements.omwaddon`, which is made by hand in OpenMW-CS - unlike `Katar.omwaddon`,
@@ -190,7 +216,8 @@ only what the engine keys to its built-in effects and so cannot give a new one.
   far, and until then he fights with the Rose. It is still on him, and recharges as any enchanted
   weapon does once taken.
 
-**Mage Fury** (`knuckle_mage_fury`) - iron knuckledusters with a crystal set in them.
+**Mage Fury** (`knuckle_mage_fury`) - iron knuckledusters with a crystal set in them, hitting for a
+point less than the iron set at each end (3-5).
 
 - **Cast a harmful spell successfully with them equipped** and they take a charge of it: the crystal
   lights up, and "Channeled Spell" shows in your active effects with the strikes left.
@@ -368,14 +395,31 @@ with `overridePriority = 1`, one above ReAnimation's, so ReAnimation's stands do
 knuckleduster is in hand. Any other mod adding a moveset to that group does the same.
 
 **Loot and merchants.** The weapons are added to vanilla's own levelled lists, each wherever the
-vanilla weapon it stands in for is - its material's shortsword - at the
-same level: the `random_<material>_weapon` lists that chests and crates draw on, and the
-`l_n_wpn_melee_*` lists that merchants' stock and NPCs' weapons come from. The uniques and the bound
-weapons are in no list. A plugin can only replace a levelled list, not add to it, so a mod loaded
-later that edits one of the same lists wins it; with such a mod, run a merged-lists tool
+vanilla weapon it stands in for is - its material's shortsword - at the same level: the
+`random_<material>_weapon` lists, and the `l_n_wpn_melee_*` ones NPCs' own weapons come from.
+Merchants sell what they carry and what is in the chests they own in their shop (`getContainersOwnedBy`),
+and most weapon merchants' stock comes from such chests rolling the `random_*` lists; so does loot.
+Knuckledusters go on the blunt list where their stand-in is on the short blade one. Vanilla has no
+orcish shortsword, so the orcish knuckles follow the dwarven one, and the orcish warhammer into
+`random_orcish_weapons` too. The shop-enchanted versions go where vanilla deals its own weak enchanted
+weapons - `l_m_wpn_melee_short blade`, `l_m_wpn_melee_blunt` and `random_loot_special` - each only where
+its material is already on offer at least twice, at the middle of those weapons' levels
+(`ENCHANTED_LEVELLED` in `make_plugin.py`). The uniques and the bound weapons are in no list.
+
+A shop is stocked once: the engine rolls a merchant's levelled entries when they first come into the
+world, and a chest's when it is first opened, and from then on restocks what it rolled. Shops met
+before the mod was installed keep what they had.
+
+A plugin can only replace a levelled list, not add to it, so a mod loaded later that edits one of the
+same lists wins it; with such a mod, run a merged-lists tool
 ([DeltaPlugin](https://gitlab.com/bmwinger/delta-plugin), OMWLLF) as you would for any mod that adds
-loot. Tamriel Data, Tamriel Rebuilt and OAAB leave these lists alone. Tamriel Rebuilt's own merchants
-and containers use lists of their own, so there these turn up only where vanilla lists are used.
+loot. Tamriel Data, Tamriel Rebuilt and OAAB leave these lists alone.
+
+**Tamriel Rebuilt** deals its weapons from Tamriel Data's lists, and `KatarTamrielRebuilt.omwaddon`
+extends those the same way: the `t_mw` ones, which are Morrowind's - the rest are other provinces'
+- leaving out guards', Dwemer centurions' and Dwemer ruins' lists, and two-handed ones
+(`make_tr_plugin.py`). Tamriel Data has an orcish shortsword of its own, and the orcish knuckles
+follow it too. It needs Tamriel Data and `Katar.omwaddon` as masters, and goes after both.
 
 **Spellcasting mods.** Bound Fist and Mage Fury notice a cast however it is made: the engine's own,
 or one made by [Spell Framework Plus](https://www.nexusmods.com/morrowind/mods/58652) - which is how
@@ -427,6 +471,13 @@ script, so a rebuild is reproducible:
 - `Sources/Tools/make_plugin.py` - writes `Katar.omwaddon` from the vanilla shortsword table, with
   vanilla stand-ins for the uniques' enchantments. The real ones use custom magic effects, which an
   ESM file cannot name, so `scripts/MaxYari/H2HWeapons/content.lua` replaces them when the game starts.
+- `Sources/Tools/make_tr_plugin.py` - writes `KatarTamrielRebuilt.omwaddon`, Tamriel Data's lists
+  extended as `make_plugin.py` extends vanilla's. Re-run it after `make_plugin.py`.
+
+  ```
+  python3 Sources/Tools/make_tr_plugin.py --master "<Data Files>/Morrowind.esm" \
+      --tamriel-data "<path>/Tamriel_Data.esm"
+  ```
 - `Sources/Tools/venom_fx.py` - builds the venom's violet hit and area effects, textures and icon
   from the vanilla poison ones in Morrowind.bsa.
 - `Sources/Tools/charge_fx.py` - makes a weapon's crystal translucent, and builds the glow that

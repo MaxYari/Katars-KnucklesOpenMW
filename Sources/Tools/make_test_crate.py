@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Writes Katars_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon - FOR TESTING ONLY, never released.
 
-One crate with one of everything this mod adds - every katar and knuckleduster, the uniques and the
-Bound Fist weapons included, and the note - set on the ground beside the stump with the iron
+One crate with one of everything this mod adds - every katar and knuckleduster, the uniques, the
+shop-enchanted versions and the Bound Fist weapons included, and the note - set on the ground beside the stump with the iron
 shardaxe stuck in it, just west of the Seyda Neen lighthouse. The item list comes from
 make_plugin.py, so the crate keeps up with the mod: run this again after adding anything.
 
@@ -134,6 +134,7 @@ def crate_spot(positions, heights):
 def item_ids():
     ids = [item[0] for item in make_plugin.ITEMS]
     ids += [rid for rid, _base, _name in make_plugin.BOUND_WEAPONS]
+    ids += [row[0] for row in make_plugin.ENCHANTED_VERSIONS]
     ids += list(make_plugin.NOTES)
     return ids
 
