@@ -95,6 +95,7 @@ stubs.I.ReAnimation = api.interface
 st.stance = 1 -- weapon drawn
 st.equipped = { recordId = "katar_steel" }
 stubs.enableInventoryExtender()
+stubs.enableSharedTooltip()
 local player = require("scripts.MaxYari.H2HWeapons.player")
 local onUpdate = player.engineHandlers.onUpdate
 -- The first update, like a view switch, waits a couple of frames for the model before attaching.
@@ -379,7 +380,7 @@ settle()
 -- A stand-in for the layout Inventory Extender builds for a weapon: the shape the modifier walks,
 -- with the named lines it puts in for a melee weapon.
 local function fakeTooltip()
-    local inner = stubs.content {
+    local inner = stubs.content({
         { name = "name", props = { text = "Steel Katar" } },
         { name = "type", props = { text = "Type: Short Blade, One Handed" } },
         { name = "chop", props = { text = "Chop: 5 - 11" } },
@@ -387,7 +388,7 @@ local function fakeTooltip()
         { name = "thrust", props = { text = "Thrust: 6 - 11" } },
         { name = "range", props = { text = "Range: 4.6 Feet" } },
         { name = "speed", props = { text = "Speed: 200%" } },
-    }
+    }, true)
     return { content = stubs.content {
         { name = "padding", content = stubs.content {
             { name = "tooltip", content = inner },
@@ -407,6 +408,8 @@ check(inner.h2hFatigue and inner.h2hFatigue.props.text == "Fatigue Damage: 3 - 1
       "with the katar's half of a bare fist, in whole numbers", inner.h2hFatigue and inner.h2hFatigue.props.text)
 check(inner:indexOf("h2hFatigue") == inner:indexOf("thrust") + 1,
       "right under the damage lines", inner:indexOf("h2hFatigue"))
+check(inner.range and inner.range.props.text == "Range: 4.6 Feet" and inner:indexOf("range") == inner:indexOf("h2hFatigue") + 1,
+      "and every line under it still found by its name, in its new place")
 check(inner.h2hExplanation ~= nil, "an explanation is added")
 check(inner:indexOf("h2hExplanation") == #inner, "at the very bottom", inner:indexOf("h2hExplanation"))
 local explanation = inner.h2hExplanation and inner.h2hExplanation.props.text
@@ -440,6 +443,63 @@ local plainLayout, plainInner = fakeTooltip()
 modifier({ recordId = "steel dagger" }, plainLayout)
 check(plainInner.type.props.text == "Type: Short Blade, One Handed", "an ordinary weapon is untouched")
 check(plainInner.h2hFatigue == nil, "and gets no extra lines")
+
+--- QuickLoot's tooltips (Shared Tooltip) -----------------------------------------------------------
+-- A stand-in for what Shared Tooltip hands a modifier: the built lines in their flex, its colour tags
+-- and style, and its textElement helper, which puts a line in place.
+local stTypes = require("openmw.types")
+local function fakeShared(item, typeText, style)
+    local flex = { content = stubs.content {
+        { name = "name", props = { text = "#ccccccSteel Katar" } },
+        { name = "weaponType", props = { text = "#cccccc" .. typeText } },
+        { name = "chop", props = { text = "#ccccccChop: #ffffff6 - 10" } },
+        { name = "slash", props = { text = "#ccccccSlash: #ffffff6 - 10" } },
+        { name = "thrust", props = { text = "#ccccccThrust: #ffffff6 - 10" } },
+        { name = "condition", props = { text = "#ccccccCondition: #ffffff600/600" } },
+        { name = "anchorStats", props = {} },
+    } }
+    local ctx = {
+        item = item, rawRecord = { id = item and item.recordId }, itemType = stTypes.Weapon, flex = flex,
+        labelTag = "#cccccc", valueTag = "#ffffff", style = style or {},
+        textElement = function(str, color, name, index)
+            local line = { name = name, props = { text = str } }
+            if index then flex.content:insert(index, line) else flex.content:add(line) end
+        end,
+    }
+    return ctx, flex.content
+end
+
+local shared = stubs.sharedTooltipModifiers["H2HWeapons"]
+check(shared ~= nil, "a Shared Tooltip modifier is registered too")
+local sctx, scontent = fakeShared({ recordId = "katar_steel" }, "Short Blade, One Handed")
+shared(sctx)
+check(scontent.weaponType.props.text == "#ccccccHand-to-hand (Short Blade), One Handed",
+      "QuickLoot's type line names hand-to-hand, its colour tag kept", scontent.weaponType.props.text)
+check(scontent.h2hFatigue and scontent.h2hFatigue.props.text == "#ccccccFatigue Damage: #ffffff3 - 13",
+      "and gets the fatigue line in its own label and value colours", scontent.h2hFatigue and scontent.h2hFatigue.props.text)
+check(scontent:indexOf("h2hFatigue") == scontent:indexOf("thrust") + 1, "right under the damage lines")
+check(scontent.h2hExplanation == nil, "but no footnote, to keep a loot tooltip short")
+
+local tightCtx, tight = fakeShared({ recordId = "knuckle_iron" }, "Blunt Weapon, One Handed", { shortText = true })
+shared(tightCtx)
+check(tight.weaponType.props.text == "#ccccccHand-to-hand (Blunt Weapon), One Handed", "knuckledusters name blunt weapon",
+      tight.weaponType.props.text)
+check(tight.h2hFatigue and tight.h2hFatigue.props.text:find("%d%-%d") ~= nil,
+      "short text tightens the range as it does the damage lines", tight.h2hFatigue and tight.h2hFatigue.props.text)
+
+local recordCtx, recordContent = fakeShared(nil, "Short Blade, One Handed")
+recordCtx.rawRecord = { id = "katar_steel" }
+shared(recordCtx)
+check(recordContent.h2hFatigue ~= nil, "a tooltip for a record, with no object behind it, gets it too")
+
+local plainCtx, plainContent = fakeShared({ recordId = "steel dagger" }, "Short Blade, One Handed")
+shared(plainCtx)
+check(plainContent.weaponType.props.text == "#ccccccShort Blade, One Handed" and plainContent.h2hFatigue == nil,
+      "an ordinary weapon is left alone")
+local armorCtx, armorContent = fakeShared({ recordId = "katar_steel" }, "Short Blade, One Handed")
+armorCtx.itemType = stTypes.Armor
+shared(armorCtx)
+check(armorContent.h2hFatigue == nil, "and so is anything that is not a weapon")
 
 --- the actor script ------------------------------------------------------------------------------------
 local actorScript = require("scripts.MaxYari.H2HWeapons.actor")

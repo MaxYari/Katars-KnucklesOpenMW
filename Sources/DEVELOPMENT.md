@@ -421,6 +421,15 @@ extends those the same way: the `t_mw` ones, which are Morrowind's - the rest ar
 (`make_tr_plugin.py`). Tamriel Data has an orcish shortsword of its own, and the orcish knuckles
 follow it too. It needs Tamriel Data and `Katar.omwaddon` as masters, and goes after both.
 
+**Tooltips.** Two tooltip mods are given the weapons' real workings, both optional
+(`player.lua`): Inventory Extender's, through `I.InventoryExtender.registerTooltipModifier`, and the
+Shared Tooltip that QuickLoot - and any other mod bundling that library - shows, through
+`I.SharedTooltip.registerModifier`. Both get the type line rewritten to "Hand to Hand (Short Blade)" or
+"(Blunt Weapon)" and a fatigue damage line under the damage ones; Inventory Extender's a footnote on
+the skills as well, which a loot tooltip has no room for. Lines are put in place without
+`content:insert`: in 0.51 it records the lines it moves under the lines themselves rather than their
+names (`components/lua_ui/content.lua`), and every lookup by name below it then finds the wrong one.
+
 **Spellcasting mods.** Bound Fist and Mage Fury notice a cast however it is made: the engine's own,
 or one made by [Spell Framework Plus](https://www.nexusmods.com/morrowind/mods/58652) - which is how
 Oblivion-Style Spell Casting casts, for the player and for NPCs - from the report it sends the caster.

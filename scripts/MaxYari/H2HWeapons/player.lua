@@ -507,8 +507,11 @@ I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options
 end)
 
 --- Tooltips ---------------------------------------------------------------------------------------
--- Inventory Extender is optional, and its interface may not exist yet when this script loads, so it
--- is picked up on the first update instead.
+-- Two tooltip mods are dressed up, both optional: Inventory Extender's, in the inventory, and the
+-- Shared Tooltip QuickLoot shows for what is under the crosshair. Their interfaces may not exist yet
+-- when this script loads, so they are picked up on the first update instead. Both get the type line
+-- naming Hand to Hand and a fatigue damage line under the damage ones; Inventory Extender's, which
+-- has the room for it, a footnote on which skills the weapon runs on as well.
 local tooltipsTried = false
 
 local function fatigueRange(kind)
@@ -520,15 +523,40 @@ local function fatigueRange(kind)
            formulas.handToHandFatigue(player, 1, strengthFactor) * factor
 end
 
-local function registerTooltipModifier()
-    if not I.InventoryExtender then return end
+-- Whole numbers, like the chop/slash/thrust lines they go under.
+local function fatigueNumbers(kind)
+    local low, high = fatigueRange(kind)
+    return math.floor(low + 0.5), math.floor(high + 0.5)
+end
 
-    local l10n = core.l10n("H2HWeapons")
-    local handToHandName = core.getGMST("sSkillHandtohand")
-    local skillNames = {
-        [weapons.KIND.Katar] = core.getGMST("sSkillShortblade"),
-        [weapons.KIND.Knuckle] = core.getGMST("sSkillBluntweapon"),
-    }
+local function skillNameOf(kind)
+    return core.getGMST(kind == weapons.KIND.Katar and "sSkillShortblade" or "sSkillBluntweapon")
+end
+
+-- The type line reads "Type: Short Blade, One Handed". Only the skill name is replaced, so the
+-- label, the separator and the handedness all stay in the player's own language.
+local function handToHandType(text, skillName)
+    local pattern = skillName:gsub("(%W)", "%%%1")
+    return (text:gsub(pattern, core.getGMST("sSkillHandtohand") .. " (" .. skillName .. ")", 1))
+end
+
+-- A line put in at a place in a ui content list. Not content:insert, which in 0.51 files the lines
+-- it moves down under the lines themselves rather than their names (components/lua_ui/content.lua),
+-- so a lookup by name below it - ours, Inventory Extender's own, another mod's - finds the wrong
+-- line. Taking the tail off and putting it back goes through removal and add, which both keep the
+-- names right, and the list stays the same object for whoever else holds it.
+local function insertLine(content, index, line)
+    local tail = {}
+    while #content >= index do
+        tail[#tail + 1] = content[#content]
+        content[#content] = nil
+    end
+    content:add(line)
+    for i = #tail, 1, -1 do content:add(tail[i]) end
+end
+
+local function registerInventoryExtender()
+    if not I.InventoryExtender then return end
 
     -- Inventory Extender's own text templates, so the added lines match the rest of the tooltip
     -- (its font size setting included). MWUI's are the same thing without that, as a fallback.
@@ -550,27 +578,21 @@ local function registerTooltipModifier()
         local found, inner = pcall(function() return layout.content.padding.content.tooltip.content end)
         if not found or not inner then return end
 
-        -- The type line reads "Type: Short Blade, One Handed". Only the skill name is replaced, so
-        -- the label, the separator and the handedness all stay in the player's own language.
-        local typeEntry = inner.type
-        local skillName = skillNames[kind]
+        local skillName = skillNameOf(kind)
+        local typeEntry = inner:indexOf("type") and inner.type
         if typeEntry and skillName then
-            local pattern = skillName:gsub("(%W)", "%%%1")
-            typeEntry.props.text = typeEntry.props.text:gsub(
-                pattern, handToHandName .. " (" .. skillName .. ")", 1)
+            typeEntry.props.text = handToHandType(typeEntry.props.text, skillName)
         end
 
-        local low, high = fatigueRange(kind)
+        local low, high = fatigueNumbers(kind)
         local line = {
             name = "h2hFatigue",
             template = textNormal,
-            -- Whole numbers, like the chop/slash/thrust lines above it.
-            props = { text = string.format("%s: %d - %d", l10n("tooltip_fatigue"),
-                math.floor(low + 0.5), math.floor(high + 0.5)) },
+            props = { text = string.format("%s: %d - %d", l10n("tooltip_fatigue"), low, high) },
         }
         local after = inner:indexOf("thrust") or inner:indexOf("attack") or inner:indexOf("type")
         if after then
-            inner:insert(after + 1, line)
+            insertLine(inner, after + 1, line)
         else
             inner:add(line)
         end
@@ -598,8 +620,49 @@ local function registerTooltipModifier()
                 },
             })
         end
-
     end)
+end
+
+-- QuickLoot's tooltips come from Shared Tooltip, a library other mods bundle too, so this covers any
+-- of them that use it. A modifier is handed the built layout and the library's own helpers: its
+-- textElement makes a line in the tooltip's style, colours, size and alignment, and puts it in place.
+-- No footnote here: these show at a glance while looting, and stay short.
+local function registerSharedTooltip()
+    local shared = I.SharedTooltip
+    if not (shared and shared.registerModifier) then return end
+
+    shared.registerModifier({
+        id = "H2HWeapons",
+        func = function(ctx)
+            if ctx.itemType ~= types.Weapon then return end
+            -- A tooltip for a record rather than an object has no item.
+            local kind = (ctx.item and weapons.kindOfItem(ctx.item))
+                or (not ctx.item and ctx.rawRecord and weapons.kindOfId(ctx.rawRecord.id))
+            if not kind then return end
+
+            local content = ctx.flex.content
+            local skillName = skillNameOf(kind)
+            local typeIndex = content:indexOf("weaponType")
+            if typeIndex and skillName then
+                local typeLine = content[typeIndex]
+                typeLine.props.text = handToHandType(typeLine.props.text, skillName)
+            end
+
+            -- Written as its own damage lines are: label and value in the tooltip's two colours,
+            -- tight or spaced as its short text setting has them.
+            local low, high = fatigueNumbers(kind)
+            local separator = (ctx.style and ctx.style.shortText) and "-" or " - "
+            local text = (ctx.labelTag or "") .. l10n("tooltip_fatigue") .. ": "
+                .. (ctx.valueTag or "") .. low .. separator .. high
+            local after = content:indexOf("thrust") or content:indexOf("attack") or typeIndex
+            ctx.textElement(text, nil, "h2hFatigue", after and after + 1 or nil)
+        end,
+    })
+end
+
+local function registerTooltipModifiers()
+    pcall(registerInventoryExtender)
+    pcall(registerSharedTooltip)
 end
 
 --- Bound Fist, however it was cast -------------------------------------------------------------------
@@ -628,7 +691,7 @@ local function onUpdate(dt)
 
     if not tooltipsTried then
         tooltipsTried = true
-        pcall(registerTooltipModifier)
+        registerTooltipModifiers()
     end
     if not scalingReported then
         scalingReported = true

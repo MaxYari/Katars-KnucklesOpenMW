@@ -63,6 +63,7 @@ If you want to know more details and know what to expect, look under the spoiler
   punch feels like it lands.
 - [Inventory Extender](https://www.nexusmods.com/morrowind/mods/59205) - shows the Hand to Hand type
   and the fatigue damage in weapon tooltips.
+- [QuickLoot](https://www.nexusmods.com/morrowind/mods/54950) - its loot tooltips show them too.
 
 
 ## ⚔ How to install

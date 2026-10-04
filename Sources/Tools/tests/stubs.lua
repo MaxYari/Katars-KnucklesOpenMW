@@ -136,13 +136,18 @@ M.statObject = statObject
 local packages = {}
 
 --- A stand-in for openmw.ui's content lists: an array that can also be indexed by element name.
-function M.content(items)
+-- With noInsert, insert fails: 0.51's misfiles the names of what it moves (components/lua_ui/
+-- content.lua), so code that has to run there must not use it.
+function M.content(items, noInsert)
     local c = {}
     for _, item in ipairs(items or {}) do c[#c + 1] = item end
     return setmetatable(c, {
         __index = function(t, k)
             if k == "add" then return function(self, v) self[#self + 1] = v end end
-            if k == "insert" then return function(self, i, v) table.insert(self, i, v) end end
+            if k == "insert" then
+                if noInsert then return function() error("content:insert is broken in 0.51") end end
+                return function(self, i, v) table.insert(self, i, v) end
+            end
             if k == "indexOf" then
                 return function(self, name)
                     for i = 1, #self do if rawget(self, i).name == name then return i end end
@@ -533,6 +538,14 @@ M.tooltipModifiers = {}
 function M.enableInventoryExtender()
     I.InventoryExtender = {
         registerTooltipModifier = function(id, fn) M.tooltipModifiers[id] = fn end,
+    }
+end
+-- QuickLoot's Shared Tooltip, when a test asks for it. M.sharedTooltipModifiers is filled by the mod.
+M.sharedTooltipModifiers = {}
+function M.enableSharedTooltip()
+    I.SharedTooltip = {
+        version = 4,
+        registerModifier = function(opts) M.sharedTooltipModifiers[opts.id] = opts.func end,
     }
 end
 packages['openmw.interfaces'] = I
