@@ -77,20 +77,20 @@ short of what the enchanting menu would let you put on it.
 
 | Weapon | Enchanted version | On strike | Enchantment |
 | --- | --- | --- | --- |
-| Chitin Knuckles | Chitin Shardfang | Frost 1-3 | `h2h_chitin_shard_en` - the least anything costs, 1 point |
-| Iron Knuckles | Iron Sparkfist | Shock 1-4 | vanilla's `spark_enu` (Iron Sparkmace) |
-| Steel Katar | Smouldering Katar | Fire 3-7 | vanilla's `cruel flame_en` (Steel Flameblade) |
-| Silver Katar | Silver Ice Talon | Frost 3-7 | vanilla's `dire shard_en` (Silver Shardblade) |
-| Silver Knuckles | Silver Shardknuckle | Frost 3-6 | `h2h_silver_shard_en` |
-| Orcish Knuckles | Orcish Smoulderfist | Fire 1-20 | vanilla's `wild flame_en` (Wild Flameblade) |
-| Ebony Katar | Ebony Sparkneedle | Shock 1-20 | vanilla's `wild spark_en` (Wild Sparkblade) |
-| Glass Katar | Wild Flamefang | Fire 1-12 | `h2h_glass_flame_en` - the Wild Flameblade's fire, as much as fits |
+| Chitin Knuckles | Chitin Shardfangs | Frost 1-3 | `h2h_chitin_shard_en` - the least anything costs, 1 point |
+| Iron Knuckles | Iron Sparkfists | Shock 1-4 | vanilla's `spark_enu` (Iron Sparkmace) |
+| Steel Katars | Smouldering Katars | Fire 3-7 | vanilla's `cruel flame_en` (Steel Flameblade) |
+| Silver Katars | Silver Ice Talons | Frost 3-7 | vanilla's `dire shard_en` (Silver Shardblade) |
+| Silver Knuckles | Silver Shardknuckles | Frost 3-6 | `h2h_silver_shard_en` |
+| Orcish Knuckles | Orcish Smoulderfists | Fire 1-20 | vanilla's `wild flame_en` (Wild Flameblade) |
+| Ebony Katars | Ebony Sparkneedles | Shock 1-20 | vanilla's `wild spark_en` (Wild Sparkblade) |
+| Glass Katars | Wild Flamefangs | Fire 1-12 | `h2h_glass_flame_en` - the Wild Flameblade's fire, as much as fits |
 
 In every other stat each is its plain weapon. The price is the plain one's plus what vanilla adds for
 that enchantment over the same weapon without it - Iron Mace 24 to Iron Sparkmace 45, Silver
 Shortsword 80 to Silver Shardblade 120, and so on. Where our enchantment is weaker than that vanilla
-one, only that markup comes down, in proportion to the enchantment points - the Silver Shardknuckle's
-40 to 36 (1.25 to 1.375), the Wild Flamefang's 100 to 64 (1.75 to 2.75); the plain weapon's own worth is
+one, only that markup comes down, in proportion to the enchantment points - the Silver Shardknuckles'
+40 to 36 (1.25 to 1.375), the Wild Flamefangs' 100 to 64 (1.75 to 2.75); the plain weapon's own worth is
 never touched. A pair whose plain one is under 500 is priced twice over, enchantment and all (see
 *Price* above), which comes to 20, 62, 94, 208, 152, 1000, 8100 and 6464.
 
@@ -232,7 +232,7 @@ hit chance needs nothing, and its bruising is worked out from that Combat
 
 ## The uniques
 
-Three: Ebony Rose, Mage Fury, and the Driftwood Beater (`knuckle_wood`), wooden knuckles - which hit for two points less than the iron set at each end (2-4) but take an
+Three: Ebony Rose, Mage Fury, and the Driftwood Beaters (`knuckle_wood`), wooden knuckles - which hit for two points less than the iron set at each end (2-4) but take an
 enchantment better than any knuckleduster short of orcish, Nordic silver and daedric (3), since it is the medium, not the metal,
 that holds one. None of
 the three is in any levelled list: nobody sells them and no chest rolls them. They are placed in the
@@ -309,7 +309,7 @@ one depends on your **Conjuration** when you cast it:
 | --- | --- |
 | under 40 | Bound Knuckles (daedric knuckledusters) |
 | 40 - 64 | Bound Spiked Knuckles |
-| 65 and up | Bound Katar |
+| 65 and up | Bound Katars |
 
 It works like any bound weapon: the weapon goes into your hand and is drawn, and when the spell ends
 it returns to Oblivion and whatever you held before is back in hand. And like every vanilla bound
@@ -480,8 +480,8 @@ Solstheim alone - the Nord hunters', nordic silver and smugglers' lists. The sho
 `l_m_wpn_melee_short blade`, `l_m_wpn_melee_blunt` and `random_loot_special` - each only where its
 material is already on offer at least twice, at the middle of those weapons' levels
 (`ENCHANTED_LEVELLED` in `make_plugin.py`). Two shops are stocked by hand (`CONTAINER_ADDITIONS`):
-Kjeld, the smuggler in Druscashti, keeps an Ebony Katar beside the Ebony Shortsword in the chest he
-sells from, and Bols Indalen, the smith in Mournhold's Craftsmen's Hall, restocks an Adamantium Katar
+Kjeld, the smuggler in Druscashti, keeps Ebony Katars beside the Ebony Shortsword in the chest he
+sells from, and Bols Indalen, the smith in Mournhold's Craftsmen's Hall, restocks Adamantium Katars
 with the rest of his adamantium weapons. Each is that chest's record, read from Morrowind.esm or
 Tribunal.esm with the katar added - which is why `Katar.omwaddon` needs Tribunal, as it needs
 Bloodmoon for the Nordic silver lists. The uniques and the

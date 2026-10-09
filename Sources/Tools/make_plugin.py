@@ -132,14 +132,14 @@ WEAPON_TYPE = {"katar": SHORT_BLADE, "knuckle": BLUNT_ONE_HAND}
 # id, kind, material, display name, mesh, extra value multiplier, flags. Each weapon's inventory icon
 # is named after its mesh (icon_for), so neither is ever out of step with the other.
 ITEMS = [
-    ("katar_steel",            "katar",   "steel",   "Steel Katar",             "steel_katar.nif",           1.0, 0),
-    ("katar_silver",           "katar",   "silver",  "Silver Katar",            "silver_katar.nif",          1.0, SILVER_FLAG),
-    ("katar_adamantium",       "katar",   "adamantium", "Adamantium Katar",      "adamantium_katar.nif",      1.0, 0),
-    ("katar_glass",            "katar",   "glass",   "Glass Katar",             "glass_katar.nif",           1.0, 0),
-    ("katar_ebony",            "katar",   "ebony",   "Ebony Katar",             "ebony_guarded_katar.nif",   1.0, 0),
+    ("katar_steel",            "katar",   "steel",   "Steel Katars",            "steel_katar.nif",           1.0, 0),
+    ("katar_silver",           "katar",   "silver",  "Silver Katars",           "silver_katar.nif",          1.0, SILVER_FLAG),
+    ("katar_adamantium",       "katar",   "adamantium", "Adamantium Katars",     "adamantium_katar.nif",      1.0, 0),
+    ("katar_glass",            "katar",   "glass",   "Glass Katars",            "glass_katar.nif",           1.0, 0),
+    ("katar_ebony",            "katar",   "ebony",   "Ebony Katars",            "ebony_guarded_katar.nif",   1.0, 0),
     ("katar_ebony_rose",       "katar",   "ebony",   "Ebony Rose",              "ebony_rose.nif",            0.9, 0),
-    ("katar_ebony_botched",    "katar",   "ebony",   "Botched Ebony Katar",     "ebony_guarded_katar.nif",   1.0, 0),
-    ("katar_daedric",          "katar",   "daedric", "Daedric Katar",           "daedric_katar.nif",         1.0, 0),
+    ("katar_ebony_botched",    "katar",   "ebony",   "Botched Ebony Katars",    "ebony_guarded_katar.nif",   1.0, 0),
+    ("katar_daedric",          "katar",   "daedric", "Daedric Katars",          "daedric_katar.nif",         1.0, 0),
     ("knuckle_iron",           "knuckle", "iron",    "Iron Knuckles",           "iron_knuckle.nif",          1.0, 0),
     ("knuckle_chitin",         "knuckle", "chitin",  "Chitin Knuckles",         "chitin_knuckle.nif",        1.0, 0),
     ("knuckle_silver",         "knuckle", "silver",  "Silver Knuckles",         "silver_knuckle.nif",        1.0, SILVER_FLAG),
@@ -147,7 +147,7 @@ ITEMS = [
     ("knuckle_orcish",         "knuckle", "orcish",  "Orcish Knuckles",         "orcish_knuckle.nif",        1.0, 0),
     ("knuckle_daedric",        "knuckle", "daedric", "Daedric Knuckles",        "daedric_knuckle_basic.nif", 1.0, 0),
     ("knuckle_daedric_spiked", "knuckle", "daedric", "Daedric Spiked Knuckles", "daedric_knuckle_sharp.nif", 1.2, 0),
-    ("knuckle_wood",           "knuckle", "iron",    "Driftwood Beater",        "wooden_knuckle.nif",        1.0, 0),
+    ("knuckle_wood",           "knuckle", "iron",    "Driftwood Beaters",       "wooden_knuckle.nif",        1.0, 0),
     ("knuckle_mage_fury",      "knuckle", "iron",    "Mage Fury",               "mage_fury.nif",             1.0, 0),
 ]
 
@@ -171,8 +171,8 @@ OVERRIDES = {
     # in it costs it a point at each end of the iron set's 4-6. What it is worth carrying for is its
     # enchantment, and that is what it is priced on: 650, set by hand.
     "knuckle_mage_fury": {"damage": (3, 5), "value": 650},
-    # A joke, placed by hand: an Ebony Katar a beginner tried to enchant. The botch costs it two points
-    # at each end of the Ebony Katar's 12-20, and most of its price.
+    # A joke, placed by hand: Ebony Katars a beginner tried to enchant. The botch costs it two points
+    # at each end of the Ebony Katars' 12-20, and most of its price.
     "katar_ebony_botched": {"damage": (10, 18), "value": 500},
 }
 
@@ -207,7 +207,7 @@ ENCHANTMENTS = {
     # The glass katar's: vanilla's Wild blades' fire from 1 up, as much of it as fits a quarter of a point
     # under the katar's 2 (Fire 1-12 comes to 1.75). Cost and charge rounded from that, as vanilla's are.
     "h2h_glass_flame_en": (ENCH_WHEN_STRIKES, 2, 20, [(EFFECT_FIRE_DAMAGE, RANGE_TOUCH, 0, 1, 1, 12)]),
-    # The Botched Ebony Katar's: a beginner's attempt that came out as next to nothing - 1-2 points of
+    # The Botched Ebony Katars': a beginner's attempt that came out as next to nothing - 1-2 points of
     # fatigue on a strike - and, being an enchantment, leaves the katar unable to take a real one. The
     # real thing, not a stand-in, at the weak ones' cost and charge.
     "h2h_botched_en": (ENCH_WHEN_STRIKES, 1, 10, [(EFFECT_DAMAGE_FATIGUE, RANGE_TOUCH, 0, 1, 1, 2)]),
@@ -238,7 +238,7 @@ BOUND_WEAPONS = [
     # id, the weapon it copies, display name
     ("h2h_bound_knuckle",        "knuckle_daedric",        "Bound Knuckles"),
     ("h2h_bound_knuckle_spiked", "knuckle_daedric_spiked", "Bound Spiked Knuckles"),
-    ("h2h_bound_katar",          "katar_daedric",          "Bound Katar"),
+    ("h2h_bound_katar",          "katar_daedric",          "Bound Katars"),
 ]
 
 # Shop-enchanted versions: eight of the plain weapons as a merchant or a chest might have them, with a
@@ -262,14 +262,14 @@ BOUND_WEAPONS = [
 # proportion to the enchantment points (ours over theirs) - the plain weapon's own worth stays whole.
 ENCHANTED_VERSIONS = [
     # id, the plain weapon it is, display name, enchantment, price over the plain one
-    ("knuckle_chitin_shard",    "knuckle_chitin", "Chitin Shardfang",    "h2h_chitin_shard_en", 4),   # 4 x 1.0/1.125
-    ("knuckle_iron_spark",      "knuckle_iron",   "Iron Sparkfist",      "spark_enu",           21),
-    ("katar_steel_smoulder",    "katar_steel",    "Smouldering Katar",   "cruel flame_en",      15),
-    ("katar_silver_ice",        "katar_silver",   "Silver Ice Talon",    "dire shard_en",       40),
-    ("knuckle_silver_shard",    "knuckle_silver", "Silver Shardknuckle", "h2h_silver_shard_en", 36),  # 40 x 1.25/1.375
-    ("knuckle_orcish_smoulder", "knuckle_orcish", "Orcish Smoulderfist", "wild flame_en",       100),
-    ("katar_ebony_spark",       "katar_ebony",    "Ebony Sparkneedle",   "wild spark_en",       100),
-    ("katar_glass_flame",       "katar_glass",    "Wild Flamefang",      "h2h_glass_flame_en",  64),  # 100 x 1.75/2.75
+    ("knuckle_chitin_shard",    "knuckle_chitin", "Chitin Shardfangs",    "h2h_chitin_shard_en", 4),   # 4 x 1.0/1.125
+    ("knuckle_iron_spark",      "knuckle_iron",   "Iron Sparkfists",      "spark_enu",           21),
+    ("katar_steel_smoulder",    "katar_steel",    "Smouldering Katars",   "cruel flame_en",      15),
+    ("katar_silver_ice",        "katar_silver",   "Silver Ice Talons",    "dire shard_en",       40),
+    ("knuckle_silver_shard",    "knuckle_silver", "Silver Shardknuckles", "h2h_silver_shard_en", 36),  # 40 x 1.25/1.375
+    ("knuckle_orcish_smoulder", "knuckle_orcish", "Orcish Smoulderfists", "wild flame_en",       100),
+    ("katar_ebony_spark",       "katar_ebony",    "Ebony Sparkneedles",   "wild spark_en",       100),
+    ("katar_glass_flame",       "katar_glass",    "Wild Flamefangs",      "h2h_glass_flame_en",  64),  # 100 x 1.75/2.75
     # Bloodmoon's Berserker weapons are their plain nordic silver ones, renamed, with the bleed and nothing
     # added to the price.
     ("knuckle_nordic_silver_ber", "knuckle_nordic_silver", "Berserker Silver Knuckles", "bloodletting_en", 0),
@@ -455,7 +455,7 @@ def weap_record(item):
 # --- Levelled lists ----------------------------------------------------------------------------------
 # Where the weapons turn up: vanilla's own levelled lists, placed the way vanilla places its weapons.
 # Each goes into every list the vanilla weapon it stands in for is in, at that weapon's level - its
-# material's shortsword (a weapon may stand in for more than one, a tuple). The three uniques - Ebony Rose, Mage Fury and the Driftwood Beater - are in
+# material's shortsword (a weapon may stand in for more than one, a tuple). The three uniques - Ebony Rose, Mage Fury and the Driftwood Beaters - are in
 # none: nobody sells them and no chest rolls them. Chests and crates draw on the
 # random_<material>_weapon lists; a merchant's stock and an NPC's own weapon come from the
 # l_n_wpn_melee_* lists in their inventories - so that is how traders get them too, and no NPC record
