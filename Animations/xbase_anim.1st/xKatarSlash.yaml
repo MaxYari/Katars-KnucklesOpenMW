@@ -1,4 +1,4 @@
-# Blending into xh2hSlash only.
+# Blending into xKatarSlash only. A copy of ReAnimation's xh2hSlash.yaml, rule for rule.
 #
 # Per-animation rules are appended AFTER the global ruleset
 # (AnimBlendRules::addOverrideRules) and the bottom-most matching rule wins, so

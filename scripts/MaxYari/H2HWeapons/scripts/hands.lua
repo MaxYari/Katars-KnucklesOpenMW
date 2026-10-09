@@ -1,7 +1,7 @@
 -- Models hung off an actor's bones as looping VFX, which is the only way a script can put a model on
--- one: the off-hand copy of the weapon on "Weapon Bone.L" - the mirror of the engine's own weapon bone
--- that this mod's skeleton meshes add - and, on the player, a charged weapon's glow. Shared by the
--- player's script and every NPC's.
+-- one: the off-hand copy of the weapon on "Weapon Bone.L" - the mirror of the engine's own weapon bone,
+-- which this mod grafts onto every vanilla skeleton (Animations/<skeleton>/h2h_weapon_bone_l.nif) -
+-- and, on the player, a charged weapon's glow. Shared by the player's script and every NPC's.
 --
 -- Each slot is attached or taken off only when what should be on it changes. Whatever rebuilds the
 -- actor's model - a first/third person switch, a load, the actor coming back into the world - takes
@@ -22,8 +22,8 @@ local function warnMissingBone(bone)
     print("[H2HWeapons] this actor's skeleton has no '" .. bone .. "' bone, so nothing can be shown " ..
         "on it. It is added from Animations/<skeleton>/h2h_weapon_bone_l.nif, and only with 'Use " ..
         "additional animation sources' on (launcher: Settings -> Visuals -> Animations). A skeleton " ..
-        "this mod has no folder for will not get it: re-run Sources/Tools/patch_skeleton.py " ..
-        "--bones-out on it.")
+        "this mod has no folder for will not get it; Sources/Tools/patch_skeleton.py in the mod's git " ..
+        "repository makes one: https://github.com/MaxYari/Katars-KnucklesOpenMW")
 end
 
 -- slots: { { vfxId = , bone = }, ... }

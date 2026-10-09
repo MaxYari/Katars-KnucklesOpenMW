@@ -8,7 +8,8 @@ Hand-to-hand weapons for OpenMW. Katars and Knuckledusters. They mostly use a **
 Nordic silver, adamantium, orcish, glass, ebony and daedric. **3 of them are rare**, with a trick of their own each - finding them and working
 out what they do is up to you. The rest turn up the way ordinary weapons do: in merchants' stock, on
 NPCs and in chests. Eight of them also come **weakly enchanted** - fire, frost or shock on strike, as
-vanilla's Flameblades and Sparkmaces have - from the shops and chests that deal those.
+vanilla's Flameblades and Sparkmaces have - from the shops and chests that deal those. On Solstheim,
+Berserkers may carry a pair that leaves whoever they hit bleeding.
 
 For conjurers there is **Bound Fist**, a new conjuration spell that binds a daedric hand-to-hand
 weapon to your fists. Which weapon you get depends on your Conjuration - there are visually different
@@ -22,8 +23,8 @@ Developed for OpenMW. **Requires OpenMW 0.51+**.
 
 ## ⚔ What they do
 
-- "Officially" Katars are shortblades and knuckledusters are blunt weapons, that what you will see on a tooltip in the world. Dont trust that - they use and level Hand to Hand and they also damage victim's stamina akin to regular H2H.
-- Yet countrary to regular H2H they also deal damage, albeit small. In general knuckleduster deal lower physical damage but higher stamina damage and Katars are the opposite.
+- "Officially" Katars are shortblades and knuckledusters are blunt weapons, that's what you will see on a tooltip in the world. Don't trust that - they use and level Hand to Hand and they also damage victim's stamina akin to regular H2H.
+- Yet contrary to regular H2H they also deal damage, albeit small. In general knuckledusters deal lower physical damage but higher stamina damage and Katars are the opposite.
 - The new weapons are added to the game's levelled lists - the ones merchants' stock, chests and loot, and NPCs' and enemies' weapons are rolled from - so they turn up as ordinary weapons of their material do: now and then, not in every shop. Uniques are... well... unique and need to be found in the world.
 - Conjured fist weapons change their looks based on your conjuration skill.
 - They take both hands, same as bare fists: your shield or torch comes off while they are out and goes back on once you put them away.
@@ -32,7 +33,7 @@ Developed for OpenMW. **Requires OpenMW 0.51+**.
 If you want to know more details and know what to expect, look under the spoilers below, otherwise just play the game :)
 
 <details>
-<summary>How all the weapons look like</summary>
+<summary>What all the weapons look like</summary>
 
 ![All the weapons](imgs/all_katars.png)
 
@@ -43,9 +44,9 @@ If you want to know more details and know what to expect, look under the spoiler
 
 - The lesser of uniques (barely a unique) is made of driftwood by someone with a lot of time on their hands to watch ships in the sea.
 
-- The middle of the uniqes is of an arcane origin and as such is drawn to places of high magic. It also rather fancies inland lakes.
+- The middle of the uniques is of an arcane origin and as such is drawn to places of high magic. It also rather fancies inland lakes.
 
-- The highest of the three is of a dark and vicious nature, its kiss is poison and its owner schemes deep undergound. 
+- The highest of the three is of a dark and vicious nature, its kiss is poison and its owner schemes deep underground.
 
 <details>
 <summary>Concrete locations: (full spoilers)</summary>
@@ -64,6 +65,9 @@ If you want to know more details and know what to expect, look under the spoiler
 - [Inventory Extender](https://www.nexusmods.com/morrowind/mods/59205) - shows the Hand to Hand type
   and the fatigue damage in weapon tooltips.
 - [QuickLoot](https://www.nexusmods.com/morrowind/mods/54950) - its loot tooltips show them too.
+- [Combat Sounds Overhaul Overhauled](https://www.nexusmods.com/morrowind/mods/60361), also by me - katars swing with a fist's
+  whoosh and a blade's under it, knuckledusters with a fist's. Load Combat Sounds Overhaul above
+  `H2HWeapons.omwscripts`.
 
 
 ## ⚔ How to install
@@ -74,15 +78,19 @@ If you want to know more details and know what to expect, look under the spoiler
 newer) and [Max Yari's Script Services (MSS)](https://www.nexusmods.com/morrowind/mods/60256).
 
 2) Install this mod **with a mod organiser**: download the archive and drag and drop it into your mod
-organiser of choice (e.g [Mod Organizer 2](https://github.com/ModOrganizer2/modorganizer/releases)
+organiser of choice (e.g. [Mod Organizer 2](https://github.com/ModOrganizer2/modorganizer/releases)
 on Windows or [Nerevarine Organizer](https://github.com/grazelandsnomad/nerevarine_organizer/releases/tag/v0.70)
 on Linux).
 **Or**: [read this tutorial](https://modding-openmw.com/tips/installing-mods/) on how to install mods
 using the launcher or completely manually (it's also very easy).
+The archive has two folders: `00 Core` is the mod and `01 Glass Glowset Patch` is an optional patch
+(see Optional below). Mod organisers show an installer that explains them. If you install by hand,
+add `00 Core` as the data folder, and `01 Glass Glowset Patch` after it if you want it.
 
 3) Enable these in the "Content Files" tab of the OpenMW launcher, after ReAnimation:
    - `Katar.omwaddon` - needs Tribunal and Bloodmoon.
-   - `KatarWorldPlacements.omwaddon` - puts the rare weapons in the world. Needs Tribunal.
+   - `KatarWorldPlacements.omwaddon` - puts the rare weapons, and a few others, in the world. Needs
+     Tribunal and Bloodmoon.
    - `KatarTamrielRebuilt.omwaddon` - only with Tamriel Rebuilt, after it: puts the weapons in Tamriel
      Rebuilt's levelled lists too. Needs Tamriel Data.
    - `H2HWeapons.omwscripts`
@@ -98,7 +106,7 @@ load order is set, as you would for any such mods:
      [DeltaPlugin](https://gitlab.com/bmwinger/delta-plugin)
    - Linux: [DeltaPlugin](https://gitlab.com/bmwinger/delta-plugin)
 
-6) If you have the launcher's "Strength influences hand to hand" option on (Settings -> Gameplay),
+6) If you have the launcher's "Factor Strength into Hand-to-Hand Combat" option on (Settings -> Gameplay),
 set the mod's copy of it to match: Options -> Scripts -> Katars and Knuckledusters. The rest of the
 mod's settings are there too.
 
@@ -110,8 +118,12 @@ Optional:
   properly under [Wareya's PBR shaders](https://github.com/wareya/OpenMW-PBR/tree/0.51) - a small
   replacement for OpenMW's own lighting shaders. Recommended together with
   [Aesthetically Shiny Things](https://www.nexusmods.com/morrowind/mods/52114), which gives the rest
-  of the game the same treatment. None of it is required: without them the weapons look fine with
-  OpenMW's default shaders.
+  of the game the same treatment. OpenMW only picks the maps up with "Auto Use Object Normal Maps" and
+  "Auto Use Object Specular Maps" on (launcher: Settings -> Visuals -> Shaders). None of it is
+  required: without them the weapons look fine with OpenMW's default shaders.
+- [Glass Glowset](https://www.nexusmods.com/morrowind/mods/42762): tick "Glass Glowset Patch" in the
+  installer (or add the `01 Glass Glowset Patch` folder after `00 Core`) and the glass katars fit its
+  style - they glow like the rest of the glass set. Needs Glass Glowset installed.
 
 Have fun!
 
@@ -121,26 +133,36 @@ Have fun!
 - **Tamriel Rebuilt**: its spell merchants teach Bound Fist too, and with `KatarTamrielRebuilt.omwaddon`
   its merchants, chests and NPCs deal the weapons as vanilla's do.
 - **[Oblivion-Style Spell Casting](https://www.nexusmods.com/morrowind/mods/58653)**: supported.
-- **Retextures**: vanilla textures are used as they are, so retexture packs carry over.
+- **Retextures**: vanilla textures are used as they are, so retexture packs carry over. Glass Glowset
+  also puts its glow in the meshes; the optional patch above gives the glass katars theirs.
 - **Other animation mods**: fine, unless they also replace ReAnimation's one-handed attacks while a
   katar or knuckleduster is in hand.
 
 ## ⚔ Credits
 
 - Meshes, animations and scripts: Max Yari
-- Textures: Bethesda (Morrowind, Tribunal)
+- Textures: Bethesda (Morrowind, Tribunal, Bloodmoon)
+- Detail normal map in the baked metals: [Metal 061 B](https://ambientcg.com/view?id=Metal061B) from
+  ambientCG, CC0
+- Glow maps of the Glass Glowset patch: Solidfire's [Glass Glowset](https://www.nexusmods.com/morrowind/mods/42762)
+  (not included - the patch uses them from that mod)
 - NIF library: [Greatness7](https://github.com/Greatness7/io_scene_mw)
 - ["Rose"](https://skfb.ly/oWDnS) by Lisa3Dart - Hespera_3d is licensed under
   [Creative Commons Attribution](http://creativecommons.org/licenses/by/4.0/).
 
 ## ⚔ For modders
 
-### Hybrid weapons for modders
-
 Your own weapons can work the way katars and knuckledusters do - or be a different kind of hybrid: a
 mace that trains Blunt Weapon and Destruction, a spear only as good as the weaker of Spear and
-Conjuration. No scripting needed. Make the weapons in your plugin as usual, and next to it ship one
-small file per weapon in a `HybridWeaponDefinitions` folder, named after the weapon's record id:
+Conjuration. No scripting needed, one small definition file per weapon. All of it is documented in the
+[git repository](https://github.com/MaxYari/Katars-KnucklesOpenMW#-for-modders), along with the
+mod's source and the tools that build it. If you are already reading this on git - just read below.
+
+<!-- nexus-skip-start -->
+### Hybrid weapons
+
+Make the weapons in your plugin as usual, and next to it ship one small file per weapon in a
+`HybridWeaponDefinitions` folder, named after the weapon's record id:
 
 ```
 Data Files/
@@ -151,7 +173,7 @@ Data Files/
 
 ```yaml
 # HybridWeaponDefinitions/my_flame_mace.yaml
-primarySkill: handtohand
+primarySkill: bluntweapon
 secondarySkill: destruction
 primaryExperience: 0.7
 secondaryExperience: 0.5
@@ -180,7 +202,8 @@ and on every hit its experience is handed out by the shares below.
 - `fatigueDamage` (default `0`) - fatigue damage per hit, as a share of a bare-fisted punch's. Katars
   `0.5`, knuckledusters `0.75`.
 - `silentDraw` (default `false`) - no draw and sheathe sound, like bare hands.
-- `swingSounds` (default: the weapon's own) - swing whooshes, with Combat Sounds Overhaul Overhauled
+- `swingSounds` (default: the weapon's own) - swing whooshes, with
+  [Combat Sounds Overhaul Overhauled](https://www.nexusmods.com/morrowind/mods/60361), a replacement script for [Combat Sounds Overhaul](https://www.nexusmods.com/morrowind/mods/53859)
   (below).
 - `tooltip` (default: one for its scaling) - the footnote in Inventory Extender's tooltip
   (placeholders below).
@@ -196,7 +219,8 @@ is), `%{primaryExperience}` and `%{secondaryExperience}` (as `70%`).
 **Swing sounds** are a list, one whoosh per entry, all played on every swing. `sound` is `own` - the
 weapon's own whoosh, from Combat Sounds Overhaul Overhauled's swing `groups` if you give some - or one
 of that mod's weapon kinds (`HandToHand`, `ShortBlade`, `Blunt`, `Axe`...). `HandToHand` is the
-vanilla whoosh a bare fist swings with. Leave `own` out and the weapon's own whoosh is silent. A katar's:
+vanilla whoosh a bare fist swings with. Leave `own` out and the weapon's own whoosh is silent. Combat
+Sounds Overhaul has to load above `H2HWeapons.omwscripts`. A katar's:
 
 ```yaml
 swingSounds:
@@ -220,6 +244,11 @@ Good to know:
 ### Scripts and source
 
 Scripts can ask about hybrids through `I.H2HWeapons` (in player scripts): `hybridOfId(recordId)`,
-`hybridOfItem(item)` and `equippedHybrid()` give a weapon's definition, or `false`. How everything
-works - and how to build the plugin, meshes and animations from source - is written up in the
-[technical notes](Sources/DEVELOPMENT.md) in the git repository.
+`hybridOfItem(item)` and `equippedHybrid()` give a weapon's definition, or `false`.
+
+How everything works is written up in the [technical notes](Sources/DEVELOPMENT.md). The plugins,
+meshes, textures and animations are all built by scripts, from the Blender files in the repository:
+[Sources/Tools/README.md](Sources/Tools/README.md) has the ones for the plugins, animations and
+skeletons, [tools/README.md](tools/README.md) the Blender ones for the meshes and textures, and the
+release tooling.
+<!-- nexus-skip-end -->

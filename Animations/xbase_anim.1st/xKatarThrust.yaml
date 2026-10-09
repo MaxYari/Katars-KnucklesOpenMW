@@ -1,4 +1,4 @@
-# Blending into xh2hThrust only.
+# Blending into xKatarThrust only. A copy of ReAnimation's xh2hThrust.yaml, rule for rule.
 #
 # Per-animation rules are appended AFTER the global ruleset
 # (AnimBlendRules::addOverrideRules) and the bottom-most matching rule wins, so

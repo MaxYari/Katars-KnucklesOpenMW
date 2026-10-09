@@ -17,9 +17,10 @@ that sound nothing, since the one-handed animation underneath sounds its own (fo
 What is checked: that no file carries a SoundGen key, and that the one-handed walk and sneak loops
 lie where the one-handed set's do (make_katar_1h_movement.check_loops).
 
-Files land in Animations/xbase_anim.1st under the names already there, whatever case the export
-gives them: ReAnimation's builder names a movement set from its marker group, so "[Raw] Katar Walk"
-comes out as xkatarMovement. Then run make_third_person_anims.py for the third-person sets.
+The .kf files - only those, not the .nif the exporter writes beside each - land in
+Animations/xbase_anim.1st under the names already there, whatever case the export gives them:
+ReAnimation's builder names a movement set from its marker group, so "[Raw] Katar Walk" comes out
+as xkatarMovement. Then run make_third_person_anims.py for the third-person sets.
 
 From Blender: Text Editor > Open this file, Run Script. Headless:
     blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/export_katar_anims.py
@@ -218,14 +219,13 @@ def export_actions(names, out_dir=OUT, reanimation=None):
                                                           theirs))
             except SystemExit as exc:          # it exits on a mismatch; a Text Editor run must not
                 problems.append(str(exc))
-        for ext in (".kf", ".nif"):
-            source = os.path.join(scratch, stem + ext)
-            if os.path.isfile(source):
-                target = destination(stem + ext, out_dir)
-                shutil.copyfile(source, target)
-                if ext == ".kf":
-                    written.append(target)
-                    log("  %-30s -> %s" % (raw_name, os.path.relpath(target, MOD)))
+        # Only the .kf: the exporter's .nif beside it is never read. The engine plays the .kf against
+        # the actor's own skeleton (Animation::addSingleAnimSource), and takes nothing from a .nif in
+        # the folder but nodes marked BONE (injectCustomBones), which these have none of.
+        target = destination(stem + ".kf", out_dir)
+        shutil.copyfile(path, target)
+        written.append(target)
+        log("  %-30s -> %s" % (raw_name, os.path.relpath(target, MOD)))
     shutil.rmtree(scratch)
     if problems:
         raise RuntimeError("; ".join(problems))

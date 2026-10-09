@@ -10,7 +10,6 @@ function M.findMods()
     local mod = os.getenv("H2H_MOD") or (here .. "../../..")
     local reanimation = os.getenv("H2H_REANIMATION")
     if not reanimation then
-        -- The Nexus download folder carries a version suffix, so it is matched rather than named.
         -- The Nexus download folder carries a version suffix, and other ReAnimation-something
         -- folders sit next to it, so the API script is what is actually looked for.
         local pipe = io.popen('for d in "' .. mod ..
@@ -214,11 +213,12 @@ packages['openmw.core'] = {
         -- The 0.51 name: stopSound3d. A stub under any other name would hide a call to one that does not exist.
         stopSound3d = function(id, obj) st.stoppedSounds = st.stoppedSounds or {}; table.insert(st.stoppedSounds, id) end,
         playSound3d = function(id) table.insert(st.sounds, id) end,
-        playSoundFile3d = function(path) table.insert(st.sounds, path) end,
+        -- Kept apart from record ids: a sound id handed to the file function plays nothing in game.
+        playSoundFile3d = function(path) table.insert(st.sounds, "file:" .. path) end,
     },
     sendGlobalEvent = function(name, data) table.insert(st.globalEvents, { name = name, data = data }) end,
     magic = {
-        ENCHANTMENT_TYPE = {},
+        ENCHANTMENT_TYPE = { CastOnce = 0, CastOnStrike = 1, CastOnUse = 2, ConstantEffect = 3 },
         EFFECT_TYPE = { ResistPoison = "resistpoison", WeaknessToPoison = "weaknesstopoison", Paralyze = "paralyze" },
         RANGE = { Self = 0, Touch = 1, Target = 2 },
         -- Every effect exists, unless a test says it went missing.

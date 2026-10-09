@@ -31,6 +31,7 @@ local carriedLeft = require(mp .. "scripts/carriedleft")
 local formulas = require(mp .. "scripts/formulas")
 local hands = require(mp .. "scripts/hands")
 local roseState = require(mp .. "scripts/rose")
+local swingCopy = require(mp .. "scripts/swingcopy")
 local settings = require(mp .. "scripts/settings")
 local swing = require(mp .. "scripts/swing")
 local U = require(mp .. "scripts/uniques")
@@ -241,31 +242,27 @@ I.SkillProgression.addSkillUsedHandler(function(skillid, options)
 end)
 
 --- Mage Fury's charge ---------------------------------------------------------------------------
--- A spell cast successfully with the knuckles equipped charges them; each of the next strikes hands
--- the one struck a share of that spell (global.lua makes it, actor.lua applies it). The charge is
--- kept here, because it is the wielder's: the crystal glows while it lasts (below), and it is shown
--- in the active effects as a "Channeled Spell" whose magnitude is the strikes left.
+-- A spell cast successfully with the knuckles equipped charges them: each of the next strikes carries
+-- a share of that spell. The share is an enchantment (global.lua makes it), and each of those swings
+-- is made with a copy of the knuckles that carries it (swingcopy.lua), so the engine strikes with it
+-- as with any enchanted weapon - its sounds and looks, reflection, absorption, resistances. The charge
+-- is kept here, because it is the wielder's: the crystal glows while it lasts (below), and it is
+-- shown in the active effects as a "Channeled Spell" whose magnitude is the strikes left.
 local SCHOOLS = {
     alteration = true, conjuration = true, destruction = true,
     illusion = true, mysticism = true, restoration = true,
 }
 
 local fury = {
-    spell = nil,   -- the share of the spell a strike carries
+    enchant = nil, -- the enchantment carrying the share of the spell a strike carries
     name = "",
     strikes = 0,
     fadesAt = 0,
     shown = nil,   -- record id of the active spell showing the charge
-    chargeAtWindUp = nil, -- the knuckles' charge when the swing wound up, before the strike took any
+    -- The knuckles in hand when the swing wound up, and their charge then, before the strike took any.
+    windUpItem = nil,
+    chargeAtWindUp = nil,
 }
--- I.H2HWeapons.setCharged: light the glow without casting anything, to look at it. nil: follow the
--- charge.
-local forcedCharge = nil
-
-local function isCharged()
-    if forcedCharge ~= nil then return forcedCharge end
-    return fury.strikes > 0
-end
 
 local function showFury()
     local spells = types.Actor.activeSpells(omwself)
@@ -287,8 +284,14 @@ end
 
 local function clearFury()
     fury.strikes = 0
-    fury.spell = nil
+    fury.enchant = nil
     showFury()
+end
+
+-- The enchantment a swing winding up now strikes with instead of the knuckles' own, or nil.
+local function furyEnchant()
+    if fury.strikes <= 0 or core.getSimulationTime() >= fury.fadesAt then return nil end
+    return fury.enchant
 end
 
 -- Two things report a successful cast. The engine reports its own as a skill use - a failed one is
@@ -334,39 +337,42 @@ local function onCastReport(e)
 end
 
 local function onMageFuryCharged(e)
-    fury.spell = e.spell
+    fury.enchant = e.enchant
     fury.name = e.name or ""
     fury.strikes = U.MAGE_FURY_STRIKES
     fury.fadesAt = core.getSimulationTime() + U.MAGE_FURY_FADE
     showFury()
 end
 
--- The knuckles' enchantment is cast on strike at a channelled strike's full price (content.lua), so by
--- the time a strike is reported the engine has charged it as it would any enchanted weapon's - the
--- Enchant skill's share off - or refused, and said so, with too little left. What it took is read off
--- the charge: the swing's wind-up saw it before. A strike that carried the spell keeps it paid; any
--- other gets it back. One the engine refused carries nothing, and there is nothing to give back.
--- In god mode the engine casts it without charging anything (CastSpell::cast), so nothing is read.
+-- A strike with the knuckles landed (actor.lua). The engine has charged it by now, as it would any
+-- enchanted weapon's - the Enchant skill's share off - or refused, and said so, with too little left;
+-- what it took is read off the charge, which the swing's wind-up saw before. A strike made with the
+-- swing's copy carried the spell, and spends a strike of the charge - unless the engine refused it,
+-- which carried nothing. One made with the knuckles themselves - uncharged, or a swing let go before
+-- the copy came - carried nothing either, and gets back what their own enchantment took, which is a
+-- channelled strike's price (content.lua). In god mode the engine casts without charging anything
+-- (CastSpell::cast).
 local function onMageFuryStrike(e)
     if e.victim == nil or e.item == nil then return end
-    local before = fury.chargeAtWindUp
-    fury.chargeAtWindUp = nil
-    local paid = before and (before - (types.Item.itemData(e.item).enchantmentCharge or before)) or 0
+    local before, knuckles = fury.chargeAtWindUp, fury.windUpItem
+    fury.chargeAtWindUp, fury.windUpItem = nil, nil
+    local channelled = knuckles ~= nil and e.item ~= knuckles
+    -- The copy may be folded back into the knuckles by now, its charge with it.
+    local struck = e.item:isValid() and e.item or knuckles
+    local after = struck and struck:isValid() and types.Item.itemData(struck).enchantmentCharge
+    local paid = (before and after) and before - after or 0
     local free = debug.isGodMode()
-    if paid <= 0 and not free then return end
 
     local now = core.getSimulationTime()
     if fury.strikes > 0 and now >= fury.fadesAt then clearFury() end
-    if fury.strikes <= 0 then
+    if not channelled then
         if paid > 0 then core.sendGlobalEvent("H2HWeapons_ChargeUse", { item = e.item, delta = paid }) end
         return
     end
-    e.victim:sendEvent("H2HWeapons_MageFuryDischarge", {
-        spell = fury.spell, caster = omwself.object, name = fury.name,
-    })
+    if (paid <= 0 and not free) or fury.strikes <= 0 then return end
     fury.strikes = fury.strikes - 1
     fury.fadesAt = now + U.MAGE_FURY_FADE
-    if fury.strikes <= 0 then fury.spell = nil end
+    if fury.strikes <= 0 then fury.enchant = nil end
     showFury()
 end
 
@@ -443,7 +449,7 @@ local function updateAttachments(stance)
 
     local drawn = equippedHandToHand and weaponShown
     local offHand = (drawn and cfg.showOffHandWeapon and equippedModel) or nil
-    local glow = (drawn and isCharged() and equippedChargeModel) or nil
+    local glow = (drawn and fury.strikes > 0 and equippedChargeModel) or nil
     onBones.attach(OFF_HAND, offHand)
     onBones.attach(GLOW_RIGHT, glow)
     -- Only a hand holding something can glow.
@@ -467,10 +473,12 @@ end
 -- inventory, comes off when it resumes.
 local left = carriedLeft.new(omwself)
 
---- Ebony Rose ------------------------------------------------------------------------------------
--- The burst's bookkeeping is rose.lua's, shared with the NPCs who carry it; this only tells it when a
--- swing winds up and follows through (below).
-local rose = roseState.new(omwself)
+--- The uniques' swings ------------------------------------------------------------------------------
+-- Ebony Rose's burst is counted by rose.lua, shared with the NPCs who carry it. The swing that bursts,
+-- and each that carries Mage Fury's spell, is made with a copy of the weapon carrying that enchantment
+-- (swingcopy.lua); this tells it when a swing winds up and follows through (below).
+local rose = roseState.new()
+local copy = swingCopy.new(omwself)
 
 --- Draw and sheathe sound -------------------------------------------------------------------------
 -- The engine plays a weapon's draw and sheathe sound for anything that is not hand-to-hand
@@ -515,14 +523,20 @@ I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options
 
     if swing.isWindUpStart(startKey) then
         applySkillSwap(equippedHybrid)
-        rose.windUp(equippedInfo and equippedInfo.item)
-        if equippedSpecial == SPECIAL.MageFury and equippedInfo then
-            fury.chargeAtWindUp = types.Item.itemData(equippedInfo.item).enchantmentCharge
+        -- Read from the hand rather than the cached equipment: a swing's copy may have gone back only
+        -- a moment ago, and the cache still have it.
+        local item = types.Actor.getEquipment(omwself, CARRIED_RIGHT)
+        local enchant = rose.enchantFor(item)
+        if item and weapons.specialOfItem(item) == SPECIAL.MageFury then
+            fury.windUpItem = item
+            fury.chargeAtWindUp = types.Item.itemData(item).enchantmentCharge
+            enchant = furyEnchant()
         end
+        copy.windUp(item, enchant)
     elseif swing.isFollowStart(startKey) then
         -- The hit has been rolled and dealt by now.
         revertSkillSwap()
-        rose.followStart()
+        copy.followStart()
     end
 end)
 
@@ -730,7 +744,7 @@ local function watchForFist()
 end
 
 --- Per frame --------------------------------------------------------------------------------------
-local pendingBurstReturn = nil
+local pendingCopyReturn = nil
 
 local function onUpdate(dt)
     if dt <= 0 then return end
@@ -748,16 +762,17 @@ local function onUpdate(dt)
     local changed = refreshEquipped()
 
     -- Sheathing or swapping mid-swing has to put the skill back, and so does a swing that never
-    -- reached its follow-through. The same goes for the copy of Ebony Rose held for a burst.
-    if swappedSkill and (changed or stance ~= WEAPON_STANCE
+    -- reached its follow-through - but not the swing's own copy coming into the hand, which is the
+    -- same weapon to everything here. The same goes for that copy.
+    if swappedSkill and ((changed and not copy.isSwapped()) or stance ~= WEAPON_STANCE
         or core.getSimulationTime() - swappedAt > SWAP_TIMEOUT) then
         revertSkillSwap()
     end
-    rose.check(stance)
-    if pendingBurstReturn then
+    copy.check(stance)
+    if pendingCopyReturn then
         -- Saved mid-swing: the copy was in hand.
-        rose.restore(pendingBurstReturn)
-        pendingBurstReturn = nil
+        copy.restore(pendingCopyReturn)
+        pendingCopyReturn = nil
     end
 
     if fury.strikes > 0 and core.getSimulationTime() >= fury.fadesAt then clearFury() end
@@ -771,7 +786,7 @@ end
 return {
     interfaceName = "H2HWeapons",
     interface = {
-        version = 2,
+        version = 1,
         --- The hybrid weapon a record id is, or false: its definition's fields (primarySkill,
         --- secondarySkill, primaryExperience, secondaryExperience, scaling, moveset, fatigueDamage,
         --- tooltip, silentDraw, swingSounds) and what its record adds (weaponSkill, handToHand,
@@ -782,20 +797,10 @@ return {
         hybridOfItem = weapons.hybridOfItem,
         --- The hybrid in the player's right hand, or false.
         equippedHybrid = function() return equippedHybrid end,
-        --- Which of the uniques' tricks a record id carries: "venom", "burst", "magefury", or false.
-        specialOfId = weapons.specialOfId,
-        --- Force the charge glow on (true) or off (false) regardless of any charge; nil to follow it
-        --- again. For looking at the effect.
-        setCharged = function(value) forcedCharge = value end,
-        isCharged = function() return isCharged() end,
-        --- Strikes left on Mage Fury's charge.
-        mageFuryStrikes = function() return fury.strikes end,
-        --- Whether Ebony Rose's next swing bursts.
-        isBurstArmed = function() return rose.burstDue() end,
     },
     eventHandlers = {
         H2HWeapons_VenomStrike = rose.onVenomStrike,
-        H2HWeapons_BurstStaged = rose.onBurstStaged,
+        H2HWeapons_CopyStaged = copy.onStaged,
         H2HWeapons_MageFuryCharged = onMageFuryCharged,
         H2HWeapons_MageFuryStrike = onMageFuryStrike,
         -- Passing time took off everything attached; forget it, and it goes back on.
@@ -810,13 +815,13 @@ return {
         onTeleported = function() firstPerson = nil end,
         onSave = function()
             -- A save taken mid-swing has the nudged modifier baked into it; remember it so the load
-            -- can take it back out. Likewise the copy of Ebony Rose, if it was in hand.
+            -- can take it back out. Likewise a swing's copy of the weapon, if it was in hand.
             return {
                 swappedSkill = swappedSkill,
                 swappedDelta = swappedDelta,
-                burstSwap = rose.save(),
+                burstSwap = copy.save(),
                 leftHand = left.save(),
-                fury = { spell = fury.spell, name = fury.name, strikes = fury.strikes,
+                fury = { enchant = fury.enchant, name = fury.name, strikes = fury.strikes,
                          fadesAt = fury.fadesAt, shown = fury.shown },
             }
         end,
@@ -836,11 +841,11 @@ return {
                 revertSkillSwap()
             end
             if data.burstSwap then
-                pendingBurstReturn = data.burstSwap
+                pendingCopyReturn = data.burstSwap
             end
             left.load(data.leftHand)
-            if data.fury and (data.fury.strikes or 0) > 0 then
-                fury.spell = data.fury.spell
+            if data.fury and (data.fury.strikes or 0) > 0 and data.fury.enchant then
+                fury.enchant = data.fury.enchant
                 fury.name = data.fury.name or ""
                 fury.strikes = data.fury.strikes
                 fury.fadesAt = data.fury.fadesAt or 0

@@ -243,13 +243,20 @@ check(punch.skillGain == 1.0, "a hand-to-hand use is untouched", punch.skillGain
 check(#st.skillUses == 0, "and starts nothing else", #st.skillUses)
 
 --- the charge effect ------------------------------------------------------------------------------
--- A weapon lights up when a "<mesh>_charged.nif" sits beside its mesh, on both weapon bones - here
--- forced on, the way I.H2HWeapons.setCharged lets one look at it without casting.
+-- A weapon lights up when a "<mesh>_charged.nif" sits beside its mesh, on both weapon bones, while
+-- it holds a charge - here Mage Fury's, as global.lua answers a cast with it.
+local function charge()
+    player.eventHandlers.H2HWeapons_MageFuryCharged({ enchant = "Generated:0x76", name = "Fireball" })
+end
+local function chargeFades()
+    st.time = st.time + 31
+    onUpdate(0.016)
+end
 st.equipped = { recordId = "knuckle_mage_fury" }
 st.vfxById = {}
 onUpdate(0.016)
 check(st.vfxById["H2HWeapons_Charge_R"] == nil, "an uncharged Mage Fury stays dark")
-player.interface.setCharged(true)
+charge()
 onUpdate(0.016)
 local right, left = st.vfxById["H2HWeapons_Charge_R"], st.vfxById["H2HWeapons_Charge_L"]
 check(right ~= nil and left ~= nil, "the mage knuckle lights up in both hands")
@@ -268,10 +275,9 @@ stubs.textKey("weapononehand", "equip attach")
 onUpdate(0.016)
 check(st.vfxById["H2HWeapons_Charge_R"] ~= nil, "drawing lights it again")
 
-player.interface.setCharged(false)
-onUpdate(0.016)
-check(st.vfxById["H2HWeapons_Charge_R"] == nil, "and setCharged(false) puts it out")
-player.interface.setCharged(true)
+chargeFades()
+check(st.vfxById["H2HWeapons_Charge_R"] == nil, "and a charge that fades puts it out")
+charge()
 onUpdate(0.016)
 
 -- A weapon with no charge effect beside it gets none.
@@ -344,9 +350,8 @@ st.bones["Weapon Bone.L"] = true
 st.cameraMode = 0
 engineRebuildsModel()
 settle()
-player.interface.setCharged(nil)
-onUpdate(0.016)
-check(st.vfxById["H2HWeapons_Charge_R"] == nil, "setCharged(nil) goes back to following the charge")
+chargeFades()
+check(st.vfxById["H2HWeapons_Charge_R"] == nil, "and with the charge gone the glow is out")
 
 --- the left hand ---------------------------------------------------------------------------------------
 -- A katar takes both hands, as bare fists do: a shield or torch comes off while it is out, and goes

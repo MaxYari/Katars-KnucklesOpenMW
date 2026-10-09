@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The installer mod organisers show. The archive is also laid out for BAIN and for installing by
+     hand: "00 Core" is the mod, every other numbered folder an optional patch (tools/build_nexus_zip.sh). -->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://qconsulting.ca/fo3/ModConfig5.0.xsd">
+    <moduleName>Katars and Knuckledusters</moduleName>
+    <requiredInstallFiles>
+        <folder source="00 Core" destination="" />
+    </requiredInstallFiles>
+    <installSteps order="Explicit">
+        <installStep name="Patches">
+            <optionalFileGroups order="Explicit">
+                <group name="Patches" type="SelectAny">
+                    <plugins order="Explicit">
+                        <plugin name="Glass Glowset Patch">
+                            <description>Simply makes the glass katars fit the style of Glass Glowset: they glow like the rest of the glass set.
+
+Requires Glass Glowset (https://www.nexusmods.com/morrowind/mods/42762) to be installed. Leave this unticked if you don't use it.</description>
+                            <files>
+                                <folder source="01 Glass Glowset Patch" destination="" priority="1" />
+                            </files>
+                            <typeDescriptor>
+                                <type name="Optional" />
+                            </typeDescriptor>
+                        </plugin>
+                    </plugins>
+                </group>
+            </optionalFileGroups>
+        </installStep>
+    </installSteps>
+</config>

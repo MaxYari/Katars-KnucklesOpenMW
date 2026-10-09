@@ -9,9 +9,10 @@
 -- animations.lua's, which runs on NPCs as on the player, and whoever they hit is actor.lua's.
 --
 -- This runs on every NPC, and on every creature that can hold these (weapons.canWield) - a dremora
--- or a skeleton is looked after exactly as an NPC is. So it has no per-frame handler. It hangs off the NPC's own animation events,
--- and only while a one-handed weapon is out does it look again, twice a second, for what comes with no
--- animation: a swap to another weapon of the same type, one taken off a corpse, a stance a script set.
+-- or a skeleton is looked after exactly as an NPC is. So it has no per-frame handler. It hangs off
+-- the NPC's own animation events, and only while a one-handed weapon is out does it look again, twice
+-- a second, for what comes with no animation: a swap to another weapon of the same type, one taken
+-- off a corpse, a stance a script set.
 local mp = "scripts/MaxYari/H2HWeapons/"
 
 local async = require('openmw.async')
@@ -31,6 +32,7 @@ end
 local carriedLeft = require(mp .. "scripts/carriedleft")
 local hands = require(mp .. "scripts/hands")
 local roseState = require(mp .. "scripts/rose")
+local swingCopy = require(mp .. "scripts/swingcopy")
 local settings = require(mp .. "scripts/settings")
 local swing = require(mp .. "scripts/swing")
 local U = require(mp .. "scripts/uniques")
@@ -68,7 +70,9 @@ local looking = false      -- a look is scheduled
 local stanceLeftAt = nil
 local checkLeftHand        -- the left hand's (below)
 
-local rose = roseState.new(omwself)
+local rose = roseState.new()
+-- The copy of Ebony Rose its bursting swing is made with (swingcopy.lua).
+local copy = swingCopy.new(omwself)
 -- Ebony Rose's owner fights with both his blades, when Mercy runs his fights (roseowner.lua).
 local owner = string.lower(omwself.recordId) == U.ROSE_OWNER
     and require(mp .. "scripts/roseowner").attach(omwself) or nil
@@ -93,7 +97,7 @@ look = function()
     looking = false
     if not active then return end
     local stance = types.Actor.getStance(omwself)
-    rose.check(stance)
+    copy.check(stance)
     if shown and stance ~= WEAPON_STANCE then
         local now = core.getSimulationTime()
         stanceLeftAt = stanceLeftAt or now
@@ -103,7 +107,7 @@ look = function()
     end
     refresh()
     checkLeftHand()
-    if shown or rose.isSwapped() then keepLooking() end
+    if shown or copy.isSwapped() then keepLooking() end
 end
 
 for _, group in ipairs(swing.WEAPON_GROUP_LIST) do
@@ -138,8 +142,8 @@ end
 --- The left hand ----------------------------------------------------------------------------------
 -- Nothing in it while a weapon swung with the hand-to-hand moveset is out (carriedleft.lua): from the
 -- draw's start to the hand putting it away. Looked at on those, and with everything else twice a
--- second while a weapon is out - so a shield or torch the engine puts back in an NPC's hand somewhere dark, once a second
--- (Actors::updateEquippedLight), can be seen there for up to half a second.
+-- second while a weapon is out - so a shield or torch the engine puts back in an NPC's hand somewhere
+-- dark, once a second (Actors::updateEquippedLight), can be seen there for up to half a second.
 local left = carriedLeft.new(omwself)
 
 local function isOut()
@@ -188,19 +192,19 @@ I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options
         if startKey == "unequip start" and owner then owner.sheathe() end
     elseif swing.isWindUpStart(startKey) then
         local item = weapon()
-        if weapons.specialOfItem(item) == weapons.SPECIAL.Venom then rose.windUp(item) end
+        copy.windUp(item, rose.enchantFor(item))
         if owner then owner.windUp(item) end
     elseif swing.isFollowStart(startKey) then
-        rose.followStart()
+        copy.followStart()
     end
 end)
 
 return {
     eventHandlers = {
         H2HWeapons_VenomStrike = rose.onVenomStrike,
-        H2HWeapons_BurstStaged = function(e)
-            rose.onBurstStaged(e)
-            if rose.isSwapped() then keepLooking() end
+        H2HWeapons_CopyStaged = function(e)
+            copy.onStaged(e)
+            if copy.isSwapped() then keepLooking() end
         end,
         -- The player passed time nearby, which took off everything on this NPC's bones.
         H2HWeapons_Reattach = function()
@@ -217,7 +221,7 @@ return {
             active = false
         end,
         onSave = function()
-            local swap = rose.save()
+            local swap = copy.save()
             local taken = left.save()
             if swap or taken then return { burstSwap = swap, leftHand = taken } end
         end,
@@ -226,7 +230,7 @@ return {
             -- Saved mid-swing, with the copy of Ebony Rose in hand: put things back once the NPC is
             -- in the world again.
             if data and data.burstSwap then
-                async:newUnsavableSimulationTimer(SETTLE_DELAY, function() rose.restore(data.burstSwap) end)
+                async:newUnsavableSimulationTimer(SETTLE_DELAY, function() copy.restore(data.burstSwap) end)
             end
         end,
     },

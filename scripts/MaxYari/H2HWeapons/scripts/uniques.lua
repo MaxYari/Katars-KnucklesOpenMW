@@ -87,8 +87,8 @@ M.ROSE_OWNER_ROSE_MIN = 10
 -- of that spell's harmful effects to whoever they hit.
 M.MAGE_FURY = "knuckle_mage_fury"
 M.MAGE_FURY_ENCHANT = "h2h_magefury_en"
--- What the enchantment is: a constant effect that does nothing itself but name and explain the
--- weapon's trick in the tooltip and the active effects list.
+-- The enchantment's one effect, cast on strike so that the knuckles hold a charge: it does nothing
+-- itself, but names and explains the weapon's trick in the tooltip (content.lua).
 M.MAGE_FURY_EFFECT = "h2h_magefury"
 -- Shown on the player while the knuckles are charged, its magnitude the strikes left.
 M.MAGE_FURY_CHARGE_EFFECT = "h2h_magefury_charge"

@@ -139,7 +139,14 @@ local function classify(recordId)
         specialById[id] = false
         return false
     end
-    specialById[id] = record.enchant and ENCHANTMENTS[string.lower(record.enchant)] or false
+    local special = record.enchant and ENCHANTMENTS[string.lower(record.enchant)] or false
+    if not special and string.find(id, "^generated:") then
+        -- A copy made for one swing whose enchantment was made at run time too - Mage Fury's, carrying
+        -- a channelled spell (swingcopy.lua) - is the unique it is a copy of.
+        local like = definedLike(record)
+        special = like and M.specialOfId(like) or false
+    end
+    specialById[id] = special
     return (resolve(recordId, record))
 end
 

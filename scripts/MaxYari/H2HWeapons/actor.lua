@@ -1,5 +1,6 @@
 -- What a hybrid weapon does to whoever it hits, run on the one hit: the fatigue damage its
--- definition gives it (a katar's, knuckledusters'), Ebony Rose's venom, and Mage Fury's stored spell.
+-- definition gives it (a katar's, knuckledusters'), Ebony Rose's venom, and the report of a Mage Fury
+-- strike to its wielder.
 --
 -- The engine hands the whole attack to the victim (LuaManager::onHit -> the "Hit" event ->
 -- I.Combat.onHit), and a handler may add to attack.damage before the built-in one applies it. That
@@ -266,62 +267,6 @@ local function struckByVenom(attacker, burst)
     attacker:sendEvent("H2HWeapons_VenomStrike", { victim = omwself.object, burst = burst })
 end
 
---- Mage Fury ------------------------------------------------------------------------------------
--- The wielder decides whether a strike carries a spell - the charge is theirs - so this side only
--- reports the strike and, when told to, takes the spell. activeSpells:add applies it the engine's
--- way (resistances, reflection, the hostile reaction, the kill credit) but plays nothing, so the
--- hit effects are played here, as CastSpell::playEffects would.
-local function playHitEffects(record)
-    local played = {}
-    for i = 1, #record.effects do
-        local mgef = record.effects[i].effect
-        if mgef and not played[mgef.id] then
-            played[mgef.id] = true
-
-            local hitStatic = mgef.hitStatic
-            if hitStatic == nil or hitStatic == "" then hitStatic = "VFX_DefaultHit" end
-            local static = types.Static.records[hitStatic]
-            if static and static.model ~= "" then
-                -- A looping effect named after its magic effect is taken off by the engine when that
-                -- effect runs out (CharacterController::updateContinuousVfx), as its own are.
-                animation.addVfx(omwself, static.model, {
-                    loop = mgef.continuousVfx,
-                    vfxId = mgef.continuousVfx and mgef.id or "",
-                    particleTextureOverride = mgef.particle,
-                })
-            end
-
-            if mgef.hitSound ~= nil and mgef.hitSound ~= "" then
-                core.sound.playSound3d(mgef.hitSound, omwself)
-            else
-                local skill = core.stats.Skill.records[mgef.school]
-                local school = skill and skill.school
-                if school and school.hitSound and school.hitSound ~= "" then
-                    core.sound.playSoundFile3d(school.hitSound, omwself)
-                end
-            end
-        end
-    end
-end
-
-local function takeStoredSpell(e)
-    local record = core.magic.spells.records[e.spell]
-    if record == nil then return end
-    local indexes = {}
-    for i = 1, #record.effects do indexes[i] = record.effects[i].index end
-    if #indexes == 0 then return end
-
-    types.Actor.activeSpells(omwself):add({
-        id = e.spell,
-        effects = indexes,
-        caster = e.caster,
-        name = e.name,
-        -- Three strikes are three spells, as three casts would be.
-        stackable = true,
-    })
-    playHitEffects(record)
-end
-
 --- Bound Fist -------------------------------------------------------------------------------------
 -- The engine binds its own bound weapons itself (spelleffects.cpp, addBoundItem); this effect it only
 -- times, so the binding is done here, on whoever casts it - the player, or an NPC who knows it (the
@@ -517,8 +462,10 @@ I.Combat.addOnHitHandler(function(attack)
     if special == SPECIAL.Venom or special == SPECIAL.Burst then
         struckByVenom(attacker, special == SPECIAL.Burst)
     elseif special == SPECIAL.MageFury then
+        -- What a channelled strike carries is an enchantment of the swing's copy of the knuckles
+        -- (player.lua, swingcopy.lua), which the engine has struck with by now as with any weapon's.
         if types.Player.objectIsInstance(attacker) then
-            -- The wielder decides what the strike cost: a spell carried, or nothing.
+            -- The wielder decides what the strike cost: a strike of the charge, or nothing.
             attacker:sendEvent("H2HWeapons_MageFuryStrike", { victim = omwself.object, item = attack.weapon })
         else
             -- An NPC never channels, so its strikes cost nothing: what the engine took goes back.
@@ -591,7 +538,6 @@ end
 return {
     eventHandlers = {
         H2HWeapons_WatchVenom = function(e) watch(e.source, e.since) end,
-        H2HWeapons_MageFuryDischarge = takeStoredSpell,
         H2HWeapons_FistSummoned = onFistSummoned,
         H2HWeapons_FistSeen = castFist,
         -- Spell Framework Plus' report of a cast it made. Listened to, never consumed.

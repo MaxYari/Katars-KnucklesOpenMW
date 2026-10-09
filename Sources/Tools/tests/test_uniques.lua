@@ -261,36 +261,20 @@ st.effects[U.VENOM_EFFECT] = 0
 stubs.advance(2)
 st.nearbyActors = {}
 
--- Mage Fury's discharge: the spell is applied the engine's way, and its hit effects are played.
-st.spellRecords["generated:0x7"] = { id = "generated:0x7", effects = {
-    { index = 0, id = "firedamage", effect = { id = "firedamage", hitStatic = "VFX_DestructHit",
-        particle = "vfx_firealpha00A.tga", continuousVfx = true, hitSound = "", school = "destruction" } },
-    { index = 1, id = "frostdamage", effect = { id = "frostdamage", hitStatic = "VFX_FrostHit",
-        particle = "vfx_icestar.tga", continuousVfx = false, hitSound = "frost_hit", school = "destruction" } },
-} }
-st.staticRecords["VFX_DestructHit"] = { model = "meshes/e/magic_hit_dst.nif" }
-st.staticRecords["VFX_FrostHit"] = { model = "meshes/e/magic_hit_frost.nif" }
-st.skillRecords.destruction = { school = { hitSound = "Sound/Fx/magic/destH.wav" } }
-st.activeSpells, st.vfxById, st.sounds = {}, {}, {}
-actorScript.eventHandlers.H2HWeapons_MageFuryDischarge({ spell = "generated:0x7", caster = attacker, name = "Frostfire" })
-local taken = st.activeSpells[1]
-check(taken and taken.id == "generated:0x7", "the struck actor takes the stored spell")
-check(taken and #taken.options.effects == 2 and taken.options.effects[1] == 0, "every effect of it")
-check(taken and taken.options.caster == attacker and taken.options.stackable == true,
-      "cast by the wielder, and three strikes stack like three casts")
-check(st.vfxById["firedamage"] and st.vfxById["firedamage"].opts.loop == true,
-      "a continuous effect loops under its own id, so the engine takes it off when it ends")
-check(st.vfxById["firedamage"] and st.vfxById["firedamage"].opts.particleTextureOverride == "vfx_firealpha00A.tga",
-      "in its own colours")
-check(st.vfxById[""] and st.vfxById[""].model == "meshes/e/magic_hit_frost.nif", "a one-off effect plays once")
-check(st.sounds[1] == "Sound/Fx/magic/destH.wav", "an effect with no hit sound plays its school's")
-check(st.sounds[2] == "frost_hit", "one with its own plays that")
-
 -- A Mage Fury strike is reported to the wielder, who decides whether it carries anything.
 st.events = {}
 hitWith({ recordId = "knuckle_mage_fury" })
 check(lastEvent("H2HWeapons_MageFuryStrike") and lastEvent("H2HWeapons_MageFuryStrike").target == attacker,
       "a Mage Fury strike is reported to the wielder")
+-- So is one made with the swing's copy of the knuckles, whose enchantment - made at run time too -
+-- carries the spell.
+st.weaponRecords["generated:0x77"] = { type = 3, model = "meshes/mage_fury.nif", enchant = "Generated:0x76" }
+st.events = {}
+local channelledCopy = { recordId = "Generated:0x77" }
+hitWith(channelledCopy)
+check(lastEvent("H2HWeapons_MageFuryStrike") and lastEvent("H2HWeapons_MageFuryStrike").data.item == channelledCopy,
+      "and so is one made with the swing's copy, which carries the spell")
+check(#stubs.eventsNamed("H2HWeapons_MageFuryDischarge") == 0, "and nothing is handed to the one struck")
 local npcKnuckles = { recordId = "knuckle_mage_fury" }
 st.events, st.globalEvents = {}, {}
 onHit({ successful = true, sourceType = "melee", attacker = stubs.object({ name = "npc", notPlayer = true }),
@@ -322,6 +306,17 @@ local rose = stubs.object({ recordId = "katar_ebony_rose", isItem = true })
 st.equipped = rose
 for _ = 1, 3 do onUpdate(0.016) end
 
+-- Whether the next swing bursts: winding it up asks for the burst copy when it does. The swing is
+-- then called off and finished, which leaves the count as it was.
+local function burstsNext()
+    st.globalEvents = {}
+    playWeapon("slash start")
+    local asked = lastGlobal("H2HWeapons_StageCopy") ~= nil
+    fire("H2HWeapons_CopyStaged", {})
+    playWeapon("slash large follow start")
+    return asked
+end
+
 -- Counting: the third strike in a run on one poisoned enemy is the one that bursts, each strike
 -- renewing the countdown to the next.
 local enemyA = stubs.object({ name = "enemy a" })
@@ -329,46 +324,46 @@ local enemyB = stubs.object({ name = "enemy b" })
 st.effects[U.VENOM_EFFECT] = nil
 fire("H2HWeapons_VenomStrike", { victim = enemyA })
 st.effects[U.VENOM_EFFECT] = 3
-check(not player.interface.isBurstArmed(), "one strike is not enough")
+check(not burstsNext(), "one strike is not enough")
 st.time = st.time + 1
 fire("H2HWeapons_VenomStrike", { victim = enemyA })
-check(player.interface.isBurstArmed(), "two on one poisoned enemy make the next swing the third")
+check(burstsNext(), "two on one poisoned enemy make the next swing the third")
 st.effects[U.VENOM_EFFECT] = nil
-check(not player.interface.isBurstArmed(), "not while they are not poisoned")
+check(not burstsNext(), "not while they are not poisoned")
 st.effects.poison = 5
-check(player.interface.isBurstArmed(), "and any poison will do")
+check(burstsNext(), "and any poison will do")
 st.effects.poison = nil
 st.effects[U.VENOM_EFFECT] = 3
 fire("H2HWeapons_VenomStrike", { victim = enemyB })
-check(not player.interface.isBurstArmed(), "a strike on someone else starts the count over")
+check(not burstsNext(), "a strike on someone else starts the count over")
 fire("H2HWeapons_VenomStrike", { victim = enemyB })
 st.time = st.time + U.BURST_CHAIN + 0.5
-check(not player.interface.isBurstArmed(), "once the countdown runs out, the run is over")
+check(not burstsNext(), "once the countdown runs out, the run is over")
 fire("H2HWeapons_VenomStrike", { victim = enemyB })
-check(not player.interface.isBurstArmed(), "and the next strike starts a new one")
+check(not burstsNext(), "and the next strike starts a new one")
 st.time = st.time + 2.5
 fire("H2HWeapons_VenomStrike", { victim = enemyB })
 st.time = st.time + 2.5
-check(player.interface.isBurstArmed(),
+check(burstsNext(),
       "each strike renews the countdown, so a run can last longer than one countdown")
 
 -- The swing that bursts.
 st.globalEvents = {}
 playWeapon("slash start")
-local staged = lastGlobal("H2HWeapons_StageBurst")
+local staged = lastGlobal("H2HWeapons_StageCopy")
 check(staged and staged.item == rose, "winding up the third strike asks for the burst copy")
 local copy = stubs.object({ recordId = "Generated:0x99", isItem = true })
 st.weaponRecords["generated:0x99"] = { type = 0, model = "meshes/ebony_rose.nif", enchant = "h2h_ebonyrose_burst_en" }
-fire("H2HWeapons_BurstStaged", { original = rose, copy = copy })
+fire("H2HWeapons_CopyStaged", { original = rose, copy = copy })
 check(st.equipped == copy, "the copy goes in the hand for the swing")
 onUpdate(0.016)
 check(st.equipped == copy, "and stays there through the swing")
 playWeapon("slash large follow start")
 check(st.equipped == rose, "the follow-through puts the original back")
-local done = lastGlobal("H2HWeapons_BurstDone")
+local done = lastGlobal("H2HWeapons_CopyDone")
 check(done and done.copy == copy and done.original == rose, "and hands the copy back to be folded in")
 fire("H2HWeapons_VenomStrike", { burst = true })
-check(not player.interface.isBurstArmed(), "a burst that went off starts the count over")
+check(not burstsNext(), "a burst that went off starts the count over")
 
 -- A copy that comes after the swing is over is sent straight back.
 for _ = 1, 2 do
@@ -378,13 +373,13 @@ end
 playWeapon("chop start")
 playWeapon("chop small follow start")
 st.globalEvents = {}
-fire("H2HWeapons_BurstStaged", { original = rose, copy = copy })
+fire("H2HWeapons_CopyStaged", { original = rose, copy = copy })
 check(st.equipped == rose, "a copy that arrives after the swing is not put in the hand")
-check(lastGlobal("H2HWeapons_BurstDone") ~= nil, "but returned")
+check(lastGlobal("H2HWeapons_CopyDone") ~= nil, "but returned")
 
 -- Sheathing mid-swing puts the original back.
 playWeapon("thrust start")
-fire("H2HWeapons_BurstStaged", { original = rose, copy = copy })
+fire("H2HWeapons_CopyStaged", { original = rose, copy = copy })
 check(st.equipped == copy, "copy in hand")
 st.stance = 0
 onUpdate(0.016)
@@ -397,10 +392,23 @@ st.time = st.time + 10
 st.globalEvents = {}
 playWeapon("slash start")
 playWeapon("slash large follow start")
-check(lastGlobal("H2HWeapons_StageBurst") == nil, "an unarmed swing is an ordinary swing")
+check(lastGlobal("H2HWeapons_StageCopy") == nil, "an unarmed swing is an ordinary swing")
 
 -- Mage Fury.
 local furyItem = stubs.object({ recordId = "knuckle_mage_fury", isItem = true })
+-- The enchantment carrying a spell's share, as global.lua makes it, and the copy of the knuckles that
+-- carries it for a swing.
+local SHARE = "Generated:0x76"
+local furyCopy = stubs.object({ recordId = "Generated:0x77", isItem = true })
+-- The strikes left on Mage Fury's charge, as the active effects show them.
+local function furyStrikes()
+    for _, spell in ipairs(st.activeSpells or {}) do
+        for strikes, id in ipairs(U.MAGE_FURY_CHARGE_SPELLS) do
+            if spell.id == id then return strikes end
+        end
+    end
+    return 0
+end
 st.equipped = furyItem
 st.stance = 0 -- casting puts the weapon away
 onUpdate(0.016)
@@ -420,67 +428,90 @@ st.equipped = furyItem
 onUpdate(0.016)
 
 st.activeSpells = {}
-fire("H2HWeapons_MageFuryCharged", { spell = "generated:0x7", name = "Fireball" })
-check(player.interface.mageFuryStrikes() == 3, "charged for three strikes")
+fire("H2HWeapons_MageFuryCharged", { enchant = SHARE, name = "Fireball" })
+check(furyStrikes() == 3, "charged for three strikes")
 check(#st.activeSpells == 1 and st.activeSpells[1].id == U.MAGE_FURY_CHARGE_SPELLS[3],
       "shown in the active effects with three strikes left")
 check(st.activeSpells[1] and st.activeSpells[1].options.name == "Mage Fury: Fireball", "under the spell's name",
       st.activeSpells[1] and st.activeSpells[1].options.name)
-check(player.interface.isCharged(), "the crystal is charged")
 st.stance = 1
 st.vfxById = {}
 for _ = 1, 3 do onUpdate(0.016) end
 check(st.vfxById["H2HWeapons_Charge_R"] ~= nil, "and glows once the knuckles are drawn")
 
 local victim = stubs.object({ name = "victim" })
--- The engine charges every strike at the enchantment's price, or refuses when there is too little;
--- the wind-up sees the charge before, the report after.
-local function furyStrike(before, after)
+st.skills.handtohand = { base = 50, modifier = 0, damage = 0 }
+st.skills.bluntweapon = { base = 10, modifier = 0, damage = 0 }
+-- A swing. The wind-up sees the knuckles' charge; a copy, if one is asked for, comes into the hand -
+-- or, `late`, only after the blow; the engine strikes with whatever is in hand, charging it at its
+-- enchantment's price or refusing with too little left; and the strike is reported.
+local function furyStrike(before, after, late)
     furyItem.data = { enchantmentCharge = before }
+    st.globalEvents = {}
     playWeapon("slash start")
-    furyItem.data = { enchantmentCharge = after }
+    local asked = lastGlobal("H2HWeapons_StageCopy")
+    local struck, skillHeld = furyItem, nil
+    if asked and not late then
+        furyCopy.data = { enchantmentCharge = before }
+        fire("H2HWeapons_CopyStaged", { original = furyItem, copy = furyCopy })
+        onUpdate(0.016)
+        struck, skillHeld = st.equipped, st.skills.bluntweapon.modifier
+    end
+    struck.data = { enchantmentCharge = after }
     st.events, st.globalEvents, st.messages = {}, {}, {}
-    fire("H2HWeapons_MageFuryStrike", { victim = victim, item = furyItem })
+    fire("H2HWeapons_MageFuryStrike", { victim = victim, item = struck })
     local use = lastGlobal("H2HWeapons_ChargeUse")
-    local carried = lastEvent("H2HWeapons_MageFuryDischarge")
     playWeapon("slash large follow start")
-    return use and use.delta, carried
+    if asked and late then fire("H2HWeapons_CopyStaged", { original = furyItem, copy = furyCopy }) end
+    return use and use.delta, asked, struck, skillHeld
 end
-local refund, discharge = furyStrike(200, 190)
-check(discharge and discharge.target == victim and discharge.data.spell == "generated:0x7",
-      "a strike hands the victim the stored share")
-check(refund == nil, "and keeps what the engine charged for it")
-check(player.interface.mageFuryStrikes() == 2, "and spends a charge")
+local refund, asked, struck, skillHeld = furyStrike(200, 190)
+check(asked and asked.item == furyItem and asked.enchant == SHARE,
+      "a charged swing asks for a copy of the knuckles carrying the spell's share")
+check(struck == furyCopy, "and strikes with it, so the engine casts the share as any weapon's enchantment")
+check(skillHeld == 40, "the skill swing rolls with stays while the copy is in hand", skillHeld)
+check(st.equipped == furyItem and st.skills.bluntweapon.modifier == 0,
+      "and the follow-through puts the knuckles and the skill back")
+check(lastGlobal("H2HWeapons_CopyDone") and lastGlobal("H2HWeapons_CopyDone").copy == furyCopy,
+      "folding the copy back into them")
+check(refund == nil, "what the engine charged for the spell stays paid")
+check(furyStrikes() == 2, "and a strike of the charge is spent")
 check(#st.activeSpells == 1 and st.activeSpells[1].id == U.MAGE_FURY_CHARGE_SPELLS[2],
       "the display counts down, one entry at a time", #st.activeSpells)
-refund, discharge = furyStrike(190, 184)
-check(discharge ~= nil and refund == nil, "whatever the engine charged - less, with a better Enchant skill")
+refund, asked = furyStrike(190, 184)
+check(asked and refund == nil and furyStrikes() == 1, "whatever the engine charged - less, with a better Enchant skill")
 st.godMode = true
-refund, discharge = furyStrike(5, 5)
-check(discharge ~= nil and refund == nil, "in god mode the engine charges nothing, and the spell still goes")
+refund, asked = furyStrike(5, 5)
+check(asked and refund == nil and furyStrikes() == 0, "in god mode the engine charges nothing, and the spell still goes")
 st.godMode = false
-fire("H2HWeapons_MageFuryCharged", { spell = "generated:0x7", name = "Fireball" })
+fire("H2HWeapons_MageFuryCharged", { enchant = SHARE, name = "Fireball" })
 furyStrike(200, 190)
 furyStrike(190, 184)
-refund, discharge = furyStrike(5, 5)
-check(discharge == nil and refund == nil, "a strike the engine refused, too little left, carries nothing")
+refund, asked = furyStrike(5, 5)
+check(asked and refund == nil, "a strike the engine refused, too little left, carried nothing")
 check(#st.messages == 0, "and it is the engine that says so, not this")
-check(player.interface.mageFuryStrikes() == 1, "the spell stays channelled")
+check(furyStrikes() == 1, "the spell stays channelled")
 furyStrike(184, 174)
-check(player.interface.mageFuryStrikes() == 0, "three strikes spend it")
+check(furyStrikes() == 0, "three strikes spend it")
 check(#st.activeSpells == 0, "and the display goes")
 onUpdate(0.016)
 check(st.vfxById["H2HWeapons_Charge_R"] == nil, "and so does the glow")
-refund, discharge = furyStrike(174, 164)
-check(discharge == nil, "an uncharged strike carries nothing")
-check(refund == 10, "and costs nothing: what the engine took goes back", refund)
+refund, asked = furyStrike(174, 164)
+check(asked == nil, "an uncharged swing asks for no copy")
+check(refund == 10, "and costs nothing: what the knuckles' own enchantment took goes back", refund)
 refund = furyStrike(0, 0)
 check(refund == nil, "empty, the engine took nothing, so nothing goes back")
 
-fire("H2HWeapons_MageFuryCharged", { spell = "generated:0x7", name = "Fireball" })
+fire("H2HWeapons_MageFuryCharged", { enchant = SHARE, name = "Fireball" })
+refund, asked = furyStrike(200, 184, true)
+check(asked and refund == 16, "a swing let go before its copy came strikes with the knuckles, which gets its price back")
+check(furyStrikes() == 3, "and the charge waits for the next")
+check(lastGlobal("H2HWeapons_CopyDone") and lastGlobal("H2HWeapons_CopyDone").copy == furyCopy,
+      "the copy that came late goes back")
+
 st.time = st.time + U.MAGE_FURY_FADE + 1
 onUpdate(0.016)
-check(player.interface.mageFuryStrikes() == 0, "an unused charge fades")
+check(furyStrikes() == 0, "an unused charge fades")
 
 -- Casts made by Spell Framework Plus (Oblivion-Style Spell Casting) are reported by name.
 st.spellRecords["fireball"] = st.spellRecords["fireball"] or { id = "fireball", name = "Fireball", effects = {} }
@@ -505,13 +536,13 @@ check(#charges() == 0, "and a skill use reported for the same cast is not taken 
 
 st.time = st.time + 5
 st.globalEvents = {}
-fire("H2HWeapons_MageFuryCharged", { spell = "generated:0x7", name = "Fireball" })
+fire("H2HWeapons_MageFuryCharged", { enchant = SHARE, name = "Fireball" })
 stubs.I.SkillProgression.skillUsed("destruction", { useType = 0 })
 check(charges()[1] == "fireball", "a skill use alone charges from the selected spell")
 fire("MagExp_CastResult", { spellId = "frostbite", success = true })
 local order = charges()
 check(order[2] == "frostbite", "but the report that follows it names the spell that was actually cast", order[2])
-check(player.interface.mageFuryStrikes() == 0, "and the charge taken from the selected spell is undone first")
+check(furyStrikes() == 0, "and the charge taken from the selected spell is undone first")
 
 st.time = st.time + 5
 st.globalEvents = {}
@@ -526,7 +557,7 @@ player.engineHandlers.onLoad(saved)
 st.globalEvents = {}
 onUpdate(0.016)
 check(st.equipped == rose, "a load mid-burst puts the original back")
-check(lastGlobal("H2HWeapons_BurstDone") ~= nil, "and returns the copy")
+check(lastGlobal("H2HWeapons_CopyDone") ~= nil, "and returns the copy")
 
 --- the global side --------------------------------------------------------------------------------------
 local global = require("scripts.MaxYari.H2HWeapons.global")
@@ -551,11 +582,15 @@ st.events = {}
 global.eventHandlers.H2HWeapons_ChargeMageFury({ actor = playerObject, spell = "fireball" })
 local charged = lastEvent("H2HWeapons_MageFuryCharged")
 check(charged and charged.target == playerObject, "the global answers the wielder")
-local share = charged and st.spellRecords[string.lower(charged.data.spell)]
-check(share ~= nil, "with a spell record of its own")
-check(share and #share.effects == 2, "holding only the harmful effects that reach past the caster",
-      share and #share.effects)
-local fire1, para = share and share.effects[1], share and share.effects[2]
+local share = charged and st.enchantRecords[string.lower(charged.data.enchant)]
+check(share ~= nil, "with an enchantment of its own")
+check(share and share.type == 1 and share.cost == U.MAGE_FURY_COST
+      and share.charge == U.MAGE_FURY_COST * U.STRIKES_PER_CHARGE and share.isAutocalc == false,
+      "cast on strike, at a channelled strike's price, holding what the knuckles hold")
+check(share and #share.effects == 3 and share.effects[1].id == U.MAGE_FURY_EFFECT,
+      "the knuckles' own effect first, so their shimmer keeps its colour",
+      share and share.effects[1] and share.effects[1].id)
+local fire1, para = share and share.effects[2], share and share.effects[3]
 check(fire1 and fire1.magnitudeMin == 10 and fire1.magnitudeMax == 20, "at a third of the magnitude",
       fire1 and (fire1.magnitudeMin .. "-" .. fire1.magnitudeMax))
 check(fire1 and fire1.duration == 5, "for the whole duration")
@@ -566,6 +601,7 @@ check(charged and charged.data.name == "Fireball", "named for the spell it came 
 local made = st.created
 global.eventHandlers.H2HWeapons_ChargeMageFury({ actor = playerObject, spell = "Fireball" })
 check(st.created == made, "a spell cast again reuses its share")
+check(lastEvent("H2HWeapons_MageFuryCharged").data.enchant == charged.data.enchant, "the same enchantment")
 st.events = {}
 global.eventHandlers.H2HWeapons_ChargeMageFury({ actor = playerObject, spell = "heal" })
 check(lastEvent("H2HWeapons_MageFuryCharged") == nil, "a spell with nothing to hand on does not charge")
@@ -582,8 +618,8 @@ check(knuckles.data.enchantmentCharge == 100, "and given back, never past what t
 global.eventHandlers.H2HWeapons_ChargeUse({ item = knuckles, delta = -500 })
 check(knuckles.data.enchantmentCharge == 0, "or below nothing")
 
-global.eventHandlers.H2HWeapons_StageBurst({ actor = playerObject, item = original })
-local stagedEvent = lastEvent("H2HWeapons_BurstStaged")
+global.eventHandlers.H2HWeapons_StageCopy({ actor = playerObject, item = original, enchant = U.BURST_ENCHANT })
+local stagedEvent = lastEvent("H2HWeapons_CopyStaged")
 local burstCopy = stagedEvent and stagedEvent.data.copy
 check(burstCopy ~= nil, "staging a burst makes a copy")
 check(burstCopy and st.weaponRecords[string.lower(burstCopy.recordId)].enchant == U.BURST_ENCHANT,
@@ -595,18 +631,37 @@ check(burstCopy and burstCopy.data.condition == 500 and burstCopy.data.enchantme
 check(burstCopy and burstCopy.movedInto and burstCopy.movedInto.owner == playerObject, "into the wielder's inventory")
 
 made = st.created
-global.eventHandlers.H2HWeapons_StageBurst({ actor = playerObject, item = original })
+global.eventHandlers.H2HWeapons_StageCopy({ actor = playerObject, item = original, enchant = U.BURST_ENCHANT })
 check(st.created == made + 1, "a second burst makes a new item but not a new record", st.created - made)
 
+-- Mage Fury's channelled swing: a copy of the knuckles carrying the spell's share.
+st.weaponRecords["knuckle_mage_fury"] = st.weaponRecords["knuckle_mage_fury"]
+st.events = {}
+global.eventHandlers.H2HWeapons_StageCopy({ actor = playerObject, item = knuckles, enchant = charged.data.enchant })
+local furyStaged = lastEvent("H2HWeapons_CopyStaged")
+local furyRecord = furyStaged and st.weaponRecords[string.lower(furyStaged.data.copy.recordId)]
+check(furyRecord and furyRecord.enchant == charged.data.enchant and furyRecord.model == "meshes/mage_fury.nif",
+      "a channelled swing's copy carries the share, and is otherwise the knuckles - the glow's mesh and all")
+check(furyStaged and furyStaged.data.copy.data.enchantmentCharge == knuckles.data.enchantmentCharge,
+      "with the knuckles' charge")
+
 burstCopy.data.condition, burstCopy.data.enchantmentCharge = 480, 296
-global.eventHandlers.H2HWeapons_BurstDone({ original = original, copy = burstCopy })
+global.eventHandlers.H2HWeapons_CopyDone({ original = original, copy = burstCopy })
 check(original.data.condition == 480 and original.data.enchantmentCharge == 296,
       "the swing's wear and charge are folded back into the original")
 check(burstCopy.removed == true, "and the copy is gone")
 
 local savedGlobal = global.engineHandlers.onSave()
-check(savedGlobal and next(savedGlobal.furySpells) and next(savedGlobal.burstWeapons),
+check(savedGlobal and next(savedGlobal.furyEnchants) and next(savedGlobal.copyWeapons),
       "what was made is remembered in the save")
+
+-- A save from before the copies were shared kept the burst's by weapon alone; they are still used.
+global.engineHandlers.onLoad({ burstWeapons = { katar_ebony_rose = burstCopy.recordId } })
+made = st.created
+st.events = {}
+global.eventHandlers.H2HWeapons_StageCopy({ actor = playerObject, item = original, enchant = U.BURST_ENCHANT })
+check(st.created == made + 1 and lastEvent("H2HWeapons_CopyStaged").data.copy.recordId == burstCopy.recordId,
+      "an older save's burst copy is used, not made again", st.created - made)
 
 print(string.format("\n%d checks, %d failures", checks, fails))
 os.exit(fails == 0 and 0 or 1)

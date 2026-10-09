@@ -14,14 +14,9 @@ __pycache__/
 /README.nexus.bbcode
 imgs/
 
-# Blender sources and the scripts that build the meshes from them. The skeleton patcher is the
-# exception: users run that one themselves when another mod replaces the skeletons.
-Sources/*
-!Sources/Tools/
-Sources/Tools/*
-!Sources/Tools/patch_skeleton.py
-!Sources/Tools/mirror_weapon_track.py
-!Sources/Tools/mirror_bone.py
+# Blender and art sources, and the scripts that build the mod from them - all of it in the git
+# repository only (Sources/Tools/README.md and tools/README.md there say how to use them).
+Sources/
 *.blend
 *.blend1
 *.rar

@@ -16,6 +16,23 @@
 local types = require('openmw.types')
 
 local CARRIED_LEFT = types.Actor.EQUIPMENT_SLOT.CarriedLeft
+local CARRIED_RIGHT = types.Actor.EQUIPMENT_SLOT.CarriedRight
+
+-- The weapons the engine counts as taking both hands (weapontype.cpp, TwoHanded). Equipping one
+-- takes the shield or torch off (MWClass::Weapon::canBeEquipped, ActionEquip), so with one in the
+-- right hand nothing goes back in the left.
+local T = types.Weapon.TYPE
+local TWO_HANDED = {
+    [T.LongBladeTwoHand] = true, [T.AxeTwoHand] = true, [T.BluntTwoClose] = true, [T.BluntTwoWide] = true,
+    [T.SpearTwoWide] = true, [T.MarksmanBow] = true, [T.MarksmanCrossbow] = true,
+}
+
+local function holdsTwoHanded(actor)
+    local weapon = types.Actor.getEquipment(actor, CARRIED_RIGHT)
+    if weapon == nil or not types.Weapon.objectIsInstance(weapon) then return false end
+    local record = types.Weapon.record(weapon)
+    return record ~= nil and TWO_HANDED[record.type] == true
+end
 
 local M = {}
 
@@ -36,12 +53,15 @@ function M.new(actor)
         taken, takenId = nil, nil
         -- Something went in with another weapon meanwhile: that stays.
         if types.Actor.getEquipment(actor, CARRIED_LEFT) ~= nil then return end
+        -- Swapped for a two-handed weapon: there is no hand for it, as there would not have been in
+        -- the engine's case. It stays in the inventory.
+        if holdsTwoHanded(actor) then return end
         if item and item:isValid() and item.count > 0 then
             -- Dropped, sold or put away somewhere, it is gone, as it would be from the hand.
             if item.parentContainer == actor.object then setLeft(actor, item) end
             return
         end
-        -- Stacked back in with the rest of its kind: one of them goes back, which the engine finds by id.
+        -- Stacked back in with the rest of its kind: one of them goes back, found by its id.
         if types.Actor.inventory(actor):find(id) then setLeft(actor, id) end
     end
 

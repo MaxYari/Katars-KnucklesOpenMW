@@ -61,10 +61,11 @@ I.Settings.registerGroup {
 -- Both kinds are made once and kept: world.createRecord records live in the save, and the ids that
 -- point at them are saved here, so nothing is made twice.
 local made = {
-    -- [lowercased weapon id] = id of its copy carrying the burst enchantment
-    burstWeapons = {},
-    -- [lowercased spell id] = id of its Mage Fury share
-    furySpells = {},
+    -- ["<lowercased weapon id>|<lowercased enchantment id>"] = id of a copy of that weapon carrying
+    -- that enchantment, for one swing (swingcopy.lua)
+    copyWeapons = {},
+    -- [lowercased spell id] = id of the enchantment that carries Mage Fury's share of it
+    furyEnchants = {},
     -- ["<tier>:<Conjuration step>:<settings>"] = id of that tier's bound fist, scaled
     boundWeapons = {},
     -- The player's last report of how bound items scale (see player.lua): Unofficial TR Spells'
@@ -76,23 +77,24 @@ local made = {
     jinkbladeRecharged = false,
 }
 
---- Ebony Rose's burst -------------------------------------------------------------------------------
--- An item cannot change its enchantment, and the burst is a different one. So for the one swing that
--- bursts, the player holds a copy of the katar that carries it: made here, handed over, and folded
--- back into the original - charge and wear - the moment the swing is over. The original never
--- leaves the inventory, so hotkeys and the inventory screen never see a different weapon.
-local function burstWeaponFor(original)
-    local key = string.lower(original.recordId)
-    local id = made.burstWeapons[key]
+--- A swing's copy of the weapon ------------------------------------------------------------------------
+-- An item cannot change its enchantment, so the swing that strikes with another one - Ebony Rose's
+-- burst, Mage Fury's channelled spell - is made with a copy of the weapon that carries it: made here,
+-- handed over, and folded back into the original - charge and wear - the moment the swing is over
+-- (swingcopy.lua). The original never leaves the inventory, so hotkeys and the inventory screen never
+-- see a different weapon.
+local function copyWeaponFor(original, enchant)
+    local key = string.lower(original.recordId) .. "|" .. string.lower(enchant)
+    local id = made.copyWeapons[key]
     if id and types.Weapon.record(id) then return id end
 
     local base = types.Weapon.record(original.recordId)
     if base == nil then return nil end
     id = world.createRecord(types.Weapon.createRecordDraft({
         template = base,
-        enchant = U.BURST_ENCHANT,
+        enchant = enchant,
     })).id
-    made.burstWeapons[key] = id
+    made.copyWeapons[key] = id
     return id
 end
 
@@ -104,22 +106,22 @@ local function copyItemData(from, to)
     target.enchantmentCharge = source.enchantmentCharge
 end
 
-local function stageBurst(e)
+local function stageCopy(e)
     local actor, original = e.actor, e.item
-    if actor == nil or original == nil or not original:isValid() then return end
+    if actor == nil or original == nil or not original:isValid() or e.enchant == nil then return end
 
-    local id = burstWeaponFor(original)
+    local id = copyWeaponFor(original, e.enchant)
     if id == nil then
-        actor:sendEvent("H2HWeapons_BurstStaged", {})
+        actor:sendEvent("H2HWeapons_CopyStaged", {})
         return
     end
     local copy = world.createObject(id, 1)
     copyItemData(original, copy)
     copy:moveInto(types.Actor.inventory(actor))
-    actor:sendEvent("H2HWeapons_BurstStaged", { original = original, copy = copy })
+    actor:sendEvent("H2HWeapons_CopyStaged", { original = original, copy = copy })
 end
 
-local function burstDone(e)
+local function copyDone(e)
     local copy, original = e.copy, e.original
     if copy == nil or not copy:isValid() then return end
     if original ~= nil and original:isValid() then copyItemData(copy, original) end
@@ -127,17 +129,23 @@ local function burstDone(e)
 end
 
 --- Mage Fury's share of a spell ---------------------------------------------------------------------
--- What a strike carries: the spell's harmful effects that reach past the caster, at a third of their
--- magnitude (a third of their duration, for one that has none), delivered by touch. A spell with
--- nothing like that - a heal, a feather - does not charge the knuckles at all.
+-- What a channelled strike carries: the spell's harmful effects that reach past the caster, at a
+-- third of their magnitude (a third of their duration, for one that has none), delivered by touch -
+-- as a cast-on-strike enchantment, which the knuckles' copy for that swing carries, so the engine
+-- strikes with it as with any enchanted weapon. A spell with nothing like that - a heal, a feather -
+-- does not charge the knuckles at all.
+--
+-- The knuckles' own effect goes first, doing nothing as it does on them: an enchanted weapon's
+-- shimmer takes the colour of its enchantment's first effect (Class::getEnchantmentColor), so the
+-- knuckles look the same through the swing.
 local function share(value)
     return math.max(1, math.floor(value * U.MAGE_FURY_SHARE + 0.5))
 end
 
-local function furySpellFor(spellId)
+local function furyEnchantFor(spellId)
     local key = string.lower(spellId)
-    local id = made.furySpells[key]
-    if id and core.magic.spells.records[id] then return id end
+    local id = made.furyEnchants[key]
+    if id and core.magic.enchantments.records[id] then return id end
 
     local spell = core.magic.spells.records[spellId]
     if spell == nil then return nil end
@@ -168,24 +176,27 @@ local function furySpellFor(spellId)
         end
     end
     if #effects == 0 then return nil end
+    if core.magic.effects.records[U.MAGE_FURY_EFFECT] then
+        table.insert(effects, 1, { id = U.MAGE_FURY_EFFECT, range = TOUCH, area = 0, duration = 0 })
+    end
 
-    id = world.createRecord(core.magic.spells.createRecordDraft({
-        name = spell.name,
-        type = core.magic.SPELL_TYPE.Spell,
-        cost = 0,
+    id = world.createRecord(core.magic.enchantments.createRecordDraft({
+        type = core.magic.ENCHANTMENT_TYPE.CastOnStrike,
+        cost = U.MAGE_FURY_COST,
+        charge = U.MAGE_FURY_COST * U.STRIKES_PER_CHARGE,
         isAutocalc = false,
         effects = effects,
     })).id
-    made.furySpells[key] = id
+    made.furyEnchants[key] = id
     return id
 end
 
 local function chargeMageFury(e)
     if e.actor == nil or e.spell == nil then return end
-    local id = furySpellFor(e.spell)
+    local id = furyEnchantFor(e.spell)
     if id == nil then return end
     local spell = core.magic.spells.records[e.spell]
-    e.actor:sendEvent("H2HWeapons_MageFuryCharged", { spell = id, name = spell and spell.name or "" })
+    e.actor:sendEvent("H2HWeapons_MageFuryCharged", { enchant = id, name = spell and spell.name or "" })
 end
 
 -- Charge taken from, or given back to, an enchanted item - which only a global script may change on
@@ -339,8 +350,8 @@ end
 
 return {
     eventHandlers = {
-        H2HWeapons_StageBurst = stageBurst,
-        H2HWeapons_BurstDone = burstDone,
+        H2HWeapons_StageCopy = stageCopy,
+        H2HWeapons_CopyDone = copyDone,
         H2HWeapons_ChargeMageFury = chargeMageFury,
         H2HWeapons_ChargeUse = chargeUse,
         H2HWeapons_SummonFist = summonFist,
@@ -354,8 +365,12 @@ return {
         onSave = function() return made end,
         onLoad = function(data)
             if not data then return end
-            made.burstWeapons = data.burstWeapons or {}
-            made.furySpells = data.furySpells or {}
+            made.copyWeapons = data.copyWeapons or {}
+            -- Saves from before the copies were shared: the burst's were keyed by weapon alone.
+            for weapon, id in pairs(data.burstWeapons or {}) do
+                made.copyWeapons[weapon .. "|" .. string.lower(U.BURST_ENCHANT)] = id
+            end
+            made.furyEnchants = data.furyEnchants or {}
             made.boundWeapons = data.boundWeapons or {}
             made.boundScaling = data.boundScaling or made.boundScaling
             made.roseGiven = data.roseGiven or false

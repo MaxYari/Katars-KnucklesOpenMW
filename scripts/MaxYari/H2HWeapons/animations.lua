@@ -1,7 +1,8 @@
 -- The hand-to-hand moveset, registered with ReAnimation, for every hybrid weapon whose definition
--- asks for it (moveset: handToHand): ReAnimation's own hand-to-hand set, imported under the katar's
--- names by Sources/Tools/import_h2h_set.py (Weapon Bone seated for the katar grip and mirrored onto
--- Weapon Bone.L on the way), and played over the one-handed groups the engine uses for these weapons
+-- asks for it (moveset: handToHand): ReAnimation's own hand-to-hand set, brought into this mod's
+-- blend under the katar's names, with Weapon Bone seated for the katar grip and Weapon Bone.L keyed
+-- at its mirror, and exported from there (Sources/Tools/export_katar_anims.py) - and played over the
+-- one-handed groups the engine uses for these weapons
 -- - a katar is a short blade (1s), knuckledusters blunt (1b) as a one-handed axe is, and any of them
 -- falls back to the generic one-handed animations (1h) when those have none (character.cpp:795),
 -- which a one-handed long blade plays anyway. Everything here lists all three rather than guessing.

@@ -156,8 +156,8 @@ scaled by 50% for a katar or 75% for knuckledusters (the definitions' `fatigueDa
 Hand 50, a full swing bruises for
 25 with a bare fist, 12.5 with a katar and 18.75 with knuckledusters.
 
-With the launcher's **strength influences hand to hand** option on (Advanced -> Combat), that is
-multiplied by Strength / 40, as a fist's is. No script can read that option, so this mod has a
+With the launcher's **Factor Strength into Hand-to-Hand Combat** option on (Settings -> Gameplay),
+that is multiplied by Strength / 40, as a fist's is. No script can read that option, so this mod has a
 mirror of it in its settings: set it to match the launcher.
 
 It behaves as a fist's does in every other way too:
@@ -175,7 +175,7 @@ This works for NPCs swinging these weapons as well as for you.
 ### The off-hand weapon
 
 A second copy of the weapon is put in your left hand while the weapon is drawn, hanging off a
-`Weapon Bone.L` bone that this mod's skeleton meshes add beside the engine's own weapon bone. See
+`Weapon Bone.L` bone that this mod grafts onto the skeletons beside the engine's own weapon bone. See
 *Compatibility* below, and turn it off in the settings if it gets in the way.
 
 Animations pose the weapon bone to seat a weapon in the grip, so the off-hand one needs the same
@@ -197,7 +197,7 @@ Drawing a short blade or a blunt weapon plays a sound. Bare hands do not, and ne
 
 ### Swing sounds
 
-With Combat Sounds Overhaul Overhauled, a katar swings with a fist's whoosh and its own sharp one,
+With [Combat Sounds Overhaul Overhauled](https://www.nexusmods.com/morrowind/mods/60361), a katar swings with a fist's whoosh and its own sharp one,
 softer, under it; knuckledusters with a fist's alone (`swingSounds` in their definitions).
 
 ### NPCs
@@ -283,8 +283,12 @@ point less than the iron set at each end (3-5).
 - **Cast a harmful spell successfully with them equipped** and they take a charge of it: the crystal
   lights up, and "Channeled Spell" shows in your active effects with the strikes left.
 - The **next 3 strikes** deal damage in proportion to that spell: each carries a third of its harmful
-  effects - its magnitude, or its duration for an effect that has none - into whoever it hits.
-  Applied by the engine, so resistances, reflection and kill credit are the spell's own.
+  effects - its magnitude, or its duration for an effect that has none - into whoever it hits. The
+  share is a cast-on-strike enchantment, and each of those swings is made with a copy of the knuckles
+  carrying it, as the Rose's burst is: the engine strikes with it as with any enchanted weapon, so
+  the sounds, looks, resistances, reflection and kill credit are all its own. A swing let go the
+  moment it winds up can land before the copy is in hand; it carries nothing, and the charge waits
+  for the next one.
 - **Charge:** 160. A strike that carries the spell costs 16 - 10 of them to a full charge - and any
   other strike costs nothing. With too little left, the game refuses the strike's enchantment as it
   would any weapon's, and the spell stays in the knuckles until they are recharged.
@@ -340,8 +344,8 @@ player->addspell h2h_bound_fist
 
 Options -> Scripts -> Katars and Knuckledusters.
 
-- **Strength influences hand to hand** (default Off) - must match the launcher option of the same
-  name.
+- **Factor Strength into Hand-to-Hand Combat** (default Off) - must match the launcher option of
+  the same name.
 - **Show the off-hand weapon** (on).
 - **Silence the draw and sheathe sound** (on).
 
@@ -518,7 +522,7 @@ or one made by [Spell Framework Plus](https://www.nexusmods.com/morrowind/mods/5
 Oblivion-Style Spell Casting casts, for the player and for NPCs - from the report it sends the caster.
 Anything else still binds the player's Bound Fist, from the effect itself, within half a second.
 
-**Textures.** Vanilla ones (Morrowind.bsa and Tribunal.bsa) are used as they are and nothing is
+**Textures.** Vanilla ones (Morrowind.bsa, Tribunal.bsa and Bloodmoon.bsa) are used as they are and nothing is
 overwritten, so retexture packs carry straight over. Textures baked for this mod live under
 `textures/katars/`, and the venom's violet recolours of the vanilla poison effects under
 `textures/katars_vfx/` - their own files, so the ordinary poison is untouched.
@@ -526,109 +530,51 @@ overwritten, so retexture packs carry straight over. Textures baked for this mod
 
 ## Building from source
 
-`Reanimv  starts Katsr.blend` holds the weapons and the rig. Everything built from it is built by a
-script, so a rebuild is reproducible:
+`Reanimv  starts Katsr.blend` holds the weapons, their animations and the rig; the textures are baked,
+and the meshes exported, from a copy of it, `Katars_bake_work.blend`. Everything built from them is
+built by a script, so a rebuild is reproducible. What each script does, and how to run it:
 
-- `Sources/Tools/export_weapons.py` - exports every weapon empty to its own `.nif`, centred on the
-  grip bar. Superseded by `tools/mw_export.py`, which is what produces the shipped meshes now; this
-  one is kept because it documents the grip-bar centring the records depend on.
-- `Sources/Tools/import_h2h_set.py` - no longer used: it made the katar moveset by patching
-  ReAnimation's exported `.kf` files. The blend is the source now; `import_h2h_actions.py` brings the
-  actions in and `export_katar_anims.py` exports them.
-- `Sources/Tools/make_third_person_anims.py` - makes the third-person moveset from the first-person
-  one, with ReAnimation's FBA merge (`Sources/Tools/FBACompat/fba_merge.py` in its repository, found
-  beside this mod): our upper body over the legs, hips and root motion of vanilla's third-person
-  hand-to-hand, their time warped through the text keys both share so ours are kept exactly - the
-  attack timings are ours - and footsteps matched to footsteps. No chest lean, the whole hip lunge.
-  Morrowind's skeletons hang the thighs (and a beast's tail) off `Bip01 Spine`, so when the merge
-  turns the spine to keep our upper body upright, they are turned back. The walk, run and sneak are
-  different: in game they play from the chest up only, over the one-handed walk's legs and spine, so
-  their chest (`Bip01 Spine1`, where the engine's upper body starts) is keyed to sit on the vanilla
-  one-handed walk's spine as it is on average, taking that walk's sway and lean with it. The upper body's bone offsets are moved from the first-person skeleton's to the third-person
-  one's, except the weapon bones': both views' hand meshes put the palm in the same place on the hand
-  bone, so the katar keeps its first-person seat. The third-person hand has two-joint fingers, the
-  last three as one, so the fingers are fitted rather than copied (`third_person_fingers.py`): the
-  first-person hand mesh is posed with the animation and the third-person finger rotations that put
-  the same vertices in the same places are solved for. Through every swing and draw the head keeps looking ahead as it does in the idle: in first
-  person the head turns into a punch with the rest of the upper body, up to 95 degrees, which the
-  camera never shows. The engine's head tracking still turns it toward whoever an NPC fights. Reads
-  the vanilla animations out of Morrowind.bsa. Re-run it after every export of the
-  first-person set. There are no katar turns: in third person `animations.lua` narrows the one-handed
-  turn to the lower body while a katar or knuckleduster is in hand, and the katar idle, which the
-  engine keeps playing through a turn, shows above it.
-- `Sources/Tools/patch_skeleton.py` - adds `Weapon Bone.L`: `--bones-out Animations` writes the
-  grafted-bone files, `-o meshes` the patched skeleton copies.
-- `Sources/Tools/mirror_weapon_track.py` - gives `Weapon Bone.L` the mirrored keyframe track of
-  `Weapon Bone` in a `.kf`. The katar's own animations do not need it - the blend keys the bone and
-  the export keeps it, identical to what this writes - but any other animation can be given the
-  track with it (see above).
-- `Sources/Tools/mirror_bone.py` - the one definition of how this rig mirrors, shared by both of
-  the above. Run it directly to self-test the quaternion maths.
-- `Sources/Tools/make_test_crate.py` - writes `Katars_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon`:
-  a crate with one of every item this mod adds, by the stump with the axe in it near the Seyda Neen
-  lighthouse. For testing only, left out of the release. Re-run it after adding an item.
-- `Sources/Tools/make_plugin.py` - writes `Katar.omwaddon` from the vanilla shortsword table, with
-  vanilla stand-ins for the uniques' enchantments. Give it its three masters in load order: `--master`
-  Morrowind.esm, Tribunal.esm, Bloodmoon.esm. The real ones use custom magic effects, which an
-  ESM file cannot name, so `scripts/MaxYari/H2HWeapons/content.lua` replaces them when the game starts.
-- `Sources/Tools/make_tr_plugin.py` - writes `KatarTamrielRebuilt.omwaddon`, Tamriel Data's lists
-  extended as `make_plugin.py` extends vanilla's. Re-run it after `make_plugin.py`.
-- `Sources/Tools/make_hybrid_definitions.py` - writes `HybridWeaponDefinitions/<id>.yaml` for every
-  weapon `make_plugin.py` makes. Re-run it after adding one.
+- [Sources/Tools/README.md](Tools/README.md) - the plugins, the hybrid definitions, the animations,
+  the off-hand bone, the uniques' effects and the script tests.
+- [tools/README.md](../tools/README.md) - baking the textures and exporting the meshes in Blender,
+  previews of the textures for the file manager, and the release: the Nexus archive and the Nexus
+  page.
 
-  ```
-  python3 Sources/Tools/make_tr_plugin.py --master "<Data Files>/Morrowind.esm" \
-      --tamriel-data "<path>/Tamriel_Data.esm"
-  ```
-- `Sources/Tools/venom_fx.py` - builds the venom's violet hit and area effects, textures and icon
-  from the vanilla poison ones in Morrowind.bsa.
-- `Sources/Tools/charge_fx.py` - makes a weapon's crystal translucent, and builds the glow that
-  shows inside it while it is charged (`<mesh>_charged.nif`).
-- `Sources/Tools/add_weapon_bone_l.py` - builds the ARP controller for that bone in the Blender file.
-- `Sources/Tools/import_h2h_actions.py` - brings ReAnimation's hand-to-hand `[Raw]` actions into the
-  Blender file as the katar's: renamed actions and text keys, footsteps as `SoundGenRef`, the weapon
-  bone seated, and `Weapon Bone.L` keyed at the mirrored seat with the katar's turn. Only for
-  starting over from ReAnimation - the actions are this mod's from then on.
-- `Sources/Tools/reseat_weapon_bones.py` - after moving `Weapon Bone` in `[Raw] Katar Idle`, gives
-  every katar action holding the old seat the new one and keys `Weapon Bone.L` at its mirror again.
-- `Sources/Tools/snap_attack_ends.py` - after changing the first frame of `[Raw] Katar Idle`, sets the
-  last key of every katar attack (and any key holding that same pose) to the idle's pose, so a swing
-  ends where the idle starts. Arms stay in FK; the weapon seat is left to `reseat_weapon_bones.py`.
-- `Sources/Tools/export_katar_anims.py` - exports every `[Raw] Katar` action to
-  `Animations/xbase_anim.1st`: ReAnimation's bake, its moveset builder for the walk, run and sneak, and
-  the first-person export, `Weapon Bone.L` kept. Nothing is changed in a file after it is written;
-  it checks that none carries a `SoundGen` key and that the one-handed loops lie as the one-handed
-  set's do. Run `make_third_person_anims.py` after it.
+None of it ships: the release is the game's files alone (`.nexusignore`).
 
-  ```
-  blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/export_katar_anims.py
-  ```
-- `Sources/Tools/footstep_refs.py` - renames `SoundGen` keys to `SoundGenRef`, or back - the
-  footsteps of the katar animations, which would otherwise sound every step twice over the one-handed
-  animation underneath. The blend's markers carry `SoundGenRef` already; `make_third_person_anims.py`
-  reads them back as footsteps to match the legs by, and writes them as references again.
-- `Sources/Tools/make_katar_1h_movement.py` - lays `[Raw] Katar Walk` and `[Raw] Katar Sneak` out as
-  the first-person one-handed walk and sneak are, as `[Raw] Katar Walk 1h` and `[Raw] Katar Sneak 1h`,
-  and with `--export` exports them through `export_katar_anims.py`, which checks the loops against
-  ReAnimation's `x1hMovement.kf` and `x1hSneakMovement.kf`. Re-run it
-  after changing the katar walk or sneak. First person only: the third-person build leaves the files
-  out.
+Only `textures/katars/` and `textures/katars_vfx/` are in the repository. The rest of `textures/` is
+loose vanilla textures for the Blender files to preview against, git-ignored and never shipped;
+extract them from Morrowind.bsa, Tribunal.bsa and Bloodmoon.bsa if you want them back.
 
-  ```
-  blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/make_katar_1h_movement.py -- \
-      --save --export Animations/xbase_anim.1st
-  ```
-- `Sources/Tools/tests/run.sh` - runs the script tests against fakes for the openmw API.
+### The third-person animations
 
-The weapon exporter runs inside Blender:
+There are none of their own: `Sources/Tools/make_third_person_anims.py` makes them from the
+first-person ones, with ReAnimation's FBA merge
+(`Sources/Tools/FBACompat/fba_merge.py` in its repository, found beside this mod): our upper body
+over the legs, hips and root motion of vanilla's third-person hand-to-hand, their time warped
+through the text keys both share so ours are kept exactly - the attack timings are ours - and
+footsteps matched to footsteps. No chest lean, the whole hip lunge. Morrowind's skeletons hang the
+thighs (and a beast's tail) off `Bip01 Spine`, so when the merge turns the spine to keep our upper
+body upright, they are turned back. The walk, run and sneak are different: in game they play from
+the chest up only, over the one-handed walk's legs and spine, so their chest (`Bip01 Spine1`, where
+the engine's upper body starts) is keyed to sit on the vanilla one-handed walk's spine as it is on
+average, taking that walk's sway and lean with it. The upper body's bone offsets are moved from the
+first-person skeleton's to the third-person one's, except the weapon bones': both views' hand meshes
+put the palm in the same place on the hand bone, so the katar keeps its first-person seat. The
+third-person hand has two-joint fingers, the last three as one, so the fingers are fitted rather
+than copied (`third_person_fingers.py`): the first-person hand mesh is posed with the animation and
+the third-person finger rotations that put the same vertices in the same places are solved for.
+Through every swing and draw the head keeps looking ahead as it does in the idle: in first person
+the head turns into a punch with the rest of the upper body, up to 95 degrees, which the camera
+never shows. The engine's head tracking still turns it toward whoever an NPC fights. Reads the
+vanilla animations out of Morrowind.bsa. Re-run it after every export of the first-person set. There
+are no katar turns: in third person `animations.lua` narrows the one-handed turn to the lower body
+while a katar or knuckleduster is in hand, and the katar idle, which the engine keeps playing
+through a turn, shows above it.
 
-```
-blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/export_weapons.py -- meshes
-```
-
-`textures/` is not in the repo: every texture these meshes use ships with the game, and the folder
-is only there so the Blender file has something to preview against. Extract them from Morrowind.bsa
-and Tribunal.bsa if you want them back.
+Only the bones the third-person skeletons have are written: the first-person rig has fingers theirs
+does not, and a human has no toes, and every track for a bone a skeleton lacks is a warning in
+`openmw.log` for every actor that loads the file. `Weapon Bone.L` stays, since the mod grafts it on.
 
 ### The rig
 
@@ -640,9 +586,11 @@ any other controller.
 The game learns about the bone from the skeleton it loads, and nothing a `.kf` adds later appears in
 its bone map. What can add to the skeleton is a `.nif` in `animations/<skeleton name>/` whose node is
 marked with an `NiStringExtraData` reading `BONE` (`nifloader.cpp`, `Animation::injectCustomBones`):
-that node is copied onto the skeleton under the node its parent is named after. The katar animation
-`.nif` files are not marked, so they add nothing; `h2h_weapon_bone_l.nif` is, and is the only one
-per folder that may be - every marked copy is grafted.
+that node is copied onto the skeleton under the node its parent is named after.
+`h2h_weapon_bone_l.nif` is the one `.nif` in each folder, and the only one per folder that may be
+marked - every marked copy is grafted. The animations themselves are `.kf` files alone: the engine
+plays them against the actor's own skeleton (`Animation::addSingleAnimSource`) and never reads the
+`.nif` an exporter writes beside a `.kf`.
 
 Its placement is a conjugation, not a reflection. Morrowind's rig does not give the two hands the
 same local frame, and it does not give them mirrored ones either: for any bone whose parent is also
@@ -667,7 +615,12 @@ wrong alone.
 ## Credits
 
 - Meshes, animations and scripts: Max Yari
-- Textures: Bethesda (Morrowind, Tribunal); the venom's are recoloured from their poison effects
+- Textures: Bethesda (Morrowind, Tribunal, Bloodmoon); the venom's are recoloured from their poison
+  effects
+- Detail normal map in the baked metals: [Metal 061 B](https://ambientcg.com/view?id=Metal061B) from
+  ambientCG, CC0
+- Glow maps of the Glass Glowset patch: Solidfire's [Glass Glowset](https://www.nexusmods.com/morrowind/mods/42762)
+  (not included - the patch uses them from that mod)
 - NIF library: [Greatness7](https://github.com/Greatness7/io_scene_mw)
 - ["Rose"](https://skfb.ly/oWDnS) by Lisa3Dart - Hespera_3d is licensed under
   [Creative Commons Attribution](http://creativecommons.org/licenses/by/4.0/).

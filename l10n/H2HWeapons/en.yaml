@@ -6,9 +6,9 @@ settings_group_description: |-
   How katars, knuckledusters and other hybrid weapons behave. These are shared by every actor, so
   they live in the save rather than in your settings file.
 
-strength_influences: "Strength influences hand to hand"
+strength_influences: "Factor Strength into Hand-to-Hand Combat"
 strength_influences_description: |-
-  Mirror of the launcher option of the same name (Advanced -> Combat). No script can read the real
+  Mirror of the launcher option of the same name (Settings -> Gameplay). No script can read the real
   one, so set this to match it, or the fatigue damage these weapons deal will not agree with a bare
   fist.
 
@@ -18,8 +18,8 @@ onExceptWerewolves: "Do Not Affect Werewolves"
 
 show_off_hand_weapon: "Show the off-hand weapon"
 show_off_hand_weapon_description: |-
-  Put a second copy of the weapon in the left hand. Needs this mod's skeleton meshes, which add the
-  bone it hangs off; turn this off if another mod replaces them.
+  Put a second copy of the weapon in the left hand. It hangs off a bone this mod adds to the game's
+  skeletons, which needs "Use Additional Animation Sources" on in the launcher.
 
 silence_draw_sound: "Silence the draw and sheathe sound"
 silence_draw_sound_description: |-

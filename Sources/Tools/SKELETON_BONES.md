@@ -15,7 +15,9 @@ answers. From `apps/openmw/mwrender/animation.cpp` and `components/nifosg/nifloa
   with an `NiStringExtraData` reading `BONE` (`nifloader.cpp:712`). Each is deep-copied under the
   skeleton's node named like its parent in the source file. **None of the katar animation `.nif`
   files mark `Weapon Bone.L`**, so they contribute nothing: first-person male did *not* already work
-  this way - it, like every other skeleton, got the bone from the patched `xbase_anim.1st.nif`.
+  this way - it, like every other skeleton, got the bone from the patched `xbase_anim.1st.nif`. They
+  have since been removed: the engine plays a `.kf` against the actor's own skeleton and never reads
+  the `.nif` an exporter writes beside it (`Animation::addSingleAnimSource`).
 - **The folder is named after the skeleton file the engine loads** (open question 1): that model's
   path with `meshes` swapped for `animations` and the extension for a slash. And the file it loads is
   not always the one `getActorSkeleton` names: `correctActorModelPath` swaps in the `x` twin whenever
@@ -48,12 +50,14 @@ vanilla skeletons come from Morrowind.bsa (`bsatool extract`).
 
 1. In game - the patched skeletons have since been removed from `meshes/` - on each race and in
    both views, the off-hand weapon must appear.
-2. Then drop those meshes from the repo, and `.nexusignore`'s special case for shipping
-   `patch_skeleton.py` to users with skeleton replacers.
+2. ~~Then drop those meshes from the repo, and `.nexusignore`'s special case for shipping
+   `patch_skeleton.py` to users with skeleton replacers.~~ Done: the meshes are gone, and no tool
+   ships any more (the in-game warning for a skeleton without the bone points to the repository).
 
 ---
 
-The original note follows.
+The original note follows. Its central claim - that the bones come from a `.kf`'s companion
+`X.NIF` - is wrong (see the findings above), and so is "What is already in place".
 
 ## Summary
 

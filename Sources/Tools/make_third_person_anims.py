@@ -39,6 +39,10 @@ Where this differs from that build:
     neck, and the arms that hang off it, move as animated. (The mirrored swings also pitch the head
     some 12 degrees up, invisibly in first person, and this does away with that too.) The engine's
     own head tracking, which turns an NPC's head to whoever it is fighting, goes on top.
+  * Only the bones the skeletons have are written. The first-person rig has fingers the third-person
+    one does not (Finger02, the third and fourth fingers) and a human has no toes, and every track
+    for a bone the skeleton lacks is a "can't find bone" warning in openmw.log, once per actor that
+    loads the file. The off-hand weapon bone stays: the mod grafts it on (h2h_weapon_bone_l.nif).
 
 One set per third-person skeleton folder the engine loads (npcanimation.cpp, updateNpcBase):
 xbase_anim is loaded for every NPC, xbase_animkna on top of it for beasts, with their own legs.
@@ -68,6 +72,12 @@ FIRST_PERSON = os.path.join(MOD, 'Animations', 'xbase_anim.1st')
 TARGETS = {
     'xbase_anim': 'meshes\\xbase_anim.kf',
     'xbase_animkna': 'meshes\\xbase_animkna.kf',
+}
+# ... and the skeletons that play that folder's files: the bones a file may have are the ones all of
+# them have. Beasts play xbase_anim's files too, under their own; their skeleton has every human bone.
+SKELETONS = {
+    'xbase_anim': ('meshes\\xbase_anim.nif', 'meshes\\xbase_anim_female.nif'),
+    'xbase_animkna': ('meshes\\xbase_animkna.nif',),
 }
 FIRST_PERSON_KF = 'meshes\\xbase_anim.1st.kf'
 BONE_FILE = 'h2h_weapon_bone_l.nif'
@@ -131,6 +141,71 @@ def off_hand_rest(folder):
     return struct.unpack('<3f', data[at + 10:at + 22])
 
 
+def skeleton_bones(nif):
+    """A skeleton's node names, lowercased as the engine looks them up: each NiNode's name follows
+    its type name."""
+    tag = struct.pack('<I', 6) + b'NiNode'
+    names, at = set(), nif.find(tag)
+    while at >= 0:
+        start = at + len(tag)
+        size = struct.unpack('<I', nif[start:start + 4])[0]
+        names.add(nif[start + 4:start + 4 + size].decode('latin-1').lower())
+        at = nif.find(tag, start)
+    return names
+
+
+def drop_tracks(kf, keep):
+    """Takes every track for a bone not in `keep` (lowercased names) out of a kf: its name, its
+    controller and its keyframe data, with the block references renumbered. Returns the bones."""
+    helper = kf.blocks[0][1]
+
+    def chain(first):
+        out = []
+        while first >= 0:
+            out.append(first)
+            first = kf.blocks[first][1]['next']
+        return out
+
+    # The bone names follow the text keys on the extra data chain, paired in order with the controllers.
+    extras, ctrls = chain(helper['extra']), chain(helper['ctrl'])
+    names = [e for e in extras if kf.blocks[e][0] == 'NiStringExtraData']
+    gone, dropped = set(), []
+    for name, ctrl in zip(names, ctrls):
+        bone = kf.blocks[name][1]['value']
+        if bone.lower() in keep:
+            continue
+        dropped.append(bone)
+        gone |= {name, ctrl}
+        if kf.blocks[ctrl][1]['data'] >= 0:
+            gone.add(kf.blocks[ctrl][1]['data'])
+    if not dropped:
+        return dropped
+
+    index = {}
+    for old in range(len(kf.blocks)):
+        if old not in gone:
+            index[old] = len(index)
+
+    def relink(blocks, first):
+        kept = [b for b in blocks if b not in gone]
+        helper[first] = index[kept[0]] if kept else -1
+        for this, after in zip(kept, kept[1:] + [None]):
+            kf.blocks[this][1]['next'] = index[after] if after is not None else -1
+
+    relink(extras, 'extra')
+    relink(ctrls, 'ctrl')
+    for ctrl in ctrls:
+        if ctrl in gone:
+            continue
+        p = kf.blocks[ctrl][1]
+        for ref in ('data', 'target'):
+            if p[ref] >= 0:
+                p[ref] = index[p[ref]]
+    kf.blocks = [block for old, block in enumerate(kf.blocks) if old not in gone]
+    kf._index()
+    return dropped
+
+
 def rest_translations(kf):
     """Each bone's translation in a vanilla kf, which is its skeleton's own: they are never animated."""
     out = {}
@@ -163,7 +238,8 @@ def main():
     fingers = third_person_fingers.FingerFit(fba_fingers, E, os.path.join(data_files, 'Morrowind.bsa'))
     finger_cache = {}  # (first-person file, side, its time) -> fitted rotations, shared by both skeletons
     vanilla = bsa_files(os.path.join(data_files, 'Morrowind.bsa'),
-                        set(TARGETS.values()) | {FIRST_PERSON_KF})
+                        set(TARGETS.values()) | {FIRST_PERSON_KF}
+                        | {s for skeletons in SKELETONS.values() for s in skeletons})
     # nifkf reads from a file; Bethesda's never land anywhere near the mod.
     scratch_dir = tempfile.TemporaryDirectory()
     scratch = scratch_dir.name
@@ -213,17 +289,20 @@ def main():
         third_rest[OFF_HAND_BONE] = off_hand_rest(out_dir)
         lower = list(M.LOWER_BONES[:9]) + [b for b in EXTRA_LOWER if b in theirs_kf.bone_data]
         M.LOWER_BONES = lower
+        keep = set.intersection(*(skeleton_bones(vanilla[s]) for s in SKELETONS[folder]))
+        keep.add(OFF_HAND_BONE.lower())
         print('%s: legs from %s' % (folder, kf_name.split('\\')[-1]))
         for source in sources:
             name = os.path.basename(source)
             M.WARNINGS.clear()
             fit_errors = []
-            segments = merge(M, E, nifkf, source, theirs_kf, os.path.join(out_dir, name),
-                             lower, first_rest, third_rest, head_forward,
-                             fingers, finger_cache, fit_errors)
-            print('  %-26s %s; fingers fitted to %.2f units on average, %.2f at worst'
+            segments, dropped = merge(M, E, nifkf, source, theirs_kf, os.path.join(out_dir, name),
+                                      lower, first_rest, third_rest, head_forward,
+                                      fingers, finger_cache, fit_errors, keep)
+            print('  %-26s %s; fingers fitted to %.2f units on average, %.2f at worst; %d tracks the '
+                  'skeleton has no bone for left out'
                   % (name, ', '.join(s.name for s in segments),
-                     sum(fit_errors) / max(len(fit_errors), 1), max(fit_errors, default=0.0)))
+                     sum(fit_errors) / max(len(fit_errors), 1), max(fit_errors, default=0.0), len(dropped)))
             if args.verbose:
                 M.report(segments)
             for w in M.WARNINGS:
@@ -279,12 +358,13 @@ def thin(keys, interpolate, close):
 
 
 def merge(M, E, nifkf, ours_path, theirs_kf, out_path, lower, first_rest, third_rest, head_forward,
-          fingers, finger_cache, fit_errors):
+          fingers, finger_cache, fit_errors, keep):
     """fba_merge.build, for third person: the thighs and tail turned back under the turned spine,
     the beast's extra leg and tail bones taken too, the upper body's offsets moved to the
     third-person skeleton (the weapon bones' excepted), the fingers fitted to the first person's
-    hand, and the head held looking ahead through the swings. Each fitted frame's mean distance from
-    the first-person hand goes into fit_errors."""
+    hand, the head held looking ahead through the swings, and only the bones in `keep` written.
+    Each fitted frame's mean distance from the first-person hand goes into fit_errors. Returns the
+    segments and the bones left out."""
     finger_bones = {'Bip01 %s %s' % (side, b): (side, b) for side in fingers.rest for b in fingers.rest[side]}
     M._current_file[0] = os.path.basename(ours_path)
     ours_kf = nifkf.KF.load(ours_path)
@@ -474,8 +554,9 @@ def merge(M, E, nifkf, ours_path, theirs_kf, out_path, lower, first_rest, third_
     tk = ours_kf.blocks[ours_kf.textkey_block][1]
     tk['keys'] = [(t, footstep_refs.to_ref(sep.join(lines))) for t, lines in sorted(by_time.items())]
 
+    dropped = drop_tracks(ours_kf, keep)
     ours_kf.save(out_path)
-    return segments
+    return segments, dropped
 
 
 if __name__ == '__main__':

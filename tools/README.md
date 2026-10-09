@@ -1,10 +1,13 @@
 # Katars build tools
 
-Three Blender scripts, all safe to re-run. `mw_paint_prep.py` is meant to be
-run from Blender's Text Editor as well as headless.
+Three Blender scripts that make the weapons' textures and meshes, all safe to
+re-run, a file-manager helper, and the tools that make the release (below).
+`mw_paint_prep.py` is meant to be run from Blender's Text Editor as well as
+headless. The scripts for the plugins, animations and the off-hand bone are in
+[Sources/Tools](../Sources/Tools/README.md). None of this ships with the mod.
 
 ```
-BLENDER=/run/media/deck/350243d8-.../programs/blender-5.1.0-linux-x64/blender
+BLENDER=<path to Blender 5.1>/blender
 
 # 1. bake every "[Bake]" object down to one texture + PBR maps
 "$BLENDER" -b Katars_bake_work.blend --python tools/mw_bake.py -- --save
@@ -143,3 +146,44 @@ To fix the whole file:
 import sys; sys.path.insert(0, "tools")
 import mw_bake; mw_bake.repair_all_materials()
 ```
+
+## mw_thumbnails.py
+
+Gives the `.dds` textures previews in Dolphin, or any other freedesktop file
+manager, which has no DDS plugin on SteamOS: it writes the thumbnails into
+`~/.cache/thumbnails` itself. Needs ImageMagick (`magick`).
+
+```
+python3 tools/mw_thumbnails.py                  # textures/katars
+python3 tools/mw_thumbnails.py DIR [DIR ...]
+python3 tools/mw_thumbnails.py --force DIR      # rebuild even if current
+```
+
+## The release
+
+`build_nexus_zip.sh` packs the Nexus archive: every file committed to git,
+minus what `.nexusignore` matches - the docs, images, sources and every tool
+here and in `Sources/Tools`. It lays the archive out BAIN-style: the mod under
+`00 Core/`, and each top-level `NN Name` folder of the repository (an optional
+patch, such as `01 Glass Glowset Patch/`) and `fomod/` (the installer mod
+organisers show, which explains the patches) as they are.
+
+```
+bash tools/build_nexus_zip.sh && unzip -l nexus-upload.zip
+```
+
+`readme_to_nexus.py` turns `README.md` into the Nexus page's BBCode,
+`README.nexus.bbcode`, with image and link paths made into GitHub URLs. Text
+between `<!-- nexus-skip-start -->` and `<!-- nexus-skip-end -->` is left out,
+which is how the modders' section shrinks to a link on Nexus. The pre-commit
+hook in `.githooks` keeps the file in step (`git config core.hooksPath .githooks`
+once per clone):
+
+```
+python3 tools/readme_to_nexus.py -o README.nexus.bbcode
+```
+
+`.github/workflows/nexus-release.yml` runs the script tests on every push to
+`main`, and uploads the archive to Nexus for a commit whose message starts with
+`[nexus]`. Its own comments have the one-time setup and how the version and
+changelog are picked.

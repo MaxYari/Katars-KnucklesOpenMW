@@ -17,9 +17,10 @@ local M = {}
 --     damage = handToHand * (fMinHandToHandMult + (fMaxHandToHandMult - fMinHandToHandMult) * strength)
 --     if "strength influences hand to hand" is on: damage *= Strength / 40
 --
--- `strengthInfluences` mirrors that launcher setting (Advanced -> Combat), which no Lua API can
--- read - hence this mod's own copy of it. The engine's values are 0 (off), 1 (on) and 2 (on,
--- werewolves excluded); an actor holding a weapon is never a werewolf, so 1 and 2 behave alike here.
+-- `strengthInfluences` mirrors that launcher setting (Settings -> Gameplay, "Factor Strength into
+-- Hand-to-Hand Combat"), which no Lua API can read - hence this mod's own copy of it. The engine's
+-- values are 0 (off), 1 (on) and 2 (on, werewolves excluded); an actor holding a weapon is never a
+-- werewolf, so 1 and 2 behave alike here.
 --
 -- Against a paralysed or knocked-down target the engine turns hand-to-hand damage into health
 -- damage instead (* fHandtoHandHealthPer). These weapons already deal their own health damage

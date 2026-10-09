@@ -156,6 +156,16 @@ st.equipped = katar
 stubs.advance(0.6)
 check(st.left == nil, "and a swap back, with no animation, takes it off within half a second")
 
+-- Equipping a two-handed weapon takes the shield or torch off, so a swap to one gives nothing back.
+st.weaponRecords["steel claymore"] = { type = 2, model = "meshes/w/w_claymore.nif" }
+st.equipped = item("steel claymore")
+stubs.advance(0.6)
+check(st.left == nil, "a swap to a two-handed weapon leaves the left hand empty, as equipping one does")
+st.left = torch
+st.equipped = katar
+stubs.advance(0.6)
+check(st.left == nil, "and a torch put in beside it comes off again with the katar back")
+
 -- Taking a torch off can stack it back in with the others of its kind, and that object is gone.
 torch.isValid = function() return false end
 st.stance = 0
@@ -229,15 +239,16 @@ stubs.advance(1)
 fire("H2HWeapons_VenomStrike", { victim = enemy })
 st.globalEvents = {}
 play("slash start")
-local staged = lastGlobal("H2HWeapons_StageBurst")
-check(staged and staged.item == rose and staged.actor == me, "an NPC's third strike on the poisoned asks for the burst")
+local staged = lastGlobal("H2HWeapons_StageCopy")
+check(staged and staged.item == rose and staged.actor == me and staged.enchant == "h2h_ebonyrose_burst_en",
+      "an NPC's third strike on the poisoned asks for the burst")
 local copy = stubs.object({ recordId = "Generated:0x99", isItem = true, parentContainer = me })
-fire("H2HWeapons_BurstStaged", { original = rose, copy = copy })
+fire("H2HWeapons_CopyStaged", { original = rose, copy = copy })
 check(st.equipped == copy, "and swings with the copy")
 check(offHand() and offHand().model == "meshes/ebony_rose.nif", "the off hand showing the Rose all the while")
 play("slash large follow start")
 check(st.equipped == rose, "the follow-through puts the Rose back")
-check(lastGlobal("H2HWeapons_BurstDone") and lastGlobal("H2HWeapons_BurstDone").copy == copy,
+check(lastGlobal("H2HWeapons_CopyDone") and lastGlobal("H2HWeapons_CopyDone").copy == copy,
       "and hands the copy back")
 fire("H2HWeapons_VenomStrike", { burst = true })
 
@@ -247,7 +258,7 @@ for _ = 1, 2 do
     fire("H2HWeapons_VenomStrike", { victim = enemy })
 end
 play("chop start")
-fire("H2HWeapons_BurstStaged", { original = rose, copy = copy })
+fire("H2HWeapons_CopyStaged", { original = rose, copy = copy })
 check(st.equipped == copy, "copy in hand")
 st.stance = 0
 stubs.advance(0.6)
@@ -261,7 +272,7 @@ for _ = 1, 2 do
     fire("H2HWeapons_VenomStrike", { victim = enemy })
 end
 play("thrust start")
-fire("H2HWeapons_BurstStaged", { original = rose, copy = copy })
+fire("H2HWeapons_CopyStaged", { original = rose, copy = copy })
 local saved = E.onSave()
 check(saved and saved.burstSwap and saved.burstSwap.copy == copy, "a save mid-swing remembers the copy")
 st.equipped = copy
@@ -275,7 +286,7 @@ st.equipped = katar
 st.globalEvents = {}
 play("slash start")
 play("slash large follow start")
-check(lastGlobal("H2HWeapons_StageBurst") == nil, "an ordinary katar's swing is an ordinary swing")
+check(lastGlobal("H2HWeapons_StageCopy") == nil, "an ordinary katar's swing is an ordinary swing")
 
 --- Ebony Rose's owner (global.lua) ----------------------------------------------------------------
 local global = require("scripts.MaxYari.H2HWeapons.global")
