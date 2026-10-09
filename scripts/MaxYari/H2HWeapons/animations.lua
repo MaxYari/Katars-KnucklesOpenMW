@@ -1,9 +1,11 @@
--- The katar moveset, registered with ReAnimation: ReAnimation's own hand-to-hand set, imported under
--- the katar's names by Sources/Tools/import_h2h_set.py (Weapon Bone seated for the katar grip and
--- mirrored onto Weapon Bone.L on the way), and played over the one-handed groups the engine uses for
--- these weapons - a katar is a short blade (1s), knuckledusters blunt (1b), and either falls back to
--- the generic one-handed animations (1h) when those have none (character.cpp:795). Everything here
--- lists all three rather than guessing.
+-- The hand-to-hand moveset, registered with ReAnimation, for every hybrid weapon whose definition
+-- asks for it (moveset: handToHand): ReAnimation's own hand-to-hand set, imported under the katar's
+-- names by Sources/Tools/import_h2h_set.py (Weapon Bone seated for the katar grip and mirrored onto
+-- Weapon Bone.L on the way), and played over the one-handed groups the engine uses for these weapons
+-- - a katar is a short blade (1s), knuckledusters blunt (1b) as a one-handed axe is, and any of them
+-- falls back to the generic one-handed animations (1h) when those have none (character.cpp:795),
+-- which a one-handed long blade plays anyway. Everything here lists all three rather than guessing.
+-- The moveset needs a one-handed weapon (weapons.lua says so for any other).
 --
 -- In first person and in third, on the player, every NPC, and every creature that can hold these
 -- (weapons.canWield: two-legged and fighting with weapons, as dremora and skeletons do - they play the
@@ -62,7 +64,7 @@ local BG = animation.BONE_GROUP
 local BLEND_MASK = animation.BLEND_MASK
 local controls = omwself.controls
 
---- Is a hand-to-hand weapon in hand? ---------------------------------------------------------------
+--- Is a weapon swung with the hand-to-hand moveset in hand? -----------------------------------------
 -- ReAnimation already caches the equipped weapon's record id for everyone, at ten reads a second, so
 -- the answer costs one table lookup. Conditions are polled every frame, which is why it matters.
 --
@@ -70,21 +72,18 @@ local controls = omwself.controls
 -- and a generated record's - a Bound Fist scaled to its caster, Ebony Rose's burst copy, anything an
 -- enchanter made - only resolves in its own case, "Generated:0x..." (ESM::RefId::deserializeText).
 -- Looked up by the lowercased one, those were none of ours, and swung as plain one-handed weapons.
-local kindById = {}
-
-local function equippedKind()
-    local id = RA.getEquippedWeaponId()
-    if id == nil then return false end
-    local kind = kindById[id]
-    if kind == nil then
-        kind = weapons.kindOfItem(RA.getEquippedWeapon())
-        kindById[id] = kind
-    end
-    return kind
-end
+local handToHandById = {}
 
 local function isHandToHandWeapon()
-    return equippedKind() ~= false
+    local id = RA.getEquippedWeaponId()
+    if id == nil then return false end
+    local handToHand = handToHandById[id]
+    if handToHand == nil then
+        local hybrid = weapons.hybridOfItem(RA.getEquippedWeapon())
+        handToHand = hybrid and hybrid.handToHand or false
+        handToHandById[id] = handToHand
+    end
+    return handToHand
 end
 
 -- The three groups a one-handed hand-to-hand weapon's `base` can play under.
@@ -156,9 +155,34 @@ local function sneaking(self)
     return self.parent == SNEAK_IDLE or controls.sneak
 end
 
+-- The engine plays a weapon idle to its "loop stop" one to four times and on to its "stop", and
+-- plays it again whenever it ends (CharacterController::refreshIdleAnims). Ours took that count with
+-- the rest of the parent's options, and ran out first: first person's idle1h is 5.3 seconds a loop
+-- and 6 more to its stop, the katar idle 4 seconds, so it stood frozen on its last frame for up to a
+-- dozen seconds until the parent came round again. In third person the parent is the shorter one, and
+-- every time it came round it started ours over from the top. So ours loops for as long as it plays,
+-- and when the parent comes round again - which has ReAnimation stop ours and play it anew - it
+-- carries on from where it was.
+local LOOP_FOREVER = 4294967295 -- the engine's own "until stopped": std::numeric_limits<uint32_t>::max()
+
+local function noteIdlePoint(self)
+    self.resumeAt = animation.getCompletion(omwself, self.groupname)
+end
+
+local function idleOptions(base)
+    return function(self, pOptions)
+        local opts = base(self, pOptions)
+        opts.loops = LOOP_FOREVER
+        opts.startPoint = self.resumeAt or 0
+        self.resumeAt = nil
+        return opts
+    end
+end
+
 local function idleCondition(self)
-    -- startOnUpdate reads parentOptions, which is only filled once the parent has been seen
-    -- playing; a parent already running when the save loaded never passes through the handler.
+    -- startOnUpdate reads parentOptions, which are filled when the parent is seen playing - or, for
+    -- one the actor was loaded with or came into the world with, which the engine started before Lua
+    -- could see it, by ReAnimation (3.3) on its first update after.
     return self.parentOptions ~= nil and isHandToHandWeapon()
 end
 
@@ -170,7 +194,8 @@ RA.addAnimationOverride({
     overridePriority = 1,
     condition = idleCondition,
     stopCondition = function(self) return not isHandToHandWeapon() end,
-    options = outrankParent,
+    preOverride = noteIdlePoint,
+    options = idleOptions(outrankParent),
     startOnAnimEvent = true,
     startOnUpdate = true,
 })
@@ -184,7 +209,8 @@ RA.addAnimationOverride({
     overridePriority = 2,
     condition = function(self) return idleCondition(self) and sneaking(self) end,
     stopCondition = function(self) return not (isHandToHandWeapon() and sneaking(self)) end,
-    options = sneakIdleOptions,
+    preOverride = noteIdlePoint,
+    options = idleOptions(sneakIdleOptions),
     startOnAnimEvent = true,
     startOnUpdate = true,
 })
@@ -276,9 +302,9 @@ local function moveOptions(self, pOptions)
     return opts
 end
 
--- Started on update, the options come from the parent as it was last seen starting (moveOptions),
--- and one already walking when this script began - a save loaded mid-stride, an NPC walking into the
--- cell - never was; as the idle's condition, it waits for the next start.
+-- Started on update, the options come from the parent as it was last seen starting (moveOptions), or
+-- as ReAnimation took it to have started, for a walk under way before Lua could see it (as the idle's
+-- condition).
 local function moveCondition(self)
     return self.parentOptions ~= nil and isHandToHandWeapon()
 end

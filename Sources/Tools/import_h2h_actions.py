@@ -6,7 +6,8 @@ so the rig, not only the export, carries the katar moveset:
 1. Appends every "[Raw] h2h ..." action from ReAnimation's source blend as "[Raw] Katar ...", the
    names the exports go out under (xKatarChop.kf and so on).
 2. Renames their text-key markers' groups: HandToHand -> Katar, Idlehh -> Idlekatar,
-   RunForwardhh -> RunForwardkatar and so on. SoundGen stays.
+   RunForwardhh -> RunForwardkatar and so on. SoundGen footsteps become SoundGenRef, which sound
+   nothing: the one-handed animation playing underneath sounds its own (footstep_refs.py).
 3. Holds the 'Weapon Bone' controller at the katar's seat - the pose the existing katar actions key
    it at, which the weapons are modelled for. ReAnimation's hand-to-hand actions leave it at rest.
 4. Keys the 'Weapon Bone.L' controller at that seat mirrored into the left hand, plus the katar's
@@ -49,9 +50,10 @@ GROUPS = {
     "idlehh": "Idlekatar",
     "idlehhsneak": "IdlekatarSneak",
     "jumphh": "Jumpkatar",
+    "soundgen": "SoundGenRef",
 }
 MOVE_GROUP = re.compile(r"^((?:walk|run|sneak)(?:forward|back|left|right))hh$", re.I)
-KEEP = {"soundgen"}
+KEEP = {"soundgenref"}
 TAG = "h2h_import"
 
 RIGHT, LEFT = "Weapon Bone", "Weapon Bone.L"
@@ -179,15 +181,105 @@ def fit_signs(bip):
     return scored[0][1]
 
 
+def weapon_mirror(bip):
+    """right weapon bone in the right hand -> left weapon bone in the left hand.
+
+    The mirror, fitted from the rig as add_weapon_bone_l.py fits it: the hand's flip on the hand's
+    side, the same flip carried into the weapon bone's axes on the other, then the katar's turn.
+    """
+    S = fit_signs(bip)
+    weapon_signs = OTHER_AXES.inverted() @ BIPED_AXES @ S @ BIPED_AXES.inverted() @ OTHER_AXES
+    turn = OTHER_AXES.inverted() @ KATAR_TURN @ OTHER_AXES
+
+    rest = lambda name: bip.data.bones[name].matrix_local
+    plain = S @ (rest(HAND_R).inverted() @ rest(RIGHT)) @ weapon_signs
+    off = plain.inverted() @ (rest(HAND_L).inverted() @ rest(LEFT))
+    print("mirror signs %s; the left bone's rest is %.1f degrees off the plain mirror%s"
+          % (tuple(int(S[i][i]) for i in range(3)), math.degrees(off.to_quaternion().angle),
+             "" if off.to_quaternion().angle < 1e-3 else " - run add_weapon_bone_l.py"))
+    return lambda right_in_hand: S @ right_in_hand @ weapon_signs @ turn
+
+
+def show_rig(rig, bip):
+    """The rig lives in collections disabled in viewports, which the depsgraph then skips. Switches
+    them on for the work; returns them, to be switched back off before saving."""
+    hidden = [c for ob in (rig, bip) for c in ob.users_collection if c.hide_viewport]
+    for collection in hidden:
+        collection.hide_viewport = False
+    return hidden
+
+
+def rig_slot(rig):
+    """The slot identifier the rig plays its actions through."""
+    return (rig.animation_data.action_slot.identifier
+            if rig.animation_data and rig.animation_data.action_slot else "OBSlot 1")
+
+
+def key_left(rig, bip, action, slot_id, mirror):
+    """Key 'Weapon Bone.L' over the action at the mirror of where 'Weapon Bone' sits in its first
+    frame, replacing any keys it had. Returns how far the deform bone lands from that, played back.
+
+    Worked out on the evaluated Bip01 pose: in the background, the original objects' pose matrices
+    keep whatever the file was saved with.
+    """
+    scene = bpy.context.scene
+    bip_eval = lambda: bip.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    pose = lambda name: bip_eval().pose.bones[name].matrix
+    left_pb = rig.pose.bones[LEFT]
+
+    remove_bone_curves(action, LEFT)
+    rig.animation_data_create()
+    rig.animation_data.action = action
+    # "Idle Sneak" carries a stray second slot.
+    slot = next((s for s in action.slots if s.identifier == slot_id), None) or action.slots[0]
+    rig.animation_data.action_slot = slot
+    first, last = int(action.frame_range[0]), int(action.frame_range[1])
+    scene.frame_set(first)
+    right_in_hand = pose(HAND_R).inverted() @ pose(RIGHT)
+    wanted = pose(HAND_L) @ mirror(right_in_hand)
+    # The controller's own transform that puts it there (Bip01's bone copies its world transform),
+    # worked out against the evaluated hand, not the stale one on the original object.
+    rig_eval = rig.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    in_rig = rig_eval.matrix_world.inverted() @ bip_eval().matrix_world @ wanted
+    left_pb.matrix_basis = rig_eval.convert_space(pose_bone=rig_eval.pose.bones[LEFT], matrix=in_rig,
+                                                  from_space='POSE', to_space='LOCAL')
+
+    rotation = "rotation_quaternion" if left_pb.rotation_mode == "QUATERNION" else (
+        "rotation_axis_angle" if left_pb.rotation_mode == "AXIS_ANGLE" else "rotation_euler")
+    for frame in sorted({first, last}):
+        for prop in ("location", rotation, "scale"):
+            left_pb.keyframe_insert(prop, frame=frame, group=LEFT)
+
+    # Check it on the deform bone, where the export reads it - played back from the keys.
+    scene.frame_set(last)
+    scene.frame_set(first)
+    got = pose(HAND_L).inverted() @ pose(LEFT)
+    want = mirror(right_in_hand)
+    return max(abs(got[r][c] - want[r][c]) for r in range(4) for c in range(4))
+
+
+def restore_action(rig, previous, slot_id):
+    """Back to the action that was open - or, if it was one replaced and kept as "(old)", its
+    replacement."""
+    if previous is None:
+        return
+    name = previous.name[:-len(" (old)")] if previous.name.endswith(" (old)") else previous.name
+    rig.animation_data.action = bpy.data.actions.get(name) or previous
+    action = rig.animation_data.action
+    rig.animation_data.action_slot = next(
+        (s for s in action.slots if s.identifier == slot_id), None) or action.slots[0]
+    bpy.context.scene.frame_set(int(action.frame_range[0]))
+
+
 def main():
     opts = args()
     rig = bpy.data.objects["rig"]
     bip = bpy.data.objects["Bip01"]
-    scene = bpy.context.scene
 
-    # The seat comes from the katar actions this blend already has - the originals, whatever they are
-    # called by now - before anything is renamed or replaced.
-    seat_action = bpy.data.actions.get(SEAT_FROM + " (old)") or bpy.data.actions.get(SEAT_FROM)
+    # The seat comes from the katar idle this blend already has, before anything is renamed or
+    # replaced: the current one, which carries any reseating (reseat_weapon_bones.py), then the
+    # original kept as "(old)".
+    seat_action = bpy.data.actions.get(SEAT_FROM) or bpy.data.actions.get(SEAT_FROM + " (old)")
     if seat_action is None:
         sys.exit("no %r to take the weapon bone's seat from" % SEAT_FROM)
     seat = read_seat(seat_action)
@@ -211,35 +303,10 @@ def main():
             sys.exit("not in the source blend: %s" % missing)
         dst.actions = list(ACTIONS)
 
-    # The mirror, fitted from the rig as add_weapon_bone_l.py fits it: the hand's flip on the hand's
-    # side, the same flip carried into the weapon bone's axes on the other, then the katar's turn.
-    S = fit_signs(bip)
-    weapon_signs = OTHER_AXES.inverted() @ BIPED_AXES @ S @ BIPED_AXES.inverted() @ OTHER_AXES
-    turn = OTHER_AXES.inverted() @ KATAR_TURN @ OTHER_AXES
-    mirror = lambda right_in_hand: S @ right_in_hand @ weapon_signs @ turn
-
-    rest = lambda name: bip.data.bones[name].matrix_local
-    plain = S @ (rest(HAND_R).inverted() @ rest(RIGHT)) @ weapon_signs
-    off = plain.inverted() @ (rest(HAND_L).inverted() @ rest(LEFT))
-    print("mirror signs %s; the left bone's rest is %.1f degrees off the plain mirror%s"
-          % (tuple(int(S[i][i]) for i in range(3)), math.degrees(off.to_quaternion().angle),
-             "" if off.to_quaternion().angle < 1e-3 else " - run add_weapon_bone_l.py"))
-
-    # The rig lives in collections disabled in viewports, which the depsgraph then skips; they are
-    # switched on for the work and back off before saving.
-    hidden = [c for ob in (rig, bip) for c in ob.users_collection if c.hide_viewport]
-    for collection in hidden:
-        collection.hide_viewport = False
-
-    # Evaluated poses: in the background, the original objects' pose matrices keep whatever the file
-    # was saved with.
-    bip_eval = lambda: bip.evaluated_get(bpy.context.evaluated_depsgraph_get())
-    pose = lambda name: bip_eval().pose.bones[name].matrix
-
+    mirror = weapon_mirror(bip)
+    hidden = show_rig(rig, bip)
     previous = rig.animation_data.action if rig.animation_data else None
-    slot_id = (rig.animation_data.action_slot.identifier
-               if rig.animation_data and rig.animation_data.action_slot else "OBSlot 1")
-    left_pb = rig.pose.bones[LEFT]
+    slot_id = rig_slot(rig)
 
     for loaded in dst.actions:
         source_name = next(k for k in ACTIONS if loaded.name == k or loaded.name.startswith(k + "."))
@@ -249,53 +316,14 @@ def main():
         loaded.use_fake_user = True
         renamed = rename_markers(loaded)
         apply_seat(loaded, seat)
-
-        # Any left weapon bone keys the source had would hold the fist's rest; they are replaced below.
-        remove_bone_curves(loaded, LEFT)
-
-        rig.animation_data_create()
-        rig.animation_data.action = loaded
-        # The slot the rig plays its actions through; "Idle Sneak" carries a stray second one.
-        slot = next((s for s in loaded.slots if s.identifier == slot_id), None) or loaded.slots[0]
-        rig.animation_data.action_slot = slot
-        first, last = int(loaded.frame_range[0]), int(loaded.frame_range[1])
-        scene.frame_set(first)
-        right_in_hand = pose(HAND_R).inverted() @ pose(RIGHT)
-        wanted = pose(HAND_L) @ mirror(right_in_hand)
-        # The controller's own transform that puts it there (Bip01's bone copies its world transform),
-        # worked out against the evaluated hand, not the stale one on the original object.
-        rig_eval = rig.evaluated_get(bpy.context.evaluated_depsgraph_get())
-        in_rig = rig_eval.matrix_world.inverted() @ bip_eval().matrix_world @ wanted
-        left_pb.matrix_basis = rig_eval.convert_space(pose_bone=rig_eval.pose.bones[LEFT], matrix=in_rig,
-                                                      from_space='POSE', to_space='LOCAL')
-
-        rotation = "rotation_quaternion" if left_pb.rotation_mode == "QUATERNION" else (
-            "rotation_axis_angle" if left_pb.rotation_mode == "AXIS_ANGLE" else "rotation_euler")
-        for frame in sorted({first, last}):
-            for prop in ("location", rotation, "scale"):
-                left_pb.keyframe_insert(prop, frame=frame, group=LEFT)
-
-        # Check it on the deform bone, where the export reads it - played back from the keys.
-        scene.frame_set(last)
-        scene.frame_set(first)
-        got = pose(HAND_L).inverted() @ pose(LEFT)
-        want = mirror(right_in_hand)
-        err = max(abs(got[r][c] - want[r][c]) for r in range(4) for c in range(4))
+        # Any left weapon bone keys the source had would hold the fist's rest; key_left replaces them.
+        err = key_left(rig, bip, loaded, slot_id, mirror)
         print("%-26s -> %-28s %2d markers renamed, seat held, %s keyed (off by %.5f)"
               % (source_name, target, renamed, LEFT, err))
         if err > 1e-3:
             sys.exit("the left weapon bone did not land where it should in %s" % target)
 
-    # Back to the action that was open - or, if it was one of the katar actions just replaced, its
-    # replacement.
-    if previous is not None:
-        name = previous.name[:-len(" (old)")] if previous.name.endswith(" (old)") else previous.name
-        rig.animation_data.action = bpy.data.actions.get(name) or previous
-        action = rig.animation_data.action
-        rig.animation_data.action_slot = next(
-            (s for s in action.slots if s.identifier == slot_id), None) or action.slots[0]
-        scene.frame_set(int(action.frame_range[0]))
-
+    restore_action(rig, previous, slot_id)
     for collection in hidden:
         collection.hide_viewport = True
 
@@ -304,4 +332,5 @@ def main():
         print("saved", bpy.data.filepath)
 
 
-main()
+if __name__ == "__main__":
+    main()

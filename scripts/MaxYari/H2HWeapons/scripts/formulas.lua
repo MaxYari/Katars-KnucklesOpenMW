@@ -52,41 +52,51 @@ function M.handToHandFatigue(actor, attackStrength, strengthInfluences)
     return damage
 end
 
---- What keeping the weapon skill up is worth, in whole skill points.
+--- How a hybrid weapon's two skills make the one it is swung with (definitions.lua, `scaling`).
+M.SCALING = {
+    -- The primary skill, plus a share of the secondary (skillBonus).
+    MinorSecondaryBonus = "minorSecondaryBonus",
+    -- The lower of the two.
+    LowestSkill = "lowestSkill",
+    -- The higher of the two.
+    HighestSkill = "highestSkill",
+}
+
+-- The minorSecondaryBonus curve (skillBonus, below).
+local BONUS_MAX, BONUS_MIN = 0.15, 0.05
+local BONUS_GRACE, BONUS_FALLOFF = 10, 20
+
+--- What keeping the secondary skill up is worth, in whole skill points.
 --
--- The bonus is a share of the weapon skill itself, not of hand-to-hand, so letting Short Blade or
--- Blunt Weapon rot costs you twice over: a smaller share of a smaller number. The share is the full
--- `skillBonusMax` while the weapon skill is within `skillBonusGrace` points of hand-to-hand (or
--- ahead of it), and from there tapers over `skillBonusFalloff` points down to `skillBonusMin` - a
--- floor, not a cutoff, so a neglected weapon skill is still worth something.
+-- The bonus is a share of the secondary skill itself, not of the primary, so letting it rot costs
+-- you twice over: a smaller share of a smaller number. The share is the full BONUS_MAX while the
+-- secondary is within BONUS_GRACE points of the primary (or ahead of it), and from there tapers over
+-- BONUS_FALLOFF points down to BONUS_MIN - a floor, not a cutoff, so a neglected secondary skill is
+-- still worth something.
 --
 -- Rounded down, and rounded here rather than at the point of use, so the number the tooltip shows
 -- is exactly the number the swing applies.
 --
--- @param handToHand #number the actor's hand-to-hand skill
--- @param weaponSkill #number the actor's skill in the weapon the engine thinks it is
--- @param cfg #table settings.values
-function M.skillBonus(handToHand, weaponSkill, cfg)
-    local behind = handToHand - weaponSkill
-    local rate
-    if behind <= cfg.skillBonusGrace then
-        rate = cfg.skillBonusMax
-    elseif cfg.skillBonusFalloff <= 0 then
-        rate = cfg.skillBonusMin
-    else
-        local taper = math.min(1, (behind - cfg.skillBonusGrace) / cfg.skillBonusFalloff)
-        rate = cfg.skillBonusMax + (cfg.skillBonusMin - cfg.skillBonusMax) * taper
+-- @param primary #number the actor's primary skill - Hand to Hand, for this mod's weapons
+-- @param secondary #number the actor's secondary skill - Short Blade or Blunt Weapon, for this mod's
+function M.skillBonus(primary, secondary)
+    local behind = primary - secondary
+    local rate = BONUS_MAX
+    if behind > BONUS_GRACE then
+        local taper = math.min(1, (behind - BONUS_GRACE) / BONUS_FALLOFF)
+        rate = BONUS_MAX + (BONUS_MIN - BONUS_MAX) * taper
     end
-    return math.floor(weaponSkill * rate)
+    return math.floor(secondary * rate)
 end
 
 --- The skill value the engine should roll the hit chance against.
 --
--- Hand-to-hand is what these weapons are really swung with, so that is the number the engine gets
--- (see player.lua, which writes it into the weapon skill for the duration of a swing), plus
--- whatever the weapon skill is worth on top.
-function M.effectiveSkill(handToHand, weaponSkill, cfg)
-    return handToHand + M.skillBonus(handToHand, weaponSkill, cfg)
+-- That is the weapon's own skill to the engine, so player.lua writes this into it for the length of
+-- a swing.
+function M.effectiveSkill(scaling, primary, secondary)
+    if scaling == M.SCALING.LowestSkill then return math.min(primary, secondary) end
+    if scaling == M.SCALING.HighestSkill then return math.max(primary, secondary) end
+    return primary + M.skillBonus(primary, secondary)
 end
 
 --- Bound Fist ------------------------------------------------------------------------------------
@@ -116,6 +126,15 @@ end
 function M.boundWeight(baseWeight, step, values)
     local reduction = values.BOUND_WEIGHT_REDUCTION_PER_LEVEL * step / 100
     return math.max(0, baseWeight * values.BOUND_WEIGHT_BASE / 100 * (1 - reduction))
+end
+
+--- What one cast of an enchantment costs this wielder: each point of Enchant above 10 takes 1% off,
+-- each point below adds 1%, and it never comes under 1 (getEffectiveEnchantmentCastCost,
+-- spellutil.cpp). A weapon casts on a strike only with at least this much charge left.
+function M.effectiveCastCost(cost, enchantSkill)
+    local result = cost - (cost / 100) * (enchantSkill - 10)
+    if result < 1 then return 1 end
+    return math.floor(result)
 end
 
 return M

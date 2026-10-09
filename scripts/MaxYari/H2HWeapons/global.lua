@@ -10,6 +10,11 @@ local world = require('openmw.world')
 local formulas = require(mp .. "scripts/formulas")
 local settings = require(mp .. "scripts/settings")
 local U = require(mp .. "scripts/uniques")
+local weapons = require(mp .. "scripts/weapons")
+
+-- What the hybrid weapon definitions say, and what is wrong with them, in the log: once, here, rather
+-- than from every actor's scripts, which read the same files.
+weapons.report()
 
 -- A global group rather than a player one: the fatigue damage is worked out on the victim, which
 -- for an NPC is an NPC script, and only a global section is readable from there.
@@ -34,46 +39,6 @@ I.Settings.registerGroup {
                 l10n = "H2HWeapons",
                 items = { "off", "on", "onExceptWerewolves" },
             },
-        },
-        {
-            key = "handToHandShare",
-            name = "hand_to_hand_share",
-            description = "hand_to_hand_share_description",
-            default = settings.DEFAULTS.handToHandShare,
-            renderer = "number",
-            argument = { min = 0, max = 1 },
-        },
-        {
-            key = "skillBonusMax",
-            name = "skill_bonus_max",
-            description = "skill_bonus_max_description",
-            default = settings.DEFAULTS.skillBonusMax,
-            renderer = "number",
-            argument = { min = 0, max = 1 },
-        },
-        {
-            key = "skillBonusMin",
-            name = "skill_bonus_min",
-            description = "skill_bonus_min_description",
-            default = settings.DEFAULTS.skillBonusMin,
-            renderer = "number",
-            argument = { min = 0, max = 1 },
-        },
-        {
-            key = "skillBonusGrace",
-            name = "skill_bonus_grace",
-            description = "skill_bonus_grace_description",
-            default = settings.DEFAULTS.skillBonusGrace,
-            renderer = "number",
-            argument = { min = 0, max = 100, integer = true },
-        },
-        {
-            key = "skillBonusFalloff",
-            name = "skill_bonus_falloff",
-            description = "skill_bonus_falloff_description",
-            default = settings.DEFAULTS.skillBonusFalloff,
-            renderer = "number",
-            argument = { min = 0, max = 100, integer = true },
         },
         {
             key = "showOffHandWeapon",
@@ -106,8 +71,9 @@ local made = {
     -- settings, or its defaults. Kept in the save so an NPC who casts before the report arrives
     -- still gets the right one.
     boundScaling = { enabled = true, values = U.BOUND_SCALING_DEFAULTS },
-    -- Whether Ebony Rose's owner has been handed it (below).
+    -- Whether Ebony Rose's owner has been handed it, and his Jinkblade's charge put back (below).
     roseGiven = false,
+    jinkbladeRecharged = false,
 }
 
 --- Ebony Rose's burst -------------------------------------------------------------------------------
@@ -331,31 +297,44 @@ local function dismissFist(e)
 end
 
 --- Ebony Rose's owner -----------------------------------------------------------------------------
--- The Dark Brotherhood's master in Mournhold (Tribunal) is handed the Rose the first time he comes
--- into the world, and takes it in hand (npc.lua); if he is dead by then, it is on his body.
+-- The Dark Brotherhood's master in Mournhold (Tribunal) fights with the Rose and his own Jinkblade,
+-- turn about (roseowner.lua) - but only when Mercy: Combat AI Overhaul runs his fights. Mercy switches
+-- the engine's combat AI off while it fights, and with it the engine's choice of weapon before every
+-- swing, so the choice has to be a step of Mercy's own. Without Mercy he is not handed the Rose: the
+-- one placed in his room (KatarWorldPlacements.omwaddon) is the one there is. With Mercy he is handed
+-- one the first time he comes into the world - on his body, if he is dead by then - and the one in his
+-- room goes, as long as it is still lying there: there is only ever one Rose to find.
 --
--- He fights with a short blade, and the Rose is one. But the combat AI picks its weapon again before
--- every swing, by its damage and by what its enchantment casts on a strike (weaponpriority.cpp,
--- rateWeapon), and his own Adamantium Jinkblade's Paralyze and Poison outweigh anything the Rose hits
--- for. An enchantment without the charge for one more cast is not counted at all, so each time he
--- comes into the world while he has the Rose, the Jinkblade is left with none: it takes a quarter of
--- an hour to recharge that far (fMagicItemRechargePerSecond), and until then he fights with the Rose.
--- Taken off him, the Jinkblade recharges as any enchanted weapon does.
+-- Older saves kept his Jinkblade drained, so that the engine's AI would fight with the Rose; its
+-- charge is put back once.
+local function removeRoomRose()
+    local cell = world.getCellByName(U.ROOM_ROSE_CELL)
+    if cell == nil then return end
+    for _, item in ipairs(cell:getAll(types.Weapon)) do
+        if item.contentFile == U.ROOM_ROSE_CONTENT and string.lower(item.recordId) == U.EBONY_ROSE
+            and item.count > 0 then
+            item:remove()
+        end
+    end
+end
+
 local function onActorActive(actor)
     if string.lower(actor.recordId) ~= U.ROSE_OWNER then return end
     if types.Weapon.records[U.EBONY_ROSE] == nil then return end
+    if not core.contentFiles.has(U.MERCY_CONTENT) then return end
     local inventory = types.Actor.inventory(actor)
-    local dead = types.Actor.isDead(actor)
     if not made.roseGiven then
         made.roseGiven = true
-        local rose = world.createObject(U.EBONY_ROSE, 1)
-        rose:moveInto(inventory)
-        if not dead then actor:sendEvent("H2HWeapons_Wield", { item = rose }) end
-    elseif dead or inventory:find(U.EBONY_ROSE) == nil then
-        return
+        world.createObject(U.EBONY_ROSE, 1):moveInto(inventory)
     end
-    local jinkblade = inventory:find(U.ROSE_OWNER_WEAPON)
-    if jinkblade ~= nil and not dead then types.Item.itemData(jinkblade).enchantmentCharge = 0 end
+    removeRoomRose()
+    if not made.jinkbladeRecharged then
+        made.jinkbladeRecharged = true
+        local jinkblade = inventory:find(U.ROSE_OWNER_WEAPON)
+        local record = jinkblade and types.Weapon.record(jinkblade)
+        local enchantment = record and record.enchant and core.magic.enchantments.records[record.enchant]
+        if enchantment then types.Item.itemData(jinkblade).enchantmentCharge = enchantment.charge end
+    end
 end
 
 return {
@@ -380,6 +359,7 @@ return {
             made.boundWeapons = data.boundWeapons or {}
             made.boundScaling = data.boundScaling or made.boundScaling
             made.roseGiven = data.roseGiven or false
+            made.jinkbladeRecharged = data.jinkbladeRecharged or false
         end,
     },
 }

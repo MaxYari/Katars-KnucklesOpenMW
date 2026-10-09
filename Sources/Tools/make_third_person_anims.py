@@ -23,7 +23,15 @@ Where this differs from that build:
     Everywhere else the merge turns the spine so our upper body keeps its orientation; the thighs and
     tail are turned back here, so the legs stay exactly where the third person put them.
   * The upper body's bone offsets are moved from the first-person skeleton's to the third-person
-    one's, so fingers and the weapon bones sit where that skeleton has them.
+    one's - but not the weapon bones'. Vanilla's first- and third-person hand meshes put the palm in
+    the same place on the hand bone, so the katar keeps the seat it has in first person; the
+    skeletons' own weapon bones differ by about a finger's width, which sat it that much off in the
+    palm.
+  * The fingers are fitted, not copied (third_person_fingers.py): the third-person hand has two-joint
+    fingers, the last three as one, at other lengths and rest angles, so first-person rotations
+    copied onto it twisted the thumbs. The first-person hand mesh is posed with the animation and
+    the third-person finger rotations that put the same vertices in the same places are solved for.
+    Beasts take the same fingers: their skeleton's finger offsets are the same.
   * The head looks ahead through every swing and draw. In first person the whole upper body, head and
     all, turns into a punch - up to 95 degrees - which the camera never shows, since it takes the
     head's position and not its turn. Here the head is turned back each frame to the way it looks in
@@ -64,6 +72,8 @@ TARGETS = {
 FIRST_PERSON_KF = 'meshes\\xbase_anim.1st.kf'
 BONE_FILE = 'h2h_weapon_bone_l.nif'
 OFF_HAND_BONE = 'Weapon Bone.L'
+# Their seat stays as the first person has it, on the hand bone (see above).
+WEAPON_BONES = ('Weapon Bone', OFF_HAND_BONE)
 
 # Bones under Bip01 Spine that are not the upper body: they follow the lower body, and are turned
 # back when the spine is turned.
@@ -140,14 +150,18 @@ def main():
 
     tools = os.path.join(find_reanimation(args.reanimation), 'Sources', 'Tools', 'FBACompat')
     sys.path.insert(0, tools)
+    import fba_fingers
     import fba_merge as M
     import kfeval as E
     import nifkf
     import params
+    import third_person_fingers
 
     data_files = args.data_files or params.find_data_files()
     if not data_files:
         sys.exit('Morrowind.bsa not found from openmw.cfg - give --data-files')
+    fingers = third_person_fingers.FingerFit(fba_fingers, E, os.path.join(data_files, 'Morrowind.bsa'))
+    finger_cache = {}  # (first-person file, side, its time) -> fitted rotations, shared by both skeletons
     vanilla = bsa_files(os.path.join(data_files, 'Morrowind.bsa'),
                         set(TARGETS.values()) | {FIRST_PERSON_KF})
     # nifkf reads from a file; Bethesda's never land anywhere near the mod.
@@ -203,9 +217,13 @@ def main():
         for source in sources:
             name = os.path.basename(source)
             M.WARNINGS.clear()
+            fit_errors = []
             segments = merge(M, E, nifkf, source, theirs_kf, os.path.join(out_dir, name),
-                             lower, first_rest, third_rest, head_forward)
-            print('  %-26s %s' % (name, ', '.join(s.name for s in segments)))
+                             lower, first_rest, third_rest, head_forward,
+                             fingers, finger_cache, fit_errors)
+            print('  %-26s %s; fingers fitted to %.2f units on average, %.2f at worst'
+                  % (name, ', '.join(s.name for s in segments),
+                     sum(fit_errors) / max(len(fit_errors), 1), max(fit_errors, default=0.0)))
             if args.verbose:
                 M.report(segments)
             for w in M.WARNINGS:
@@ -260,10 +278,14 @@ def thin(keys, interpolate, close):
     return kept
 
 
-def merge(M, E, nifkf, ours_path, theirs_kf, out_path, lower, first_rest, third_rest, head_forward):
+def merge(M, E, nifkf, ours_path, theirs_kf, out_path, lower, first_rest, third_rest, head_forward,
+          fingers, finger_cache, fit_errors):
     """fba_merge.build, for third person: the thighs and tail turned back under the turned spine,
     the beast's extra leg and tail bones taken too, the upper body's offsets moved to the
-    third-person skeleton, and the head held looking ahead through the swings."""
+    third-person skeleton (the weapon bones' excepted), the fingers fitted to the first person's
+    hand, and the head held looking ahead through the swings. Each fitted frame's mean distance from
+    the first-person hand goes into fit_errors."""
+    finger_bones = {'Bip01 %s %s' % (side, b): (side, b) for side in fingers.rest for b in fingers.rest[side]}
     M._current_file[0] = os.path.basename(ours_path)
     ours_kf = nifkf.KF.load(ours_path)
     # Ours carry their footsteps as references (footstep_refs.py); the merge matches the legs by them
@@ -353,12 +375,34 @@ def merge(M, E, nifkf, ours_path, theirs_kf, out_path, lower, first_rest, third_
                 rot, trans = pose[bone]
                 new_data[bone].quat_keys.append((t_out, E.qnorm(rot), ()))
                 new_data[bone].trans['keys'].append((t_out, tuple(trans), ()))
+        for side in sorted(fingers.rest):
+            hand = ['Bip01 %s %s' % (side, b) for b in ['Hand'] + fingers.F.FIT_BONES]
+            if not all(b in ours_kf.bone_data for b in hand):
+                continue
+            times = set()
+            for b in hand:
+                times |= M.key_times(ours_kf.data(b))
+            for tau in seg.sample_times(times):
+                t_ours = seg.our_time(tau)
+                key = (os.path.basename(ours_path), side, round(t_ours, 5))
+                if key not in finger_cache:
+                    finger_cache[key] = fingers.solve(ours_kf, side, t_ours,
+                                                      key=(os.path.basename(ours_path), side))
+                rots, error = finger_cache[key]
+                fit_errors.append(error)
+                for b, rot in rots.items():
+                    name = 'Bip01 %s %s' % (side, b)
+                    if name not in new_data:
+                        continue
+                    new_data[name].quat_keys.append((seg.offset + tau, E.qnorm(rot), ()))
+                    offset = third_rest.get(name, fingers.rest[side][b][1])
+                    new_data[name].trans['keys'].append((seg.offset + tau, tuple(offset), ()))
         for bone, dst in new_data.items():
-            if bone in lower:
+            if bone in lower or bone in finger_bones:
                 continue
             src = ours_kf.data(bone)
             shift = (0.0, 0.0, 0.0)
-            if bone in first_rest and bone in third_rest:
+            if bone in first_rest and bone in third_rest and bone not in WEAPON_BONES:
                 shift = tuple(b - a for a, b in zip(first_rest[bone], third_rest[bone]))
             steady = bone == HEAD and seg.name in STEADY_HEAD_GROUPS
             rebase = bone == CHEST and seg in rebased

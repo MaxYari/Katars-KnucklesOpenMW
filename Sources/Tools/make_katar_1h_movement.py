@@ -27,22 +27,16 @@ frames both come within 2%, which the phase sync takes up.
 Run it again and it replaces what it made before; an action of one of those names it did not make is
 kept, renamed "<name> (old)".
 
---export then runs ReAnimation's own build_and_export_moveset.py, as its Sources/Reanimv3.blend has
-it, on each: baked off the Auto-Rig Pro rig by Bizarre Morrowind Animation Utilities, laid out as
-every direction by the build_moveset_action.py beside it, and exported for the first-person skeleton
-- at 30 frames a second, which every .kf is timed at; this file's scene runs at 25. Each file then
-gets Weapon Bone.L's track from mirror_weapon_track.py, its footsteps made references that sound
-nothing by footstep_refs.py - the one-handed set underneath sounds its own - and its step cycles,
-footsteps and loop lengths are checked against the one-handed set's. The export changes the file in memory, so --save
-saves first.
+--export then exports the two as export_katar_anims.py exports every katar action - ReAnimation's
+bake, moveset builder and export, Weapon Bone.L and the SoundGenRef footsteps straight from the
+blend - and checks their step cycles, footsteps and loop lengths against the one-handed set's. The
+export changes the file in memory, so --save saves first.
 
     blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/make_katar_1h_movement.py -- \\
         --save --export Animations/xbase_anim.1st
 """
 import os
-import shutil
 import sys
-import tempfile
 
 import bpy
 
@@ -64,9 +58,6 @@ LAYOUTS = [
 TAG = "katar_1h_movement"
 TOLERANCE = 1e-5          # how far a laid-out curve may stray from the cycle it came from
 
-ADDON = "BizarreMorrowindAnimatonUtilities"
-SCRIPT = "build_and_export_moveset.py"  # a text in ReAnimation's Sources/Reanimv3.blend
-FPS = 30
 # How far the exported loops may be from the one-handed ones: in length, and in where each footstep
 # falls, as parts of the loop. The phase sync takes up the first.
 MAX_LENGTH_OFF = 0.05
@@ -327,62 +318,12 @@ def make_action(layout):
     return target
 
 
-def load_script(reanimation):
-    """ReAnimation's bake, build and export in one, as its Reanimv3.blend carries it."""
-    blend = os.path.join(reanimation, "Sources", "Reanimv3.blend")
-    with bpy.data.libraries.load(blend, link=False) as (theirs, ours):
-        if SCRIPT not in theirs.texts:
-            sys.exit("%s has no %s" % (blend, SCRIPT))
-        ours.texts = [SCRIPT]
-    text = ours.texts[0]
-    source = text.as_string()
-    bpy.data.texts.remove(text)
-    return source
-
-
 def export(layouts, out_dir, reanimation):
-    scene = bpy.context.scene
-    scene.render.fps, scene.render.fps_base = FPS, 1.0
-    script = load_script(reanimation)
-    # It finds build_moveset_action.py beside itself: ReAnimation's Sources has the same one.
-    script_path = os.path.join(reanimation, "Sources", SCRIPT)
-    rig = bpy.data.objects["rig"]
-
-    prefs = bpy.context.preferences.addons[ADDON].preferences
-    settings = {"export_as": "1ST_PERSON", "retained_extra_bones": "", "enable_root_motion_arp": False,
-                "negate_camera_motion": False}
-    saved = {name: getattr(prefs, name) for name in list(settings) + ["export_folder"]}
-    scratch = tempfile.mkdtemp()
-    try:
-        for name, value in settings.items():
-            setattr(prefs, name, value)
-        prefs.export_folder = scratch
-        for layout in layouts:
-            raw = bpy.data.actions[layout["target"]]
-            rig.animation_data_create()
-            rig.animation_data.action = raw
-            rig.animation_data.action_slot = raw.slots[0]
-            bpy.context.view_layer.objects.active = rig
-            exec(compile(script, script_path, "exec"), {"__file__": script_path, "__name__": "__main__"})
-    finally:
-        for name, value in saved.items():
-            setattr(prefs, name, value)
-
+    """Through export_katar_anims.py, which exports every katar action the same way and checks these
+    two against the one-handed set's loops."""
     sys.path.insert(0, HERE)
-    import footstep_refs
-    import mirror_weapon_track
-    os.makedirs(out_dir, exist_ok=True)
-    for layout in layouts:
-        kf = os.path.join(scratch, layout["out"] + ".kf")
-        if not os.path.isfile(kf):
-            sys.exit("no %s among what was exported: %s" % (os.path.basename(kf), sorted(os.listdir(scratch))))
-        print("%s: %s, %d footsteps made references" % (os.path.basename(kf), mirror_weapon_track.patch(kf, (1, 1, -1)),
-                                                        footstep_refs.rename(kf)))
-        check_loops(kf, os.path.join(reanimation, "Animations", "xbase_anim.1st", layout["theirs"]))
-        for ext in (".kf", ".nif"):
-            shutil.copyfile(os.path.join(scratch, layout["out"] + ext), os.path.join(out_dir, layout["out"] + ext))
-            print("wrote", os.path.join(out_dir, layout["out"] + ext))
-    shutil.rmtree(scratch)
+    import export_katar_anims
+    export_katar_anims.export_actions([layout["target"] for layout in layouts], out_dir, reanimation)
 
 
 def loops(path):

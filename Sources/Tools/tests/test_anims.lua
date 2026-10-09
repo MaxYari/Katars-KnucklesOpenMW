@@ -187,6 +187,7 @@ check(jumped, "and jumping its jump")
 -- A generated record - a Bound Fist scaled to its caster, Ebony Rose's burst copy, a katar someone
 -- enchanted - is one too, though ReAnimation hands out its id lowercased and the engine only knows it
 -- as "Generated:0x...".
+st.weaponRecords["katar_daedric"] = { type = 0, model = "meshes/daedric_katar.nif" }
 st.weaponRecords["generated:0x77"] = { type = 0, model = "meshes/daedric_katar.nif" }
 st.equipped = { recordId = "Generated:0x77" }
 follow("thrust")
@@ -250,6 +251,53 @@ st.equipped = { recordId = "katar_steel" }
 st.cameraMode = 0
 api.engineHandlers.onUpdate(0.016)
 check(turnMask("turnleft1h") == 15, "and in first person nothing is done to the turn", turnMask("turnleft1h"))
+
+--- the idle -------------------------------------------------------------------------------------------
+-- The engine plays a weapon idle for one to four loops and then plays it again. Ours loops on its own -
+-- copying the count, it ran out first and stood frozen - and when the parent comes round again,
+-- carries on from where it is.
+local animationStub = require("openmw.animation")
+local function idleStart()
+    st.played = {}
+    stubs.I.AnimationController.playBlendedAnimation("idle1s", { startKey = "start", startkey = "start",
+        stopKey = "stop", stopkey = "stop", speed = 1, priority = 0, blendMask = 15, loops = 3, startPoint = 0.9 })
+    for _, p in ipairs(st.played) do if p.group == "idlekatar" then return p.options end end
+end
+local idle = idleStart()
+check(idle and idle.loops == 4294967295, "the katar's idle loops until it is stopped, not for the parent's count",
+      idle and idle.loops)
+check(idle and idle.startPoint == 0, "from its own beginning, not from where the parent is", idle and idle.startPoint)
+local realCompletion = animationStub.getCompletion
+animationStub.getCompletion = function(actor, group)
+    if group == "idlekatar" then return 0.4 end
+    return realCompletion(actor, group)
+end
+idle = idleStart()
+check(idle and idle.startPoint == 0.4, "the parent coming round again leaves ours where it was", idle and idle.startPoint)
+animationStub.getCompletion = realCompletion
+
+-- Loaded with one out, or come into the world with it: the engine started the idle before Lua could
+-- see it, so no override had its options. ReAnimation (3.3) looks once, on its first update after, and
+-- takes the idle to have been played as the engine plays one; ours then starts over it.
+for _, parent in ipairs({ "idle1s", "idle1b" }) do
+    for _, anim in ipairs(api.interface.animations[parent]) do anim.parentOptions = nil; anim.running = false end
+end
+st.played = {}
+api.engineHandlers.onActive()
+api.engineHandlers.onUpdate(0.016)
+local loadedIdle
+for _, p in ipairs(st.played) do if p.group == "idlekatar" then loadedIdle = p.options end end
+local BG = animationStub.BONE_GROUP
+check(loadedIdle ~= nil, "loaded with a katar out, its idle starts on the first update")
+check(loadedIdle and type(loadedIdle.priority) == "table" and loadedIdle.priority[BG.RightArm] == 1
+      and loadedIdle.priority[BG.LowerBody] == 2, "above the idle the engine started unseen")
+check(loadedIdle and loadedIdle.loops == 4294967295, "and loops until it is stopped", loadedIdle and loadedIdle.loops)
+check(api.interface.animations["idle1b"][1].parentOptions == nil, "a parent that is not playing is left unknown")
+st.played = {}
+api.engineHandlers.onUpdate(0.016)
+local again = false
+for _, p in ipairs(st.played) do if p.group == "idlekatar" then again = true end end
+check(not again, "and the look is once: the idle is not started over on the next update")
 
 print(string.format("\n%d checks, %d failures", checks, fails))
 os.exit(fails == 0 and 0 or 1)

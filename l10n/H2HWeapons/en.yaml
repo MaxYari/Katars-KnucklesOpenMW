@@ -3,8 +3,8 @@ page_description: "Hand-to-hand weapons: katars and knuckledusters, swung with t
 
 settings_group: "Hand-to-Hand Weapons"
 settings_group_description: |-
-  How katars and knuckledusters behave. These are shared by every actor, so they live in the save
-  rather than in your settings file.
+  How katars, knuckledusters and other hybrid weapons behave. These are shared by every actor, so
+  they live in the save rather than in your settings file.
 
 strength_influences: "Strength influences hand to hand"
 strength_influences_description: |-
@@ -16,30 +16,6 @@ off: "Off"
 on: "Affect Werewolves"
 onExceptWerewolves: "Do Not Affect Werewolves"
 
-hand_to_hand_share: "Hand to Hand experience share"
-hand_to_hand_share_description: |-
-  How much of a successful hit's experience goes to Hand to Hand. The rest goes to the weapon skill
-  the engine thinks was used - Short Blade for katars, Blunt Weapon for knuckledusters.
-
-skill_bonus_max: "Weapon skill bonus"
-skill_bonus_max_description: |-
-  What the weapon skill adds to your effective Hand to Hand, as a share of the weapon skill itself.
-  0.15 is +15% of your Short Blade or Blunt Weapon.
-
-skill_bonus_min: "Weapon skill bonus floor"
-skill_bonus_min_description: |-
-  The share a badly neglected weapon skill is still worth. The bonus tapers to this rather than
-  disappearing.
-
-skill_bonus_grace: "Weapon skill bonus grace"
-skill_bonus_grace_description: |-
-  How many points the weapon skill may fall behind Hand to Hand before the bonus starts tapering.
-  Within this, or ahead, you get the full share.
-
-skill_bonus_falloff: "Weapon skill bonus falloff"
-skill_bonus_falloff_description: |-
-  How many points past the grace the bonus takes to taper from the full share down to the floor.
-
 show_off_hand_weapon: "Show the off-hand weapon"
 show_off_hand_weapon_description: |-
   Put a second copy of the weapon in the left hand. Needs this mod's skeleton meshes, which add the
@@ -48,13 +24,17 @@ show_off_hand_weapon_description: |-
 silence_draw_sound: "Silence the draw and sheathe sound"
 silence_draw_sound_description: |-
   These are officially short blades and blunt weapons, so the engine plays their draw and sheathe
-  sound. Bare hands make none, and neither should these.
+  sound. Bare hands make none, and neither should these - or any weapon whose definition says so.
 
-tooltip_type: "Hand to Hand"
+# The weapon type line names a hybrid weapon by its two skills: "Hand-to-hand (Short Blade)".
+tooltip_type: "%{primarySkill} (%{secondarySkill})"
 tooltip_fatigue: "Fatigue Damage"
-# %{skill} is Short Blade or Blunt Weapon, whichever the weapon is; %{handToHand} and %{bonus} are
-# the player's current values, filled in each time a tooltip is built.
-tooltip_explanation: "Hand-to-Hand weapon: effectiveness is determined by the Hand to Hand skill (%{handToHand}), with a minor bonus from %{skill} (%{bonus})."
+# The footnote of a hybrid weapon whose definition has no tooltip of its own, by its scaling. The
+# placeholders are the ones a definition's tooltip can use (README.md); the numbers are the player's
+# current values, filled in each time a tooltip is built.
+tooltip_minor_secondary_bonus: "Hybrid weapon: effectiveness is determined by the %{primarySkill} skill (%{primary}), with a minor bonus from %{secondarySkill} (%{bonus})."
+tooltip_lowest_skill: "Hybrid weapon: trains %{primarySkill} and %{secondarySkill}, and is only as effective as the lower of the two (%{effective})."
+tooltip_highest_skill: "Hybrid weapon: trains %{primarySkill} and %{secondarySkill}, and is as effective as the higher of the two (%{effective})."
 
 # The uniques. %{...} placeholders are filled from scripts/uniques.lua, so the numbers stay true.
 # The name the charge goes by in the active effects list; %{spell} is the spell it holds.

@@ -21,16 +21,6 @@ local STRENGTH_VALUES = { off = 0, on = 1, onExceptWerewolves = 2 }
 -- Defaults, also used as the registered defaults in global.lua. Keep the two in step.
 M.DEFAULTS = {
     strengthInfluencesHandToHand = "off",
-    -- Of the experience a successful hit would have given, this much goes to hand-to-hand and the
-    -- rest to the weapon skill the engine thinks was used.
-    handToHandShare = 0.7,
-    -- What the weapon skill adds to the effective hand-to-hand value, as a share of the weapon
-    -- skill itself: the full share while it is within skillBonusGrace points of hand-to-hand,
-    -- tapering over the next skillBonusFalloff points to skillBonusMin, which is a floor.
-    skillBonusMax = 0.15,
-    skillBonusMin = 0.05,
-    skillBonusGrace = 10,
-    skillBonusFalloff = 20,
     showOffHandWeapon = true,
     silenceDrawSound = true,
 }

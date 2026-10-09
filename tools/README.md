@@ -1,7 +1,7 @@
 # Katars build tools
 
-Two Blender scripts. Both are safe to re-run, and both work headless or from
-Blender's Text Editor.
+Three Blender scripts, all safe to re-run. `mw_paint_prep.py` is meant to be
+run from Blender's Text Editor as well as headless.
 
 ```
 BLENDER=/run/media/deck/350243d8-.../programs/blender-5.1.0-linux-x64/blender
@@ -34,8 +34,29 @@ Picks up any mesh object with `[Bake]` in its name and:
    counterpart there, otherwise from the keyword table in `CONFIG`.
 4. For objects also tagged `[NormGen]`, derives `<name>_n.dds` from the baked
    albedo (local luminance → sobel → normal). This is *not* a high-to-low bake.
+   The luminance is high-passed island by island, from each island's own texels,
+   and grown outwards past its edge; a blur over the whole image pulled in the
+   margin and background and raised a rim along every island border, which
+   showed as a crease wherever two islands met on a rounded surface.
+
+Every `_n` is written in the DirectX convention (green = down the image), which
+is what OpenMW reads (its docs: texture-modding/texture-basics.rst). Blender
+works in OpenGL, so `norm_flip_green` flips green on the way out, and on the way
+in for `[NormCopy]` sources, which are OpenMW maps already.
 5. Replaces the object's materials with a single MW material pointing at the
    baked DDS, and drops the old UV layer so `BakeUV` is UV set 0.
+
+A material with no tag (`[Alpha]` aside) is left out of all of this: it keeps
+its own texture, and its UV layer stays beside `BakeUV`. That is for thin
+inlays whose look is their polygon edges — the adamantium blade's lining is
+about one texel wide at any sensible bake size, and baked it reads as a
+staircase. A bare `[Bake]` on a material bakes it as plain non-metal.
+
+`[NoSpec]` on a material bakes it but writes no `_spec` map, so OpenMW's PBR
+shaders guess metalness and roughness from the albedo themselves - a spec map's
+mere presence switches that guess off. There is one map per texture, so it
+takes every baked material of the object to say so; a stale `_spec` from an
+earlier bake is deleted.
 
 Output goes to `textures/katars/` (shipping) and `bake_source/` (lossless PNG
 masters, not shipped). Resolution is chosen to preserve the original texel
@@ -51,6 +72,28 @@ auto use object normal maps = true
 
 It appends `_spec` / `_n` to the diffuse texture's path, which is why the maps
 must sit next to the albedo in `textures/katars/`.
+
+## mw_paint_prep.py
+
+Gets a mesh ready for texture painting: its vanilla textures baked onto a
+non-overlapping layout of its own. Tag the object `[Paint]`, or select it and
+run the script from the Text Editor (flags go in `RUN_OPTIONS` there).
+
+The layout is a second UV map of yours if it is clean - inside 0-1, no
+overlaps, not a copy of the first - and otherwise `PaintUV`, made from the
+islands of the UV map the textures use. Islands are never re-unwrapped: each
+is sized to the vanilla texels it covers, packed with 8 px between them (16 at
+2048), and mirrored halves folded onto one seam are cut apart. Faces twisted in
+the original UVs cannot be untwisted that way; they are reported and left
+selected in Edit Mode.
+
+The bake goes to `bake_source/paint/<name>.png` at twice vanilla's texel
+density. Each material slot gets a new material reading it through the layout,
+named after the old one with its tags, so `mw_bake.py` bakes the painted mesh
+as it did the original. The old material stays in the file, the UV maps the
+textures used are copied to `<name>_backup` first, and an object already
+prepared is skipped unless `--overwrite` is given - the old texture is then
+kept as `<name>_previous.png`. Image > Save (Alt+S) writes the painting.
 
 ## mw_export.py
 

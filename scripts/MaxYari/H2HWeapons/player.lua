@@ -1,11 +1,12 @@
--- Everything that makes a katar or a knuckleduster behave like a hand-to-hand weapon on the player:
--- the skill the engine rolls against, where the experience goes, the second weapon in the off hand,
--- the shield or torch it leaves no room for, the draw sound it should not make, and what the tooltip
--- says - and the wielder's half of the two uniques' magic: Ebony Rose's burst and Mage Fury's stored
--- spell.
+-- Everything that makes a hybrid weapon - a katar, knuckledusters, or any weapon a definition file
+-- names (definitions.lua) - behave like one on the player: the skill the engine rolls against, where
+-- the experience goes, what the tooltip says and the draw sound it should not make; for one swung
+-- with the hand-to-hand moveset, the second weapon in the off hand and the shield or torch it leaves
+-- no room for - and the wielder's half of the two uniques' magic: Ebony Rose's burst and Mage Fury's
+-- stored spell.
 --
--- The engine has no hand-to-hand weapon type, so these are a short blade and a blunt weapon as far
--- as it is concerned. Each piece below puts one of its assumptions back.
+-- The engine knows one skill per weapon, from its type: a katar is a short blade to it, knuckledusters
+-- a blunt weapon. Each piece below puts one of its assumptions back.
 --
 -- Per frame this costs: one getStance, one camera.getMode, one equipment lookup that Max Yari's
 -- Script Services answers from its own cache ten times a second, and a handful of compares - and,
@@ -139,7 +140,8 @@ local scalingReported = false
 local EQUIPMENT_CACHE_TIME = 0.1
 
 local equippedInfo = nil
-local equippedKind = false
+local equippedHybrid = false     -- weapons.hybridOfId's answer
+local equippedHandToHand = false -- and whether it swings with the hand-to-hand moveset
 local equippedSpecial = false
 local equippedModel = nil
 local equippedChargeModel = nil
@@ -148,22 +150,23 @@ local function refreshEquipped()
     local info = I.MSS.getEquipmentInfo(CARRIED_RIGHT, EQUIPMENT_CACHE_TIME)
     if info == equippedInfo then return false end
     equippedInfo = info
-    local kind = info and weapons.kindOfId(info.recordId) or false
-    local changed = kind ~= equippedKind
-    equippedKind = kind
-    equippedSpecial = kind and weapons.specialOfId(info.recordId) or false
-    equippedModel = kind and weapons.modelOfId(info.recordId) or nil
-    equippedChargeModel = kind and weapons.chargeModelOfId(info.recordId) or nil
+    local hybrid = info and weapons.hybridOfId(info.recordId) or false
+    local changed = hybrid ~= equippedHybrid
+    equippedHybrid = hybrid
+    equippedHandToHand = hybrid and hybrid.handToHand or false
+    equippedSpecial = hybrid and weapons.specialOfId(info.recordId) or false
+    equippedModel = hybrid and hybrid.model or nil
+    equippedChargeModel = hybrid and weapons.chargeModelOfId(info.recordId) or nil
     return changed
 end
 
 --- Hit chance -------------------------------------------------------------------------------------
 -- Npc::evaluateHit rolls against getSkill(attacker, the weapon's equipment skill) - Short Blade for
 -- a katar, Blunt Weapon for knuckledusters - and there is no hook for that number. So for the length
--- of a swing the weapon skill *is* the hand-to-hand value: the modifier is nudged by the difference
--- and put back afterwards. Skill modifiers are only ever added to and subtracted from (fortify and
--- drain effects do the same, spelleffects.cpp:131), so this composes with them rather than fighting
--- them.
+-- of a swing the weapon skill *is* the hybrid's effective skill (formulas.effectiveSkill, from its
+-- two skills by its scaling): the modifier is nudged by the difference and put back afterwards.
+-- Skill modifiers are only ever added to and subtracted from (fortify and drain effects do the same,
+-- spelleffects.cpp:131), so this composes with them rather than fighting them.
 --
 -- Applied on the wind-up, because prepareHit() - which is where the roll happens - runs when the
 -- attack is released, before the release section plays (character.cpp:1754).
@@ -182,16 +185,20 @@ local function revertSkillSwap()
     swappedDelta = 0
 end
 
-local function applySkillSwap(kind)
+-- The player's current values for a hybrid's two skills, and the one it swings with.
+local function hybridSkills(hybrid)
+    local primary = SKILLS[hybrid.primarySkill](omwself).modified
+    local secondary = SKILLS[hybrid.secondarySkill](omwself).modified
+    return primary, secondary, formulas.effectiveSkill(hybrid.scaling, primary, secondary)
+end
+
+local function applySkillSwap(hybrid)
     revertSkillSwap() -- an interrupted previous swing may still be holding one
 
-    local skillName = weapons.WEAPON_SKILL[kind]
+    local skillName = hybrid.weaponSkill
     local weaponStat = SKILLS[skillName](omwself)
-    local weaponSkill = weaponStat.modified
-    local handToHand = SKILLS.handtohand(omwself).modified
-
-    local effective = formulas.effectiveSkill(handToHand, weaponSkill, cfg)
-    local delta = effective - weaponSkill
+    local _, _, effective = hybridSkills(hybrid)
+    local delta = effective - weaponStat.modified
     -- getHitChance truncates the skill to an int, so anything under a point changes nothing.
     if delta > -0.5 and delta < 0.5 then return end
 
@@ -203,22 +210,34 @@ end
 
 --- Experience -------------------------------------------------------------------------------------
 -- Npc::hit credits the weapon's own skill on a successful hit and there is no way to redirect it at
--- the source, so it is split here instead: the weapon skill keeps its share and hand-to-hand is
--- credited separately. The nested skillUsed re-enters this handler with skillid "handtohand", which
--- the first line drops, so it cannot recurse.
+-- the source, so it is split here instead, by the hybrid's shares: a primary or secondary skill that
+-- is the weapon's own keeps its share of the engine's credit, and the others are credited
+-- separately, each as one use of its own (a magic school's first kind of use is a successful cast)
+-- at its share. A weapon skill that is neither keeps nothing. The nested skillUsed calls never name
+-- the weapon's own skill, which is the only one this handler acts on, so they cannot recurse.
+local function creditShare(skillid, share)
+    if share <= 0 then return end
+    I.SkillProgression.skillUsed(skillid, { useType = WEAPON_SUCCESSFUL_HIT, scale = share })
+end
+
 I.SkillProgression.addSkillUsedHandler(function(skillid, options)
-    if skillid == "handtohand" then return end
     if options.useType ~= WEAPON_SUCCESSFUL_HIT then return end
-    if not equippedKind then return end
-    if skillid ~= weapons.WEAPON_SKILL[equippedKind] then return end
+    local hybrid = equippedHybrid
+    if not hybrid or skillid ~= hybrid.weaponSkill then return end
 
-    local share = cfg.handToHandShare
-    if options.skillGain then options.skillGain = options.skillGain * (1 - share) end
-
-    I.SkillProgression.skillUsed("handtohand", {
-        useType = WEAPON_SUCCESSFUL_HIT,
-        scale = share,
-    })
+    local kept = 0
+    if skillid == hybrid.primarySkill then
+        kept = hybrid.primaryExperience
+    else
+        creditShare(hybrid.primarySkill, hybrid.primaryExperience)
+    end
+    if skillid == hybrid.secondarySkill then
+        kept = hybrid.secondaryExperience
+    else
+        creditShare(hybrid.secondarySkill, hybrid.secondaryExperience)
+    end
+    -- Zeroed rather than stopped, so the handlers after this one still hear of the hit.
+    if options.skillGain then options.skillGain = options.skillGain * kept end
 end)
 
 --- Mage Fury's charge ---------------------------------------------------------------------------
@@ -422,7 +441,7 @@ local function updateAttachments(stance)
         return
     end
 
-    local drawn = equippedKind and weaponShown
+    local drawn = equippedHandToHand and weaponShown
     local offHand = (drawn and cfg.showOffHandWeapon and equippedModel) or nil
     local glow = (drawn and isCharged() and equippedChargeModel) or nil
     onBones.attach(OFF_HAND, offHand)
@@ -442,9 +461,10 @@ local function afterTimePassed()
 end
 
 --- The left hand --------------------------------------------------------------------------------
--- Nothing in it while one is out (carriedleft.lua): out from the moment the stance says so, to the
--- moment the hand has put it away, which is when the engine hides and shows a shield or torch with
--- bare fists. Something equipped with the game paused, in the inventory, comes off when it resumes.
+-- Nothing in it while one swung with the hand-to-hand moveset is out (carriedleft.lua): out from the
+-- moment the stance says so, to the moment the hand has put it away, which is when the engine hides
+-- and shows a shield or torch with bare fists. Something equipped with the game paused, in the
+-- inventory, comes off when it resumes.
 local left = carriedLeft.new(omwself)
 
 --- Ebony Rose ------------------------------------------------------------------------------------
@@ -454,10 +474,10 @@ local rose = roseState.new(omwself)
 
 --- Draw and sheathe sound -------------------------------------------------------------------------
 -- The engine plays a weapon's draw and sheathe sound for anything that is not hand-to-hand
--- (character.cpp:1417, :1477), and these officially are not. Bare hands are silent, so these are
--- silenced too. There is no hook for a sound about to play, so it is stopped instead: the engine
--- plays it after the animation it belongs to, which is the event we see, so the stop lands on the
--- next update - well under a frame of audio.
+-- (character.cpp:1417, :1477), and hybrids officially are not. Bare hands are silent, and so is a
+-- hybrid whose definition says silentDraw - katars and knuckledusters. There is no hook for a sound
+-- about to play, so it is stopped instead: the engine plays it after the animation it belongs to,
+-- which is the event we see, so the stop lands on the next update - well under a frame of audio.
 local SILENCE_UPDATES = 8
 
 local silenceSounds = nil
@@ -484,17 +504,17 @@ I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options
         -- The sheathe plays while the weapon is still in hand, and a swap plays the incoming
         -- weapon's group, so the current item is the right one to ask either way.
         refreshEquipped()
-        if cfg.silenceDrawSound and equippedKind then
-            silenceSounds = weapons.DRAW_SOUNDS[equippedKind]
+        if cfg.silenceDrawSound and equippedHybrid and equippedHybrid.silentDraw then
+            silenceSounds = equippedHybrid.drawSounds
             silenceLeft = SILENCE_UPDATES
         end
         return
     end
 
-    if not equippedKind then return end
+    if not equippedHybrid then return end
 
     if swing.isWindUpStart(startKey) then
-        applySkillSwap(equippedKind)
+        applySkillSwap(equippedHybrid)
         rose.windUp(equippedInfo and equippedInfo.item)
         if equippedSpecial == SPECIAL.MageFury and equippedInfo then
             fury.chargeAtWindUp = types.Item.itemData(equippedInfo.item).enchantmentCharge
@@ -510,12 +530,13 @@ end)
 -- Two tooltip mods are dressed up, both optional: Inventory Extender's, in the inventory, and the
 -- Shared Tooltip QuickLoot shows for what is under the crosshair. Their interfaces may not exist yet
 -- when this script loads, so they are picked up on the first update instead. Both get the type line
--- naming Hand to Hand and a fatigue damage line under the damage ones; Inventory Extender's, which
--- has the room for it, a footnote on which skills the weapon runs on as well.
+-- naming the hybrid's two skills, and a fatigue damage line under the damage ones for one that deals
+-- it; Inventory Extender's, which has the room for it, the definition's footnote on how the weapon
+-- runs on its skills as well.
 local tooltipsTried = false
 
-local function fatigueRange(kind)
-    local factor = weapons.FATIGUE_FACTOR[kind]
+local function fatigueRange(hybrid)
+    local factor = hybrid.fatigueDamage
     local strengthFactor = cfg.strengthFactor
     -- The plain GameObject, not the self handle: formulas does a types.NPC.objectIsInstance on it.
     local player = omwself.object
@@ -524,20 +545,54 @@ local function fatigueRange(kind)
 end
 
 -- Whole numbers, like the chop/slash/thrust lines they go under.
-local function fatigueNumbers(kind)
-    local low, high = fatigueRange(kind)
+local function fatigueNumbers(hybrid)
+    local low, high = fatigueRange(hybrid)
     return math.floor(low + 0.5), math.floor(high + 0.5)
 end
 
-local function skillNameOf(kind)
-    return core.getGMST(kind == weapons.KIND.Katar and "sSkillShortblade" or "sSkillBluntweapon")
+local function skillName(skillid)
+    local record = core.stats.Skill.records[skillid]
+    return record and record.name or skillid
 end
 
--- The type line reads "Type: Short Blade, One Handed". Only the skill name is replaced, so the
--- label, the separator and the handedness all stay in the player's own language.
-local function handToHandType(text, skillName)
-    local pattern = skillName:gsub("(%W)", "%%%1")
-    return (text:gsub(pattern, core.getGMST("sSkillHandtohand") .. " (" .. skillName .. ")", 1))
+-- What a hybrid's tooltip text can say, as %{name} (README.md lists them): its skills' names, and the
+-- player's numbers - read here rather than once, so the tooltip is right after a level up, a fortify
+-- effect or a change to the settings.
+local function tooltipValues(hybrid)
+    local primary, secondary, effective = hybridSkills(hybrid)
+    local function whole(value) return string.format("%d", math.floor(value + 0.5)) end
+    return {
+        primarySkill = skillName(hybrid.primarySkill),
+        secondarySkill = skillName(hybrid.secondarySkill),
+        weaponSkill = skillName(hybrid.weaponSkill),
+        primary = whole(primary),
+        secondary = whole(secondary),
+        effective = whole(effective),
+        bonus = string.format("%+d", math.floor(effective - primary + 0.5)),
+        lowest = whole(math.min(primary, secondary)),
+        highest = whole(math.max(primary, secondary)),
+        primaryExperience = whole(hybrid.primaryExperience * 100) .. "%",
+        secondaryExperience = whole(hybrid.secondaryExperience * 100) .. "%",
+    }
+end
+
+-- The definition's footnote, or the one for its scaling.
+local DEFAULT_TOOLTIPS = {
+    [weapons.SCALING.MinorSecondaryBonus] = "tooltip_minor_secondary_bonus",
+    [weapons.SCALING.LowestSkill] = "tooltip_lowest_skill",
+    [weapons.SCALING.HighestSkill] = "tooltip_highest_skill",
+}
+local function footnote(hybrid, values)
+    return fill(hybrid.tooltip or l10n(DEFAULT_TOOLTIPS[hybrid.scaling]), values)
+end
+
+-- The type line reads "Type: Short Blade, One Handed". Only the weapon's skill name is replaced -
+-- "Hand-to-hand (Short Blade)" - so the label, the separator and the handedness all stay in the
+-- player's own language.
+local function hybridType(text, values)
+    local pattern = values.weaponSkill:gsub("(%W)", "%%%1")
+    local label = fill(l10n("tooltip_type"), values):gsub("%%", "%%%%")
+    return (text:gsub(pattern, label, 1))
 end
 
 -- A line put in at a place in a ui content list. Not content:insert, which in 0.51 files the lines
@@ -572,54 +627,45 @@ local function registerInventoryExtender()
     local FOOTNOTE_WIDTH = 320
 
     I.InventoryExtender.registerTooltipModifier("H2HWeapons", function(item, layout)
-        local kind = weapons.kindOfItem(item)
-        if not kind then return end
+        local hybrid = weapons.hybridOfItem(item)
+        if not hybrid then return end
 
         local found, inner = pcall(function() return layout.content.padding.content.tooltip.content end)
         if not found or not inner then return end
 
-        local skillName = skillNameOf(kind)
+        local values = tooltipValues(hybrid)
         local typeEntry = inner:indexOf("type") and inner.type
-        if typeEntry and skillName then
-            typeEntry.props.text = handToHandType(typeEntry.props.text, skillName)
+        if typeEntry then
+            typeEntry.props.text = hybridType(typeEntry.props.text, values)
         end
 
-        local low, high = fatigueNumbers(kind)
-        local line = {
-            name = "h2hFatigue",
-            template = textNormal,
-            props = { text = string.format("%s: %d - %d", l10n("tooltip_fatigue"), low, high) },
-        }
-        local after = inner:indexOf("thrust") or inner:indexOf("attack") or inner:indexOf("type")
-        if after then
-            insertLine(inner, after + 1, line)
-        else
-            inner:add(line)
+        if hybrid.fatigueDamage > 0 then
+            local low, high = fatigueNumbers(hybrid)
+            local line = {
+                name = "h2hFatigue",
+                template = textNormal,
+                props = { text = string.format("%s: %d - %d", l10n("tooltip_fatigue"), low, high) },
+            }
+            local after = inner:indexOf("thrust") or inner:indexOf("attack") or inner:indexOf("type")
+            if after then
+                insertLine(inner, after + 1, line)
+            else
+                inner:add(line)
+            end
         end
 
-        -- And a footnote at the bottom saying which skills this weapon actually runs on, since
-        -- "Hand to Hand (Short Blade)" on the type line does not say what the short blade is for.
-        -- The numbers are read here rather than at registration, so the tooltip is right after a
-        -- level up, a fortify effect or a change to the settings.
-        if skillName then
-            local handToHand = SKILLS.handtohand(omwself).modified
-            local weaponSkill = SKILLS[weapons.WEAPON_SKILL[kind]](omwself).modified
-            local bonus = formulas.skillBonus(handToHand, weaponSkill, cfg)
-            local text = l10n("tooltip_explanation")
-                :gsub("%%{skill}", skillName)
-                :gsub("%%{handToHand}", string.format("%d", math.floor(handToHand + 0.5)))
-                :gsub("%%{bonus}", string.format("%+d", bonus))
-            inner:add({
-                name = "h2hExplanation",
-                template = textParagraph,
-                props = {
-                    text = text,
-                    textColor = DIMMED,
-                    autoSize = true,
-                    size = util.vector2(FOOTNOTE_WIDTH, 0),
-                },
-            })
-        end
+        -- And a footnote at the bottom saying how this weapon actually runs on its skills, since
+        -- "Hand-to-hand (Short Blade)" on the type line does not say what the short blade is for.
+        inner:add({
+            name = "h2hExplanation",
+            template = textParagraph,
+            props = {
+                text = footnote(hybrid, values),
+                textColor = DIMMED,
+                autoSize = true,
+                size = util.vector2(FOOTNOTE_WIDTH, 0),
+            },
+        })
     end)
 end
 
@@ -636,21 +682,21 @@ local function registerSharedTooltip()
         func = function(ctx)
             if ctx.itemType ~= types.Weapon then return end
             -- A tooltip for a record rather than an object has no item.
-            local kind = (ctx.item and weapons.kindOfItem(ctx.item))
-                or (not ctx.item and ctx.rawRecord and weapons.kindOfId(ctx.rawRecord.id))
-            if not kind then return end
+            local hybrid = (ctx.item and weapons.hybridOfItem(ctx.item))
+                or (not ctx.item and ctx.rawRecord and weapons.hybridOfId(ctx.rawRecord.id))
+            if not hybrid then return end
 
             local content = ctx.flex.content
-            local skillName = skillNameOf(kind)
             local typeIndex = content:indexOf("weaponType")
-            if typeIndex and skillName then
+            if typeIndex then
                 local typeLine = content[typeIndex]
-                typeLine.props.text = handToHandType(typeLine.props.text, skillName)
+                typeLine.props.text = hybridType(typeLine.props.text, tooltipValues(hybrid))
             end
+            if hybrid.fatigueDamage <= 0 then return end
 
             -- Written as its own damage lines are: label and value in the tooltip's two colours,
             -- tight or spaced as its short text setting has them.
-            local low, high = fatigueNumbers(kind)
+            local low, high = fatigueNumbers(hybrid)
             local separator = (ctx.style and ctx.style.shortText) and "-" or " - "
             local text = (ctx.labelTag or "") .. l10n("tooltip_fatigue") .. ": "
                 .. (ctx.valueTag or "") .. low .. separator .. high
@@ -718,26 +764,26 @@ local function onUpdate(dt)
     watchForFist()
 
     updateAttachments(stance)
-    left.update(equippedKind and (stance == WEAPON_STANCE or weaponShown) or false)
+    left.update(equippedHandToHand and (stance == WEAPON_STANCE or weaponShown) or false)
     silenceDrawSounds()
 end
 
 return {
     interfaceName = "H2HWeapons",
     interface = {
-        version = 1.1,
-        --- What kind of hand-to-hand weapon a record id is: "katar", "knuckle", or false.
-        kindOfId = weapons.kindOfId,
+        version = 2,
+        --- The hybrid weapon a record id is, or false: its definition's fields (primarySkill,
+        --- secondarySkill, primaryExperience, secondaryExperience, scaling, moveset, fatigueDamage,
+        --- tooltip, silentDraw, swingSounds) and what its record adds (weaponSkill, handToHand,
+        --- drawSounds, model).
+        --- Shared - read it, never change it.
+        hybridOfId = weapons.hybridOfId,
         --- The same for an item object.
-        kindOfItem = weapons.kindOfItem,
+        hybridOfItem = weapons.hybridOfItem,
+        --- The hybrid in the player's right hand, or false.
+        equippedHybrid = function() return equippedHybrid end,
         --- Which of the uniques' tricks a record id carries: "venom", "burst", "magefury", or false.
         specialOfId = weapons.specialOfId,
-        --- Fatigue each kind deals, as a fraction of a bare-fisted hit. [kind] = number.
-        FATIGUE_FACTOR = weapons.FATIGUE_FACTOR,
-        --- The skill the engine believes each kind uses. [kind] = skill id.
-        WEAPON_SKILL = weapons.WEAPON_SKILL,
-        --- The kind in the player's right hand, or false.
-        equippedKind = function() return equippedKind end,
         --- Force the charge glow on (true) or off (false) regardless of any charge; nil to follow it
         --- again. For looking at the effect.
         setCharged = function(value) forcedCharge = value end,

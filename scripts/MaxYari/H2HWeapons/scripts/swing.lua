@@ -1,17 +1,23 @@
--- Where a one-handed weapon's animation is, read from the keys the engine plays it by. Shared by the
+-- Where a melee weapon's animation is, read from the keys the engine plays it by. Shared by the
 -- player's script and every NPC's, which both hang their work off these.
 local M = {}
 
--- The engine's own long animation group for these weapon types, plus weapononehand, which is what
--- both fall back to when the specific group has no animation - which, in vanilla, is always
--- (character.cpp:575-600). Used to skip every other playBlended cheaply.
+-- The engine's own long animation group for each melee weapon type, plus the two it falls back to
+-- when a type's own has no animation - weapononehand and weapontwohand - which, in vanilla, short
+-- blades and one-handed blunt weapons always do (CharacterController::getWeaponAnimation). Used to
+-- skip every other playBlended cheaply.
 M.WEAPON_GROUPS = {
     weapononehand = true,
     shortbladeonehand = true,
     bluntonehand = true,
+    weapontwohand = true,
+    blunttwohand = true,
+    weapontwowide = true,
 }
 -- The same, as a list, for registering text key handlers.
-M.WEAPON_GROUP_LIST = { "weapononehand", "shortbladeonehand", "bluntonehand" }
+M.WEAPON_GROUP_LIST = {}
+for group in pairs(M.WEAPON_GROUPS) do M.WEAPON_GROUP_LIST[#M.WEAPON_GROUP_LIST + 1] = group end
+table.sort(M.WEAPON_GROUP_LIST)
 
 -- The keys the engine shows and hides the weapon on (CharacterController::handleTextKey), partway
 -- through drawing and sheathing.

@@ -1,8 +1,10 @@
--- What counts as a hand-to-hand weapon, and what that means.
+-- What counts as a hybrid weapon, and what that means.
 --
--- The engine has no hand-to-hand weapon type, so these are ordinary weapons as far as it is
--- concerned: katars are short blades, knuckledusters are blunt. Everything that makes them
--- hand-to-hand weapons is done by this mod's scripts, and all of it starts here.
+-- The engine knows one skill per weapon, from its type: a katar is a short blade to it, knuckledusters
+-- a blunt weapon. A hybrid is swung with two skills instead, and everything that makes it one is done
+-- by this mod's scripts, starting here. Which weapons are hybrids, and with which skills, is not
+-- decided here but in the definition files any mod can ship (definitions.lua); this puts a file
+-- together with the weapon record it is for.
 --
 -- Answers are worked out once per record id and cached, because the hot paths - the per-frame
 -- off-hand mesh check, the per-hit fatigue damage - must not be asking the engine for records.
@@ -12,14 +14,13 @@ local core = require('openmw.core')
 local types = require('openmw.types')
 local vfs = require('openmw.vfs')
 
+local definitions = require(mp .. "scripts/definitions")
 local U = require(mp .. "scripts/uniques")
 
 local M = {}
 
-M.KIND = {
-    Katar = "katar",
-    Knuckle = "knuckle",
-}
+M.MOVESET = definitions.MOVESET
+M.SCALING = definitions.SCALING
 
 -- Who can hold these at all: the player and NPCs, and of creatures only a two-legged one that fights
 -- with weapons - dremora, golden saints, liches, skeletons - which is what gives a creature an
@@ -32,124 +33,149 @@ function M.canWield(actor)
     return record.isBiped and record.canUseWeapons
 end
 
--- Fatigue damage these deal, as a fraction of what a bare-fisted hand-to-hand hit would do. Both
--- trade health damage for it against the shortsword they are cut from - a katar hits for 80% of
--- one, knuckledusters for 50% - and knuckledusters, which are made for bruising, trade the most.
-M.FATIGUE_FACTOR = {
-    [M.KIND.Katar] = 0.50,
-    [M.KIND.Knuckle] = 0.75,
+-- What the engine makes of each melee weapon type (weapontype.cpp): the skill it trains and rolls the
+-- hit against, and the sound it draws and sheathes with (+ " Up" / " Down", character.cpp:1417,
+-- :1477). Hybrids are melee only: a type not here cannot be one.
+local T = types.Weapon.TYPE
+local MELEE = {
+    [T.ShortBladeOneHand] = { skill = "shortblade", sound = "Item Weapon Shortblade", oneHanded = true },
+    [T.LongBladeOneHand] = { skill = "longblade", sound = "Item Weapon Longblade", oneHanded = true },
+    [T.BluntOneHand] = { skill = "bluntweapon", sound = "Item Weapon Blunt", oneHanded = true },
+    [T.AxeOneHand] = { skill = "axe", sound = "Item Weapon Blunt", oneHanded = true },
+    [T.LongBladeTwoHand] = { skill = "longblade", sound = "Item Weapon Longblade" },
+    [T.BluntTwoClose] = { skill = "bluntweapon", sound = "Item Weapon Blunt" },
+    [T.BluntTwoWide] = { skill = "bluntweapon", sound = "Item Weapon Blunt" },
+    [T.SpearTwoWide] = { skill = "spear", sound = "Item Weapon Spear" },
+    [T.AxeTwoHand] = { skill = "axe", sound = "Item Weapon Blunt" },
 }
-
--- The skill the engine itself uses for each kind - the one the scripts have to work around.
-M.WEAPON_SKILL = {
-    [M.KIND.Katar] = "shortblade",
-    [M.KIND.Knuckle] = "bluntweapon",
-}
-
--- The draw and sheathe sounds the engine plays for each kind (character.cpp:1417, :1477), which bare
--- hands do not make - and so these should not either.
-M.DRAW_SOUNDS = {
-    [M.KIND.Katar] = { "Item Weapon Shortblade Up", "Item Weapon Shortblade Down" },
-    [M.KIND.Knuckle] = { "Item Weapon Blunt Up", "Item Weapon Blunt Down" },
-}
-
--- Matched against the record id, so another mod's katars and knuckledusters are picked up too
--- without needing to know about this one - and against the mesh's file name, which is all a
--- generated record keeps to say what it is: one an enchanter made from a katar, or a Bound Fist
--- scaled to its caster, has an id like "Generated:0x1a2". The weapon type has to agree as well, so a
--- two-handed "Katar Axe" from somewhere is left alone.
-local RULES = {
-    { term = "katar", kind = M.KIND.Katar, type = types.Weapon.TYPE.ShortBladeOneHand },
-    { term = "knuckle", kind = M.KIND.Knuckle, type = types.Weapon.TYPE.BluntOneHand },
-}
-
--- What the uniques' enchantments do - and, through them, what a weapon is when its id says nothing:
--- the copy of Ebony Rose held for the one swing that bursts is a generated record with a generated
--- id, and it has to stay a katar to the animations, the skill swap and the off hand.
+-- What the uniques' enchantments do. The copy of Ebony Rose held for the one swing that bursts is a
+-- generated record, and is known for the Rose by its mesh (below) and for the burst by this.
 M.SPECIAL = {
     Venom = "venom",        -- Ebony Rose: every strike poisons
     Burst = "burst",        -- the swing that sets the venom off around its target
     MageFury = "magefury",  -- Mage Fury: strikes deliver the spell it was charged with
 }
 local ENCHANTMENTS = {
-    [string.lower(U.VENOM_ENCHANT)] = { kind = M.KIND.Katar, special = M.SPECIAL.Venom },
-    [string.lower(U.BURST_ENCHANT)] = { kind = M.KIND.Katar, special = M.SPECIAL.Burst },
-    [string.lower(U.MAGE_FURY_ENCHANT)] = { kind = M.KIND.Knuckle, special = M.SPECIAL.MageFury },
+    [string.lower(U.VENOM_ENCHANT)] = M.SPECIAL.Venom,
+    [string.lower(U.BURST_ENCHANT)] = M.SPECIAL.Burst,
+    [string.lower(U.MAGE_FURY_ENCHANT)] = M.SPECIAL.MageFury,
 }
 
-local function modelFile(record)
-    return record.model and string.match(string.lower(record.model), "([^/\\]+)$") or ""
+--- Generated records ------------------------------------------------------------------------------
+-- A weapon an enchanter made, a Bound Fist scaled to its caster, the Rose's burst copy: each is a new
+-- record with an id like "Generated:0x1a2", which no file can be named after. All it keeps of the
+-- weapon it was made from is everything else - the mesh among it - so it is the hybrid that a
+-- defined weapon of the same mesh and type is. Several defined weapons may share one (a katar and
+-- its shop-enchanted versions): the first by id is taken.
+local function modelKey(record)
+    local model = string.gsub(string.lower(record.model or ""), "\\", "/")
+    return model .. "|" .. tostring(record.type)
 end
 
--- [lowercased record id] = kind, or false. One small entry per weapon ever looked at.
-local kindById = {}
--- [lowercased record id] = model path. Kept separately because .model is a property backed by a
--- C++ call, and the off-hand mesh check would otherwise make one every frame.
-local modelById = {}
+local definedByModel = nil -- [modelKey] = lowercased id of a defined weapon; built on first need
+
+local function definedLike(record)
+    if definedByModel == nil then
+        definedByModel = {}
+        local ids = {}
+        for id in pairs(definitions.paths()) do ids[#ids + 1] = id end
+        table.sort(ids)
+        for i = #ids, 1, -1 do
+            local defined = types.Weapon.record(ids[i])
+            if defined then definedByModel[modelKey(defined)] = ids[i] end
+        end
+    end
+    return definedByModel[modelKey(record)]
+end
+
+--- Hybrids -------------------------------------------------------------------------------------------
+-- [lowercased record id] = the hybrid, or false. One small entry per weapon ever looked at.
+local hybridById = {}
+-- [lowercased record id] = one of M.SPECIAL, or false.
+local specialById = {}
 -- [lowercased record id] = charge effect model, or false. A weapon has one if a "<mesh>_charged.nif"
 -- sits beside its mesh: a particle system authored in the weapon's own local space, so hanging it
 -- on the weapon bone drops it inside the weapon with no offsets. Looked up once per weapon.
 local chargeModelById = {}
--- [lowercased record id] = one of M.SPECIAL, or false.
-local specialById = {}
+
+-- The hybrid a weapon record is - its definition, put together with what its record says - or false,
+-- and what stops a definition from making it one.
+local function resolve(recordId, record)
+    local id = string.lower(recordId)
+    local def, problems, path = definitions.load(id)
+    if def == nil and path == nil and string.find(id, "^generated:") then
+        local like = definedLike(record)
+        if like then def, problems, path = definitions.load(like) end
+    end
+    if def == nil then return false, problems, path end
+    -- The file's own list is shared by every weapon it is for; this weapon's problems go on a copy.
+    local own = {}
+    for i = 1, #problems do own[i] = problems[i] end
+    problems = own
+
+    local melee = MELEE[record.type]
+    if melee == nil then
+        problems[#problems + 1] = "the weapon is not a melee weapon, and only melee weapons can be hybrids"
+        return false, problems, path
+    end
+
+    local hybrid = {}
+    for key, value in pairs(def) do hybrid[key] = value end
+    hybrid.weaponSkill = melee.skill
+    hybrid.drawSounds = { melee.sound .. " Up", melee.sound .. " Down" }
+    hybrid.model = record.model
+    if hybrid.moveset == M.MOVESET.HandToHand and not melee.oneHanded then
+        problems[#problems + 1] = "the handToHand moveset needs a one-handed weapon; it uses the default one"
+        hybrid.moveset = M.MOVESET.Default
+    end
+    hybrid.handToHand = hybrid.moveset == M.MOVESET.HandToHand
+    return hybrid, problems, path
+end
 
 local function classify(recordId)
-    local record = types.Weapon.record(recordId)
-    if record == nil then return false end
-
     local id = string.lower(recordId)
-    local enchantment = record.enchant and ENCHANTMENTS[string.lower(record.enchant)]
-    specialById[id] = enchantment and enchantment.special or false
-
-    local file = modelFile(record)
-    for i = 1, #RULES do
-        local rule = RULES[i]
-        if record.type == rule.type
-            and (string.find(id, rule.term, 1, true) or string.find(file, rule.term, 1, true)) then
-            modelById[id] = record.model
-            return rule.kind
-        end
+    local record = types.Weapon.record(recordId)
+    if record == nil then
+        specialById[id] = false
+        return false
     end
-    local kind = enchantment and enchantment.kind
-    if kind then
-        modelById[id] = record.model
-        return kind
-    end
-    return false
+    specialById[id] = record.enchant and ENCHANTMENTS[string.lower(record.enchant)] or false
+    return (resolve(recordId, record))
 end
 
--- The kind of hand-to-hand weapon this record id is, or false.
-function M.kindOfId(recordId)
+--- The hybrid this record id is, or false. A table of its definition's fields (definitions.parse)
+-- and what the weapon's record adds: weaponSkill (the skill the engine swings it with), handToHand
+-- (whether it swings with this mod's moveset), drawSounds (the engine's, for silentDraw), model.
+-- Shared: never change it.
+function M.hybridOfId(recordId)
     if recordId == nil then return false end
     local id = string.lower(recordId)
-    local kind = kindById[id]
-    if kind == nil then
-        kind = classify(recordId)
-        kindById[id] = kind
+    local hybrid = hybridById[id]
+    if hybrid == nil then
+        hybrid = classify(recordId)
+        hybridById[id] = hybrid
     end
-    return kind
+    return hybrid
 end
 
--- The same, for an item object. Anything that is not a weapon is false without a record lookup.
-function M.kindOfItem(item)
+--- The same, for an item object. Anything that is not a weapon is false without a record lookup.
+function M.hybridOfItem(item)
     if item == nil then return false end
     if not types.Weapon.objectIsInstance(item) then return false end
-    return M.kindOfId(item.recordId)
+    return M.hybridOfId(item.recordId)
 end
 
--- Mesh of a weapon this module has already classified as hand-to-hand. nil for anything else.
+-- Mesh of a weapon this module has already classified as a hybrid. nil for anything else.
 function M.modelOfId(recordId)
-    if recordId == nil then return nil end
-    local id = string.lower(recordId)
-    if kindById[id] == nil then M.kindOfId(recordId) end
-    return modelById[id]
+    local hybrid = M.hybridOfId(recordId)
+    return hybrid and hybrid.model or nil
 end
 
 -- Which of the uniques' tricks a weapon carries (one of M.SPECIAL), or false.
 function M.specialOfId(recordId)
     if recordId == nil then return false end
     local id = string.lower(recordId)
-    if kindById[id] == nil then M.kindOfId(recordId) end
+    if hybridById[id] == nil then M.hybridOfId(recordId) end
     return specialById[id] or false
 end
 
@@ -185,6 +211,34 @@ function M.chargeModelOfId(recordId)
         chargeModelById[id] = charge
     end
     return charge or nil
+end
+
+--- Every definition file there is, checked against the records loaded: what is wrong with each, in
+-- the log. For the global script, once a game is started or loaded - every actor's scripts read the
+-- same files, and say nothing.
+function M.report()
+    local ids = {}
+    for id in pairs(definitions.paths()) do ids[#ids + 1] = id end
+    table.sort(ids)
+    local hybrids, unused = 0, {}
+    for _, id in ipairs(ids) do
+        local record = types.Weapon.record(id)
+        if record == nil then
+            unused[#unused + 1] = id
+        else
+            local hybrid, problems, path = resolve(id, record)
+            if hybrid then hybrids = hybrids + 1 end
+            for i = 1, #(problems or {}) do
+                print("[H2HWeapons] " .. path .. ": " .. problems[i]
+                    .. (hybrid and "" or " - not a hybrid weapon"))
+            end
+        end
+    end
+    print("[H2HWeapons] " .. hybrids .. " hybrid weapons defined in " .. definitions.FOLDER)
+    if #unused > 0 then
+        print("[H2HWeapons] definitions for weapons no loaded content file has (left unused): "
+            .. table.concat(unused, ", "))
+    end
 end
 
 return M

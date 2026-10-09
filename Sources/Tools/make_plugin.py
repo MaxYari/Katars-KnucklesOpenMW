@@ -10,7 +10,8 @@ scales it - katars to 80%, knuckledusters to 50% (DAMAGE_FACTOR), rounded to the
 the rule the mod documents. Weight takes the same share of the shortsword's. Silver and daedric take
 their damage from steel and ebony instead (SILVER_OVER_STEEL, DAEDRIC_OVER_EBONY). Change SHORTSWORDS or the factors and re-run; nothing else needs touching.
 
-    python3 Sources/Tools/make_plugin.py -o Katar.omwaddon --master "<Morrowind>/Data Files/Morrowind.esm"
+    python3 Sources/Tools/make_plugin.py -o Katar.omwaddon --master "<Data Files>/Morrowind.esm" \
+        --master "<Data Files>/Tribunal.esm" --master "<Data Files>/Bloodmoon.esm"
 """
 import argparse
 import os
@@ -20,24 +21,32 @@ import struct
 # short blades and knuckledusters are blunt. The scripts put the hand-to-hand skill back in charge.
 SHORT_BLADE, BLUNT_ONE_HAND = 0, 3
 # ESM::Weapon::Magical, "ignores normal weapon resistance" - which is what every vanilla silver weapon
-# carries (esmtool: silver dagger, 0x1), and every bound one. ESM::Weapon::Silver (0x2) is unused there.
+# carries (esmtool: silver dagger, 0x1), and every bound one.
 MAGICAL_FLAG = 0x1
-SILVER_FLAG = MAGICAL_FLAG
+# ESM::Weapon::Silver (0x2) makes a weapon hurt werewolves the more (combat.cpp, applyWerewolfDamageMult:
+# fWereWolfSilverWeaponDamageMult). Morrowind.esm never sets it; Bloodmoon does, on every silver weapon -
+# its nordic silver ones and the vanilla silver ones it carries over, both with Magical (3) - and so do
+# these.
+WEREWOLF_SILVER_FLAG = 0x2
+SILVER_FLAG = MAGICAL_FLAG | WEREWOLF_SILVER_FLAG
 
 # Vanilla shortswords, per material: (chop, slash, thrust, weight, value, health, enchant points).
 # base_anim's daggers are too weak a baseline - a katar is a fist-mounted short blade, not a knife -
-# and orcish has no vanilla shortsword, so it is interpolated between dwarven and ebony.
+# and orcish has no vanilla shortsword, so it is interpolated between dwarven and ebony. Adamantium's
+# is Tribunal's, and glass, which has none, is derived from ebony's below.
 SHORTSWORDS = {
     "iron":    ((4, 9),   (4, 9),   (7, 11), 8,  20,    600,  40),
     "chitin":  ((3, 7),   (3, 7),   (4, 9),  4,  13,    540,  20),
     "steel":   ((5, 12),  (5, 12),  (7, 12), 8,  40,    750,  40),
     "silver":  ((5, 10),  (5, 10),  (7, 10), 6,  80,    570,  36),
     "orcish":  ((8, 16),  (8, 16),  (9, 17), 14, 800,   1600, 60),
+    "adamantium": ((7, 15), (7, 15), (7, 20), 20, 1000,  900,  60),
+    "nordic":  ((6, 12),  (6, 12),  (9, 15), 15, 1000,  500,  70),   # Bloodmoon's nordic silver
     "ebony":   ((10, 20), (10, 22), (15, 25), 16, 10000, 1200, 80),
     "daedric": ((10, 26), (10, 26), (12, 24), 24, 20000, 1500, 120),
 }
 
-# Two of those shortswords sit out of line with their material everywhere else, and their damage is
+# Three of those shortswords sit out of line with their material everywhere else, and their damage is
 # derived instead (weight, value, condition and capacity stay their own):
 #
 # * Silver hits harder than steel at the top and softer at the bottom, as vanilla's silver spear
@@ -47,8 +56,14 @@ SHORTSWORDS = {
 #   a fifth higher (longsword and war axe 1.19, spear 1.25, mace 1.15) while the minimum stays where
 #   ebony's is - but the daedric shortsword's best attack comes out below the ebony one's. Ebony's
 #   damage, the maximum 20% higher.
+# * Adamantium comes close to ebony: across the weapons both have, Tribunal's and Tamriel Data's, its
+#   best attack tops out at 0.95 of ebony's (the median of 19 - longsword and spear 0.94, war axe and
+#   halberd 0.95, broadsword and dai-katana 0.96, katana 0.97) and mostly starts where ebony's does -
+#   but Tribunal's shortsword hits 7-20, its minimum half the ebony one's. Ebony's damage, the
+#   maximum 5% lower.
 SILVER_OVER_STEEL = {"min_add": -1, "max_mult": 1.3}
 DAEDRIC_OVER_EBONY = {"min_add": 0, "max_mult": 1.2}
+ADAMANTIUM_UNDER_EBONY = {"min_add": 0, "max_mult": 0.95}
 
 
 def stronger(attacks, min_add, max_mult):
@@ -59,6 +74,18 @@ def stronger(attacks, min_add, max_mult):
 
 SHORTSWORDS["silver"] = stronger(SHORTSWORDS["steel"][:3], **SILVER_OVER_STEEL) + SHORTSWORDS["silver"][3:]
 SHORTSWORDS["daedric"] = stronger(SHORTSWORDS["ebony"][:3], **DAEDRIC_OVER_EBONY) + SHORTSWORDS["daedric"][3:]
+SHORTSWORDS["adamantium"] = stronger(SHORTSWORDS["ebony"][:3], **ADAMANTIUM_UNDER_EBONY) \
+    + SHORTSWORDS["adamantium"][3:]
+
+# Glass has no shortsword in vanilla, so its is ebony's, scaled by what vanilla's glass longsword is to
+# its ebony one - the one-handed blade both materials have: 0.3 of the weight, condition and capacity,
+# 0.8 of the value, and the best attack's maximum 0.88 of ebony's, the minimum the same (4-30 against
+# 4-34). The war axe has the weight, value and capacity in the same ratios and the maximum within a
+# point (0.89). Tamriel Data's own glass shortsword comes out at the same weight and value (4.8, 8000).
+GLASS_FROM_EBONY = {"min_add": 0, "max_mult": 0.88}
+GLASS_SHARE_OF_EBONY = (0.3, 0.8, 0.3, 0.3)  # weight, value, health, enchant points
+SHORTSWORDS["glass"] = stronger(SHORTSWORDS["ebony"][:3], **GLASS_FROM_EBONY) + tuple(
+    stat * share for stat, share in zip(SHORTSWORDS["ebony"][3:], GLASS_SHARE_OF_EBONY))
 
 DAMAGE_FACTOR = {"katar": 0.80, "knuckle": 0.50}
 # Weight goes with damage: the same share of the shortsword - a katar 80% of its weight, a
@@ -72,7 +99,13 @@ DAMAGE_FACTOR = {"katar": 0.80, "knuckle": 0.50}
 ENCHANT_TOWARD_SHORTSWORD = {"katar": 0.5, "knuckle": 0.0}
 
 # Vanilla daggers' capacity (the raw record field), per material.
-DAGGERS_ENCHANT = {"chitin": 10, "iron": 20, "steel": 20, "silver": 16, "daedric": 60}
+DAGGERS_ENCHANT = {"chitin": 10, "iron": 20, "steel": 20, "silver": 16, "glass": 12, "daedric": 60,
+                   "nordic": 70}
+# Tribunal has no adamantium dagger, and its adamantium weapons do not keep the weight rule below - the
+# shortsword holds 3.0 points a unit, not 5.0 - so that rule would put the dagger at 50, nearly the
+# shortsword's 60. It is put where every vanilla dagger sits instead, at half its shortsword. Tamriel
+# Data's adamantium dagger (45) would give the katar the same 5 points.
+DAGGERS_ENCHANT["adamantium"] = 30
 
 # There is no vanilla dagger in orcish or ebony, so their dagger (for capacity) is derived from the
 # shortsword instead. Bethesda weighed every dagger at 0.375 of its shortsword - iron, steel, chitin and
@@ -101,12 +134,16 @@ WEAPON_TYPE = {"katar": SHORT_BLADE, "knuckle": BLUNT_ONE_HAND}
 ITEMS = [
     ("katar_steel",            "katar",   "steel",   "Steel Katar",             "steel_katar.nif",           1.0, 0),
     ("katar_silver",           "katar",   "silver",  "Silver Katar",            "silver_katar.nif",          1.0, SILVER_FLAG),
+    ("katar_adamantium",       "katar",   "adamantium", "Adamantium Katar",      "adamantium_katar.nif",      1.0, 0),
+    ("katar_glass",            "katar",   "glass",   "Glass Katar",             "glass_katar.nif",           1.0, 0),
     ("katar_ebony",            "katar",   "ebony",   "Ebony Katar",             "ebony_guarded_katar.nif",   1.0, 0),
     ("katar_ebony_rose",       "katar",   "ebony",   "Ebony Rose",              "ebony_rose.nif",            0.9, 0),
+    ("katar_ebony_botched",    "katar",   "ebony",   "Botched Ebony Katar",     "ebony_guarded_katar.nif",   1.0, 0),
     ("katar_daedric",          "katar",   "daedric", "Daedric Katar",           "daedric_katar.nif",         1.0, 0),
     ("knuckle_iron",           "knuckle", "iron",    "Iron Knuckles",           "iron_knuckle.nif",          1.0, 0),
     ("knuckle_chitin",         "knuckle", "chitin",  "Chitin Knuckles",         "chitin_knuckle.nif",        1.0, 0),
     ("knuckle_silver",         "knuckle", "silver",  "Silver Knuckles",         "silver_knuckle.nif",        1.0, SILVER_FLAG),
+    ("knuckle_nordic_silver",  "knuckle", "nordic",  "Nordic Silver Knuckles",  "nord_silver_knuckle.nif",   1.0, SILVER_FLAG),
     ("knuckle_orcish",         "knuckle", "orcish",  "Orcish Knuckles",         "orcish_knuckle.nif",        1.0, 0),
     ("knuckle_daedric",        "knuckle", "daedric", "Daedric Knuckles",        "daedric_knuckle_basic.nif", 1.0, 0),
     ("knuckle_daedric_spiked", "knuckle", "daedric", "Daedric Spiked Knuckles", "daedric_knuckle_sharp.nif", 1.2, 0),
@@ -126,13 +163,17 @@ OVERRIDES = {
     # over a shortsword.
     "katar_ebony_rose": {"speed": SPEED["katar"] * 9 / 8, "reach": 0.9, "bulk": 0.75},
     # Wood hits for two points less than the iron set's 4-6 at each end (2-4) and wears out twice as
-    # fast, but takes an enchantment better than any knuckleduster short of orcish and daedric - it is
+    # fast, but takes an enchantment better than any knuckleduster short of orcish, Nordic silver and
+    # daedric - it is
     # the medium, not the metal, that holds one: 3 in game (the raw field is ten times what it shows).
     "knuckle_wood": {"damage": (2, 4), "health": 150, "enchant": 30, "weight": 0.9, "value": 5},
     # Mage Fury is an iron knuckle in every other stat - weight, capacity, the lot - but the crystal set
     # in it costs it a point at each end of the iron set's 4-6. What it is worth carrying for is its
-    # enchantment.
-    "knuckle_mage_fury": {"damage": (3, 5)},
+    # enchantment, and that is what it is priced on: 650, set by hand.
+    "knuckle_mage_fury": {"damage": (3, 5), "value": 650},
+    # A joke, placed by hand: an Ebony Katar a beginner tried to enchant. The botch costs it two points
+    # at each end of the Ebony Katar's 12-20, and most of its price.
+    "katar_ebony_botched": {"damage": (10, 18), "value": 500},
 }
 
 # Enchantments. The uniques' are vanilla stand-ins: the real ones use custom magic effects, which an
@@ -142,7 +183,8 @@ OVERRIDES = {
 # scripts/MaxYari/H2HWeapons/scripts/uniques.lua.
 ENCH_CAST_ONCE, ENCH_WHEN_STRIKES, ENCH_WHEN_USED, ENCH_CONSTANT = 0, 1, 2, 3
 RANGE_SELF, RANGE_TOUCH = 0, 1
-EFFECT_FROST_DAMAGE, EFFECT_POISON, EFFECT_SPELL_ABSORPTION = 16, 27, 67
+EFFECT_FIRE_DAMAGE, EFFECT_FROST_DAMAGE, EFFECT_DAMAGE_FATIGUE, EFFECT_POISON = 14, 16, 25, 27
+EFFECT_SPELL_ABSORPTION = 67
 EFFECT_FORTIFY_SKILL, EFFECT_BOUND_DAGGER = 83, 120
 SKILL_HAND_TO_HAND = 26
 SPELL_TYPE_SPELL = 0
@@ -162,12 +204,20 @@ ENCHANTMENTS = {
     # Cost and charge as vanilla's weak ones have them - a point a strike, ten strikes to a charge.
     "h2h_chitin_shard_en": (ENCH_WHEN_STRIKES, 1, 10, [(EFFECT_FROST_DAMAGE, RANGE_TOUCH, 0, 1, 1, 3)]),
     "h2h_silver_shard_en": (ENCH_WHEN_STRIKES, 1, 10, [(EFFECT_FROST_DAMAGE, RANGE_TOUCH, 0, 1, 3, 6)]),
+    # The glass katar's: vanilla's Wild blades' fire from 1 up, as much of it as fits a quarter of a point
+    # under the katar's 2 (Fire 1-12 comes to 1.75). Cost and charge rounded from that, as vanilla's are.
+    "h2h_glass_flame_en": (ENCH_WHEN_STRIKES, 2, 20, [(EFFECT_FIRE_DAMAGE, RANGE_TOUCH, 0, 1, 1, 12)]),
+    # The Botched Ebony Katar's: a beginner's attempt that came out as next to nothing - 1-2 points of
+    # fatigue on a strike - and, being an enchantment, leaves the katar unable to take a real one. The
+    # real thing, not a stand-in, at the weak ones' cost and charge.
+    "h2h_botched_en": (ENCH_WHEN_STRIKES, 1, 10, [(EFFECT_DAMAGE_FATIGUE, RANGE_TOUCH, 0, 1, 1, 2)]),
 }
 
 # Which weapon carries which.
 WEAPON_ENCHANTMENTS = {
     "katar_ebony_rose": "h2h_ebonyrose_en",
     "knuckle_mage_fury": "h2h_magefury_en",
+    "katar_ebony_botched": "h2h_botched_en",
     "h2h_bound_knuckle": "h2h_bound_fist_effect_en",
     "h2h_bound_knuckle_spiked": "h2h_bound_fist_effect_en",
     "h2h_bound_katar": "h2h_bound_fist_effect_en",
@@ -191,27 +241,38 @@ BOUND_WEAPONS = [
     ("h2h_bound_katar",          "katar_daedric",          "Bound Katar"),
 ]
 
-# Shop-enchanted versions: seven of the plain weapons as a merchant or a chest might have them, with a
+# Shop-enchanted versions: eight of the plain weapons as a merchant or a chest might have them, with a
 # weak enchantment that casts on strike. Each enchantment is the weaker of two: the vanilla enchanted
 # weapon of that material and element (Iron Sparkmace, Steel Flameblade, Silver Shardblade, and the
 # glass Wild blades for orcish and ebony), and the most that fits three quarters of a point under the
 # weapon's own capacity - so one bought is always a little weaker than one enchanted by hand. Where
 # the vanilla one is the weaker, its own record is used: it is the same enchantment, and a mod that
-# rebalances it rebalances these too. No daedric, as vanilla has no weak daedric ones.
+# rebalances it rebalances these too. No daedric, as vanilla has no weak daedric ones, and none in
+# adamantium either - vanilla's only enchanted one is the Dark Brotherhood's Jinkblade. Nordic silver gets
+# what Bloodmoon gives it, as berserker gear rather than shop stock: the Berserker weapons' own bleed,
+# whole, on the same knuckles at the same price, in the berserkers' list where theirs are and nowhere
+# else. Glass is the one exception to the three
+# quarters: the glass katar holds only 2, which would leave it next to nothing, so it takes the most that
+# fits a quarter of a point under instead - still short of what the enchanting menu would let you put on.
 #
 # The price is the plain weapon's plus what vanilla adds for that enchantment, over the same weapon
 # without it: Chitin Club 6 to Firebite Club 10, Iron Mace 24 to Iron Sparkmace 45, Steel Shortsword
 # 40 to Steel Flameblade 55, Silver Shortsword 80 to Silver Shardblade 120, Glass Dagger 4000 to the
-# Wild blades' 4100.
+# Wild blades' 4100. Where ours is weaker than that vanilla one, only that markup comes down, in
+# proportion to the enchantment points (ours over theirs) - the plain weapon's own worth stays whole.
 ENCHANTED_VERSIONS = [
     # id, the plain weapon it is, display name, enchantment, price over the plain one
-    ("knuckle_chitin_shard",    "knuckle_chitin", "Chitin Shardfang",    "h2h_chitin_shard_en", 4),
+    ("knuckle_chitin_shard",    "knuckle_chitin", "Chitin Shardfang",    "h2h_chitin_shard_en", 4),   # 4 x 1.0/1.125
     ("knuckle_iron_spark",      "knuckle_iron",   "Iron Sparkfist",      "spark_enu",           21),
     ("katar_steel_smoulder",    "katar_steel",    "Smouldering Katar",   "cruel flame_en",      15),
     ("katar_silver_ice",        "katar_silver",   "Silver Ice Talon",    "dire shard_en",       40),
-    ("knuckle_silver_shard",    "knuckle_silver", "Silver Shardknuckle", "h2h_silver_shard_en", 40),
+    ("knuckle_silver_shard",    "knuckle_silver", "Silver Shardknuckle", "h2h_silver_shard_en", 36),  # 40 x 1.25/1.375
     ("knuckle_orcish_smoulder", "knuckle_orcish", "Orcish Smoulderfist", "wild flame_en",       100),
     ("katar_ebony_spark",       "katar_ebony",    "Ebony Sparkneedle",   "wild spark_en",       100),
+    ("katar_glass_flame",       "katar_glass",    "Wild Flamefang",      "h2h_glass_flame_en",  64),  # 100 x 1.75/2.75
+    # Bloodmoon's Berserker weapons are their plain nordic silver ones, renamed, with the bleed and nothing
+    # added to the price.
+    ("knuckle_nordic_silver_ber", "knuckle_nordic_silver", "Berserker Silver Knuckles", "bloodletting_en", 0),
 ]
 
 
@@ -224,9 +285,8 @@ NOTE_HEADER = '<DIV ALIGN="LEFT"><FONT COLOR="000000" SIZE="3" FACE="Magic Cards
 NOTES = {
     # id: (title, [lines])
     "h2h_note_piece_found": ("About the piece you found", [
-        "Hey, I didn't catch you. I wasn't able to fix them properly, sorry.",
-        "Yael said it's weakly responding to magic. Hope that helps.",
-        "It's up to you now, but if you decide to ditch them, I'm sure I can find a good buyer - just let me know.",
+        "Apart from the agreed-upon armaments, I'm sending you the broken knuckles I mentioned. They look "
+        "quite unique and seem vaguely responsive to magic - see if you can fix them.",
         "",
         "- M",
     ]),
@@ -254,7 +314,7 @@ def enchanted_items():
         base = by_id[base_id]
         rows.append((rid,) + base[1:3] + (display,) + base[4:])
         WEAPON_ENCHANTMENTS[rid] = enchantment
-        OVERRIDES.setdefault(rid, dict(OVERRIDES.get(base_id, {})))["value"] = stats(base)["value"] + markup
+        OVERRIDES.setdefault(rid, dict(OVERRIDES.get(base_id, {})))["value"] = single_stats(base)["value"] + markup
     return rows
 
 
@@ -279,7 +339,23 @@ def best_attack(chop, slash, thrust):
     return chop
 
 
+# Each of these is a pair, one for each hand, so a cheap one is priced as two: a price under
+# PAIR_PRICE_LIMIT doubles. The plain weapon decides, and its enchanted versions follow it - an enchanted
+# pair is two enchanted weapons - so an enchanted one never costs less than its plain pair.
+PAIR_PRICE_LIMIT = 500
+
+
 def stats(item):
+    out = single_stats(item)
+    plain = {row[0]: row[1] for row in ENCHANTED_VERSIONS}.get(item[0])
+    plain_value = single_stats({i[0]: i for i in ITEMS}[plain])["value"] if plain else out["value"]
+    if plain_value < PAIR_PRICE_LIMIT:
+        out["value"] *= 2
+    return out
+
+
+def single_stats(item):
+    """One weapon's stats, priced as one."""
     _id, kind, material, _name, _mesh, value_mult, _flags = item
     chop, slash, thrust, weight, value, health, _enchant = SHORTSWORDS[material]
     dmg = DAMAGE_FACTOR[kind]
@@ -387,16 +463,24 @@ def weap_record(item):
 #
 # A plugin cannot add to a list, only replace it, so each list is written out whole: vanilla's
 # entries, read from the master, then these. A later mod that edits the same list replaces it in
-# turn, which is what a merged-lists tool (DeltaPlugin, OMWLLF) is for. Tribunal and Bloodmoon leave
-# these lists alone, so Morrowind.esm's are the ones to extend.
+# turn, which is what a merged-lists tool (DeltaPlugin, OMWLLF) is for. Each list is read from the last
+# master that has it - Tribunal and Bloodmoon leave these alone, so it is Morrowind.esm's.
 LEVELLED_STAND_INS = {
     "katar_steel":            "steel shortsword",
     "katar_silver":           "silver shortsword",
+    # Vanilla deals no adamantium weapon from a list - Tribunal places them by hand - so this one only
+    # matches Tamriel Data's lists (make_tr_plugin.py); without them it is Bols Indalen's to sell
+    # (CONTAINER_ADDITIONS).
+    "katar_adamantium":       "adamantium_shortsword",
+    # There is no vanilla glass shortsword; the glass dagger is the one glass short blade.
+    "katar_glass":            "glass dagger",
     "katar_ebony":            "ebony shortsword",
     "katar_daedric":          "daedric shortsword",
     "knuckle_chitin":         "chitin shortsword",
     "knuckle_iron":           "iron shortsword",
     "knuckle_silver":         "silver shortsword",
+    # Bloodmoon deals nordic silver on Solstheim only - its Nord hunters', nordic silver and smugglers' lists.
+    "knuckle_nordic_silver":  "bm nordic silver shortsword",
     # There is no vanilla orcish shortsword; its stats sit between dwarven and ebony, and so does this.
     # It also goes where vanilla's own orcish weapons are rolled - random_orcish_weapons, by the
     # warhammer, the only one-handed-or-blunt orcish weapon in it.
@@ -412,6 +496,7 @@ LEVELLED_SKIP = {
     "random_golden_saint_weapon",  # what golden saints carry
     "random_dwemer_weapon",        # orcish borrows the dwarven shortsword's places, not the Dwemer's
     "imperial guard random weapon",
+    "bm_imperial guard random weapon",  # and Bloodmoon's, Fort Frostmoth's guards
 }
 
 # Knuckledusters are blunt: where their stand-in is on a short blade list, they go on the blunt one.
@@ -426,12 +511,63 @@ BLUNT_LIST_FOR = {"l_n_wpn_melee_short blade": "l_n_wpn_melee_blunt"}
 # weapon for that skill.
 ENCHANTED_LEVELLED = {
     "l_m_wpn_melee_short blade": [("katar_steel_smoulder", 7), ("katar_silver_ice", 9),
-                                  ("katar_ebony_spark", 15)],
+                                  ("katar_ebony_spark", 15), ("katar_glass_flame", 16)],
     "l_m_wpn_melee_blunt": [("knuckle_chitin_shard", 2), ("knuckle_iron_spark", 5),
                             ("knuckle_silver_shard", 8), ("knuckle_orcish_smoulder", 12)],
     "random_loot_special": [("knuckle_iron_spark", 1), ("knuckle_silver_shard", 1),
                             ("katar_steel_smoulder", 1), ("katar_silver_ice", 1)],
+    # Where every berserker rolls a weapon, and Bloodmoon puts its Berserker ones, at their level.
+    "bm_randomweapon_berserker": [("knuckle_nordic_silver_ber", 60)],
 }
+
+
+# Shop stock added by hand, where a merchant already sells the weapon one of these is cut from - as
+# many as the chest holds of that weapon, and restocking (a negative count) if it restocks. The chest's
+# own record is read from the masters and written out with these added, so it is the vanilla chest with
+# them on top; as with the lists, a mod loaded later that edits the same chest wins it (TES3Merge and
+# DeltaPlugin merge containers; OMWLLF does not).
+CONTAINER_ADDITIONS = {
+    # Kjeld, the smuggler in Druscashti, sells from this chest of his (lock 20), Ebony Shortsword and all.
+    "dwrv_chest00_kjeld2": [("katar_ebony", 1)],
+    # Bols Indalen, the smith in Mournhold's Craftsmen's Hall (Tribunal), restocks every adamantium
+    # weapon from this chest of his, the shortsword among them.
+    "com_chest_02_v_indalen": [("katar_adamantium", -1)],
+}
+
+
+def read_records(master_paths, tag, ids):
+    """{lowercased id: (record flags, raw body)} for the records of one type with these ids, each as the
+    last of the masters to have it leaves it."""
+    found = {}
+    for path in master_paths:
+        found.update(_read_records(path, tag, ids))
+    return found
+
+
+def _read_records(master_path, tag, ids):
+    wanted = {i.lower() for i in ids}
+    with open(master_path, "rb") as fh:
+        data = fh.read()
+    found, pos = {}, 0
+    while pos + 16 <= len(data):
+        rtag = data[pos:pos + 4]
+        size, _unused, flags = struct.unpack_from("<III", data, pos + 4)
+        body = data[pos + 16:pos + 16 + size]
+        pos += 16 + size
+        if rtag != tag:
+            continue
+        name_size = struct.unpack_from("<I", body, 4)[0]
+        rid = body[8:8 + name_size].rstrip(b"\0").decode("latin-1").lower()
+        if rid in wanted:
+            found[rid] = (flags, body)
+    return found
+
+
+def container_record(flags, body, extra):
+    """A container as the master has it, with these items added to what it holds."""
+    for item, count in extra:
+        body += sub("NPCO", struct.pack("<i", count) + item.encode("ascii").ljust(32, b"\0"))
+    return record("CONT", body, flags)
 
 
 def add_enchanted(additions, lists, present, table):
@@ -512,7 +648,7 @@ def levi_record(rec, extra):
     return record("LEVI", body)
 
 
-def build(master_path, meshes_dir):
+def build(master_paths, meshes_dir):
     items, missing = [], []
     for item in ITEMS + bound_items() + enchanted_items():
         if meshes_dir and not os.path.exists(os.path.join(meshes_dir, item[4])):
@@ -535,11 +671,17 @@ def build(master_path, meshes_dir):
     spells = [(rid, spec) for rid, spec in SPELLS.items()
               if all(b[0] in present for b in BOUND_WEAPONS)]
 
-    additions, levelled = {}, {}
-    if master_path and os.path.exists(master_path):
-        levelled = read_levelled_lists(master_path)
+    additions, levelled, containers = {}, {}, []
+    if master_paths:
+        for path in master_paths:
+            levelled.update(read_levelled_lists(path))
         additions = add_enchanted(levelled_additions(levelled, present), levelled, present,
                                   ENCHANTED_LEVELLED)
+        chests = read_records(master_paths, b"CONT", CONTAINER_ADDITIONS)
+        for key, extra in sorted(CONTAINER_ADDITIONS.items()):
+            extra = [(rid, count) for rid, count in extra if rid in present]
+            if key in chests and extra:
+                containers.append((key, extra, container_record(*chests[key], extra)))
     else:
         print("  no master given - the weapons go into no levelled list")
 
@@ -548,30 +690,36 @@ def build(master_path, meshes_dir):
     records += b"".join(weap_record(i) for i in items)
     records += b"".join(book_record(rid, spec) for rid, spec in NOTES.items())
     records += b"".join(levi_record(levelled[key], extra) for key, extra in sorted(additions.items()))
+    records += b"".join(rec for _key, _extra, rec in containers)
 
     author = b"Max Yari".ljust(32, b"\0")
     description = b"Katars and Knuckledusters - hand-to-hand weapons.".ljust(256, b"\0")
     hedr = struct.pack("<fi", 1.3, 0) + author + description \
-        + struct.pack("<i", len(items) + len(enchantments) + len(spells) + len(NOTES) + len(additions))
+        + struct.pack("<i", len(items) + len(enchantments) + len(spells) + len(NOTES) + len(additions)
+                      + len(containers))
     assert len(hedr) == 300, len(hedr)
 
     header = sub("HEDR", hedr)
-    if master_path and os.path.exists(master_path):
-        header += sub("MAST", zstr(os.path.basename(master_path)))
-        header += sub("DATA", struct.pack("<Q", os.path.getsize(master_path)))
+    for path in master_paths:
+        header += sub("MAST", zstr(os.path.basename(path)))
+        header += sub("DATA", struct.pack("<Q", os.path.getsize(path)))
 
-    return record("TES3", header) + records, items, enchantments, spells, additions
+    return record("TES3", header) + records, items, enchantments, spells, additions, containers
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("-o", "--out", default="Katar.omwaddon")
-    ap.add_argument("--master", default="", help="path to Morrowind.esm, to record it as a master")
+    ap.add_argument("--master", action="append", default=[],
+                    help="a master to read from and record, in load order: Morrowind.esm, then Tribunal.esm")
     ap.add_argument("--meshes", default="meshes",
                     help="where the meshes live; an item whose mesh is missing is left out")
     args = ap.parse_args()
+    for path in args.master:
+        if not os.path.exists(path):
+            ap.error("no such master: %s" % path)
 
-    data, items, enchantments, spells, additions = build(args.master, args.meshes)
+    data, items, enchantments, spells, additions, containers = build(args.master, args.meshes)
     with open(args.out, "wb") as fh:
         fh.write(data)
 
@@ -591,8 +739,12 @@ def main():
     print("\nlevelled lists:")
     for key, extra in sorted(additions.items()):
         print("  %-30s + %s" % (key, ", ".join("%s (%d)" % pair for pair in extra)))
-    print("\nwrote %s (%d bytes, %d weapons, %d enchantments, %d spells, %d notes, %d levelled lists)"
-          % (args.out, len(data), len(items), len(enchantments), len(spells), len(NOTES), len(additions)))
+    print("\ncontainers:")
+    for key, extra, _rec in containers:
+        print("  %-30s + %s" % (key, ", ".join("%s x%d" % pair for pair in extra)))
+    print("\nwrote %s (%d bytes, %d weapons, %d enchantments, %d spells, %d notes, %d levelled lists, "
+          "%d containers)" % (args.out, len(data), len(items), len(enchantments), len(spells), len(NOTES),
+                              len(additions), len(containers)))
 
 
 if __name__ == "__main__":

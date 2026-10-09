@@ -37,7 +37,7 @@ st.weaponRecords["steel dagger"] = { type = 0, model = "meshes/w/w_dagger.nif" }
 --- load the API -------------------------------------------------------------------------------------
 local api = require("scripts.MaxYari.ReAnimation_v3.ReAnimationAPI")
 stubs.I.ReAnimation = api.interface
-check(api.interface.version == 3.2, "API version bumped", api.interface.version)
+check(api.interface.version == 3.3, "API version bumped", api.interface.version)
 check(api.interface.TIMING_MATCHING ~= nil, "TIMING_MATCHING exported")
 check(api.interface.TIMING_MATCHING.ToOverride == "toOverride", "ToOverride value")
 check(api.interface.TIMING_MATCHING.None == "None", "None value")

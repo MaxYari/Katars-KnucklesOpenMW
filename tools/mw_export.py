@@ -23,6 +23,8 @@ TRANSLUCENCY
     untouched material always exports opaque. Tag the MATERIAL name:
 
         [Alpha]       alpha blending, for glass and crystal
+        [Alpha0.7]    the same at that opacity ([Alpha70] reads as 70%);
+                      a bare [Alpha] gets CONFIG["alpha_value"]
         [AlphaClip]   alpha testing, for cut-out foliage and the like
 
 MATERIAL REPAIR
@@ -150,7 +152,9 @@ def apply_alpha(objects):
             if mat is None:
                 continue
             tags = mw_bake.name_tags(mat.name)
-            clip, blend = "[alphaclip]" in tags, "[alpha]" in tags
+            level = next((mw_bake.alpha_tag_value(t) for t in tags
+                          if mw_bake.alpha_tag_value(t) is not None), None)
+            clip, blend = "[alphaclip]" in tags, "[alpha]" in tags or level is not None
             if not (blend or clip):
                 continue
             try:
@@ -158,9 +162,11 @@ def apply_alpha(objects):
                     mat.mw.use_alpha_clip = True
                 else:
                     mat.mw.use_alpha_blend = True
-                    if mat.mw.alpha >= 1.0:
+                    if level is not None:
+                        mat.mw.alpha = level
+                    elif mat.mw.alpha >= 1.0:
                         mat.mw.alpha = CONFIG["alpha_value"]
-                done.append(f"{mat.name} ({'clip' if clip else 'blend'})")
+                done.append(f"{mat.name} ({'clip' if clip else f'blend {mat.mw.alpha:.2f}'})")
             except Exception as exc:
                 log(f"  !! could not set alpha on {mat.name!r}: {exc}")
     for entry in sorted(set(done)):

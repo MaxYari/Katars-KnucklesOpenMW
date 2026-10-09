@@ -4,10 +4,10 @@
 
 Hand-to-hand weapons for OpenMW. Katars and Knuckledusters. They mostly use a **Hand to Hand** skill but also receive a small bonus from blunt/blade skill. Same goes for skill leveling.
 
-**13 weapons**: 5 katars and 8 sets of knuckledusters, in wood, chitin, iron, steel, silver, orcish,
-ebony and daedric. **3 of them are rare**, with a trick of their own each - finding them and working
+**16 weapons**: 7 katars and 9 sets of knuckledusters, in wood, chitin, iron, steel, silver,
+Nordic silver, adamantium, orcish, glass, ebony and daedric. **3 of them are rare**, with a trick of their own each - finding them and working
 out what they do is up to you. The rest turn up the way ordinary weapons do: in merchants' stock, on
-NPCs and in chests. Seven of them also come **weakly enchanted** - fire, frost or shock on strike, as
+NPCs and in chests. Eight of them also come **weakly enchanted** - fire, frost or shock on strike, as
 vanilla's Flameblades and Sparkmaces have - from the shops and chests that deal those.
 
 For conjurers there is **Bound Fist**, a new conjuration spell that binds a daedric hand-to-hand
@@ -70,7 +70,7 @@ If you want to know more details and know what to expect, look under the spoiler
 
 **Requires OpenMW 0.51+**
 
-1) Install the dependencies: [ReAnimation](https://www.nexusmods.com/morrowind/mods/52596) (3.2 or
+1) Install the dependencies: [ReAnimation](https://www.nexusmods.com/morrowind/mods/52596) (3.3 or
 newer) and [Max Yari's Script Services (MSS)](https://www.nexusmods.com/morrowind/mods/60256).
 
 2) Install this mod **with a mod organiser**: download the archive and drag and drop it into your mod
@@ -81,7 +81,7 @@ on Linux).
 using the launcher or completely manually (it's also very easy).
 
 3) Enable these in the "Content Files" tab of the OpenMW launcher, after ReAnimation:
-   - `Katar.omwaddon`
+   - `Katar.omwaddon` - needs Tribunal and Bloodmoon.
    - `KatarWorldPlacements.omwaddon` - puts the rare weapons in the world. Needs Tribunal.
    - `KatarTamrielRebuilt.omwaddon` - only with Tamriel Rebuilt, after it: puts the weapons in Tamriel
      Rebuilt's levelled lists too. Needs Tamriel Data.
@@ -135,6 +135,91 @@ Have fun!
 
 ## ⚔ For modders
 
-The mod exposes a small interface, `I.H2HWeapons`, for asking what kind of hand-to-hand weapon an item
-is. How everything works - and how to build the plugin, meshes and animations from source - is written
-up in the [technical notes](Sources/DEVELOPMENT.md) in the git repository.
+### Hybrid weapons for modders
+
+Your own weapons can work the way katars and knuckledusters do - or be a different kind of hybrid: a
+mace that trains Blunt Weapon and Destruction, a spear only as good as the weaker of Spear and
+Conjuration. No scripting needed. Make the weapons in your plugin as usual, and next to it ship one
+small file per weapon in a `HybridWeaponDefinitions` folder, named after the weapon's record id:
+
+```
+Data Files/
+  MyMod.esp
+  HybridWeaponDefinitions/
+    my_flame_mace.yaml
+```
+
+```yaml
+# HybridWeaponDefinitions/my_flame_mace.yaml
+primarySkill: handtohand
+secondarySkill: destruction
+primaryExperience: 0.7
+secondaryExperience: 0.5
+scaling: lowestSkill
+moveset: default
+tooltip: "Battlemage's mace: as effective as the lower of %{primarySkill} (%{primary}) and %{secondarySkill} (%{secondary})."
+```
+
+YAML or JSON (`.yaml`, `.yml`, `.json`). Only melee weapons can be hybrids. The record's weapon type
+stays what the engine sees - handedness, reach, damage - and whichever skill that type uses is the
+one the mod stands in for: on every swing it's set to what the hybrid's skills make, then set back,
+and on every hit its experience is handed out by the shares below.
+
+- `primarySkill` (required) - a skill id: `handtohand`, `shortblade`, `bluntweapon`, `destruction`...
+  Any spelling works: `Hand to Hand`.
+- `secondarySkill` (required) - a different skill.
+- `primaryExperience` (default `0.7`) - share of a successful hit's experience for the primary skill:
+  `0.7` or `70%`.
+- `secondaryExperience` (default `0.3`) - the same for the secondary skill.
+- `scaling` (default `minorSecondaryBonus`) - what a swing rolls with: `minorSecondaryBonus` is the
+  primary skill plus 15% of the secondary, tapering to 5% as the secondary falls more than 10 points
+  behind, `lowestSkill` the lower of the two, `highestSkill` the higher.
+- `moveset` (default `default`) - `handToHand`: this mod's fist animations, a copy of the weapon in
+  the off hand and nothing else in that hand (one-handed weapons only). `default`: the weapon's own
+  animations.
+- `fatigueDamage` (default `0`) - fatigue damage per hit, as a share of a bare-fisted punch's. Katars
+  `0.5`, knuckledusters `0.75`.
+- `silentDraw` (default `false`) - no draw and sheathe sound, like bare hands.
+- `swingSounds` (default: the weapon's own) - swing whooshes, with Combat Sounds Overhaul Overhauled
+  (below).
+- `tooltip` (default: one for its scaling) - the footnote in Inventory Extender's tooltip
+  (placeholders below).
+
+A skill that isn't the weapon's own gets its share as one use of that skill - for a magic school,
+one successful cast. The weapon's own skill, if it's neither of the two, gets nothing.
+
+**Tooltip placeholders**: `%{primarySkill}` and `%{secondarySkill}` (their names), `%{primary}` and
+`%{secondary}` (the player's values), `%{effective}` (what a swing rolls with), `%{bonus}` (that minus
+the primary, as `+3`), `%{lowest}`, `%{highest}`, `%{weaponSkill}` (the skill the engine thinks it
+is), `%{primaryExperience}` and `%{secondaryExperience}` (as `70%`).
+
+**Swing sounds** are a list, one whoosh per entry, all played on every swing. `sound` is `own` - the
+weapon's own whoosh, from Combat Sounds Overhaul Overhauled's swing `groups` if you give some - or one
+of that mod's weapon kinds (`HandToHand`, `ShortBlade`, `Blunt`, `Axe`...). Leave `own` out and the
+weapon's own whoosh is silent. A katar's:
+
+```yaml
+swingSounds:
+  - sound: HandToHand
+    volume: 1
+  - sound: own
+    volume: 0.85
+    groups: [sharpMetal]
+```
+
+Good to know:
+
+- This mod's own definitions are in its `HybridWeaponDefinitions` folder, for reference. A file at the
+  same path in a mod loaded later replaces this mod's, which is also how to change its weapons.
+- A copy of a hybrid made in game - say, one the player enchanted - is recognised by its mesh and type.
+- What's wrong with a file goes to `openmw.log` when a game is loaded, on lines starting
+  `[H2HWeapons]`.
+- NPCs swing hybrids with the skill the engine gives them; the skill swap and the experience are the
+  player's.
+
+### Scripts and source
+
+Scripts can ask about hybrids through `I.H2HWeapons` (in player scripts): `hybridOfId(recordId)`,
+`hybridOfItem(item)` and `equippedHybrid()` give a weapon's definition, or `false`. How everything
+works - and how to build the plugin, meshes and animations from source - is written up in the
+[technical notes](Sources/DEVELOPMENT.md) in the git repository.

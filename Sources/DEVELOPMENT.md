@@ -19,16 +19,27 @@ of the fatigue - they are made for bruising.
 - **Damage:** katars 80% of that shortsword, knuckledusters 50%, rounded to the nearest (never
   below 1) - and the same whichever way you swing, as a fist's is: one range for chop, slash and
   thrust alike, the shortsword's best attack (the one the game picks with "always use best attack").
-  Two materials don't use their own vanilla shortsword, which sits out of line with the rest of the
-  material there. **Silver** is steel's with the top 30% higher and the bottom 1 lower, as vanilla's
+  Three materials don't use their own vanilla shortsword's damage, which sits out of line with the
+  rest of the material there. **Silver** is steel's with the top 30% higher and the bottom 1 lower, as vanilla's
   silver spear is over its steel one. **Daedric** is ebony's with the top 20% higher, as daedric
   weapons run over ebony ones across vanilla (the daedric shortsword alone comes out below ebony's).
+  **Adamantium** is ebony's with the top 5% lower, as adamantium weapons run against ebony ones across
+  Tribunal and Tamriel Data (Tribunal's shortsword alone starts at half ebony's). **Glass** has no
+  shortsword in vanilla, so
+  its is ebony's scaled as vanilla's glass longsword is to the ebony one: the top of the damage 0.88
+  of ebony's and the bottom the same, 0.3 of the weight, condition and capacity, 0.8 of the value.
+  **Nordic silver** takes Bloodmoon's own shortsword. Silver and Nordic silver carry the Silver flag
+  Bloodmoon gives every silver weapon, so they hurt werewolves the more
+  (`fWereWolfSilverWeaponDamageMult`).
 - **Weight:** the same share of that shortsword's as the damage - katars 80%, knuckledusters 50%.
+- **Price:** the same share again - and each is a pair, one for each hand, so any that would come in
+  under 500 costs twice that. The plain weapon decides, and its enchanted versions follow it.
 - **Fatigue damage:** katars 50% of a bare-fisted hit, knuckledusters 75%.
 - **Engine weapon type:** katars Short Blade, knuckledusters Blunt Weapon. Both one handed.
 - **Skill you actually use:** Hand to Hand, for both.
 
-Thirteen weapons, in wood, iron, chitin, steel, silver, orcish, ebony and daedric. Their stats are
+Sixteen weapons, in wood, iron, chitin, steel, silver, Nordic silver, adamantium, orcish, glass, ebony
+and daedric. Their stats are
 derived from the vanilla shortswords rather than picked by hand - see `Sources/Tools/make_plugin.py`,
 which is what writes `Katar.omwaddon`.
 
@@ -44,20 +55,25 @@ of the same material to its shortsword, which in vanilla holds about twice as mu
 holds what the dagger does, a katar halfway between the two. The dagger's is vanilla's own where there
 is one; orcish and ebony have none, and theirs is worked out as Bethesda wrote every line - a fixed
 multiple of the weight (daggers run at 6.67 points per unit, shortswords at 5.0, right across iron
-through daedric), on a dagger weighing 0.375 of its shortsword. The game shows a tenth of the raw
+through daedric), on a dagger weighing 0.375 of its shortsword. Tribunal's adamantium weapons do not
+keep that rule, so the adamantium dagger is put at half its shortsword, where every vanilla dagger
+sits. The game shows a tenth of the raw
 number and drops what is left over (`Enchanting::getMaxEnchantValue`), so the result is rounded to
 whole points, halves up, and nothing is lost: the silver katar's 2.6 holds 3, the silver knuckles' 1.6
 holds 2.
 
 ### Shop-enchanted versions
 
-Seven of the weapons also come weakly enchanted, the way vanilla's Flameblades and Sparkmaces are -
+Eight of the weapons also come weakly enchanted, the way vanilla's Flameblades and Sparkmaces are -
 plain weapons with a little magic that casts on strike, dealt from the same lists vanilla deals those
 from. Each enchantment is the weaker of two: the vanilla enchanted weapon of that material and element,
 and the most that fits three quarters of a point under the weapon's own capacity - so one bought is
 always a little weaker than one enchanted by hand (the enchanting menu takes anything that rounds
 down to the capacity). Where the vanilla one is the weaker, its own record is used, so a mod that
-rebalances it rebalances these too. Daedric has none, as vanilla has no weak daedric ones.
+rebalances it rebalances these too. Daedric has none, as vanilla has no weak daedric ones, and nor does
+adamantium, whose only vanilla enchanted weapon is the Dark Brotherhood's Jinkblade. Glass is the one exception to the three quarters: the
+glass katar holds only 2, so it takes the most that fits a quarter of a point under instead - still
+short of what the enchanting menu would let you put on it.
 
 | Weapon | Enchanted version | On strike | Enchantment |
 | --- | --- | --- | --- |
@@ -68,29 +84,64 @@ rebalances it rebalances these too. Daedric has none, as vanilla has no weak dae
 | Silver Knuckles | Silver Shardknuckle | Frost 3-6 | `h2h_silver_shard_en` |
 | Orcish Knuckles | Orcish Smoulderfist | Fire 1-20 | vanilla's `wild flame_en` (Wild Flameblade) |
 | Ebony Katar | Ebony Sparkneedle | Shock 1-20 | vanilla's `wild spark_en` (Wild Sparkblade) |
+| Glass Katar | Wild Flamefang | Fire 1-12 | `h2h_glass_flame_en` - the Wild Flameblade's fire, as much as fits |
 
 In every other stat each is its plain weapon. The price is the plain one's plus what vanilla adds for
 that enchantment over the same weapon without it - Iron Mace 24 to Iron Sparkmace 45, Silver
-Shortsword 80 to Silver Shardblade 120, and so on - which comes to 10, 31, 47, 104, 80, 500 and 8100.
+Shortsword 80 to Silver Shardblade 120, and so on. Where our enchantment is weaker than that vanilla
+one, only that markup comes down, in proportion to the enchantment points - the Silver Shardknuckle's
+40 to 36 (1.25 to 1.375), the Wild Flamefang's 100 to 64 (1.75 to 2.75); the plain weapon's own worth is
+never touched. A pair whose plain one is under 500 is priced twice over, enchantment and all (see
+*Price* above), which comes to 20, 62, 94, 208, 152, 1000, 8100 and 6464.
+
+One more comes Bloodmoon's way rather than a shop's. Its Berserker weapons are the plain nordic silver
+ones, renamed, carrying a bleed - `bloodletting_en`, 2 points of health a second for 5 seconds on
+whoever they hit - at the plain one's price, dealt from the list every berserker rolls a weapon from
+(`bm_randomweapon_berserker`) at level 60. The **Berserker Silver Knuckles** are the same: the Nordic
+Silver Knuckles with Bloodmoon's own enchantment, priced as the plain ones (500), in that list at 60 and
+nowhere else.
+
+### Hybrid weapon definitions
+
+Which weapons get any of what follows, and with which numbers, is not in the scripts: every weapon
+this mod adds has a file in `HybridWeaponDefinitions/`, named after its record id
+(`katar_steel.yaml`), and any other mod can ship files of its own there for its own weapons. The
+format is in the README (*For modders*); `Sources/Tools/make_hybrid_definitions.py` writes this
+mod's. `scripts/definitions.lua` reads them and `scripts/weapons.lua` puts each together with its
+weapon record - the record's type says which skill the engine swings it with, and so which skill the
+scripts have to stand in for.
+
+The folder is listed once per script instance, the first time anything asks, and a file is read the
+first time its weapon is looked at - every actor carries scripts that ask, and most never meet one
+of these. A weapon made in game - one you enchanted, a Bound Fist scaled to its caster, Ebony Rose's
+burst copy - has a generated id no file can be named after, and is taken for whichever defined weapon
+has its mesh and type. Only melee weapons can be hybrids. The global script checks every file once a
+game is loaded and writes what is wrong with any of them to `openmw.log`, each line starting
+`[H2HWeapons]`.
 
 ### Hit chance
 
 The engine rolls a melee hit against whatever skill the weapon says it uses. For the length of every
-swing, that skill *is* your Hand to Hand: the difference is written into the weapon skill's modifier
-when the swing winds up and taken back out when it follows through, so the roll the engine makes is
-the one it would make with your fists.
+swing, that skill *is* the weapon's effective skill: the difference is written into the weapon
+skill's modifier when the swing winds up and taken back out when it follows through. For this mod's
+weapons the effective skill is your Hand to Hand plus a bonus (below), so the roll the engine makes is
+the one it would make with your fists. A definition can instead ask for the lower or the higher of its
+two skills.
 
 Keeping the weapon skill up alongside it pays, and the bonus is a share of **that** skill, so
 letting it rot costs you twice over - a smaller share of a smaller number. While Short Blade (or
 Blunt Weapon) is within **10 points** of your Hand to Hand, or ahead of it, you get **15% of the
 weapon skill** on top. Past that it tapers over the next 20 points down to **5%** - a floor, not a
 cutoff. The result is rounded down to whole skill points, so the number the tooltip shows is exactly
-the one a swing applies. Every number there is a setting.
+the one a swing applies. The curve is fixed (`formulas.lua`), the same for every weapon that uses it.
 
 ### Experience
 
 A successful hit gives **70% to Hand to Hand and 30% to the weapon skill** the engine thinks you
-used. The split is a setting.
+used: the weapon skill keeps its share of the engine's own credit, and Hand to Hand is credited as one
+use of its own at its share. The split is the weapon's definition's; a skill in it that is not the
+weapon's own is credited the way Hand to Hand is, and the weapon's own skill, when it is in neither,
+keeps nothing.
 
 ### Fatigue damage
 
@@ -101,7 +152,8 @@ Every hit also costs the target fatigue, using the engine's own unarmed formula
 hand to hand skill * (fMinHandToHandMult + (fMaxHandToHandMult - fMinHandToHandMult) * swing strength)
 ```
 
-scaled by 50% for a katar or 75% for knuckledusters - at Hand to Hand 50, a full swing bruises for
+scaled by 50% for a katar or 75% for knuckledusters (the definitions' `fatigueDamage`) - at Hand to
+Hand 50, a full swing bruises for
 25 with a bare fist, 12.5 with a katar and 18.75 with knuckledusters.
 
 With the launcher's **strength influences hand to hand** option on (Advanced -> Combat), that is
@@ -140,7 +192,13 @@ python3 Sources/Tools/mirror_weapon_track.py <animation folder>
 
 ### The draw sound
 
-Drawing a short blade or a blunt weapon plays a sound. Bare hands do not, and neither do these.
+Drawing a short blade or a blunt weapon plays a sound. Bare hands do not, and neither do these
+(`silentDraw` in their definitions).
+
+### Swing sounds
+
+With Combat Sounds Overhaul Overhauled, a katar swings with a fist's whoosh and its own sharp one,
+softer, under it; knuckledusters with a fist's alone (`swingSounds` in their definitions).
 
 ### NPCs
 
@@ -175,7 +233,7 @@ hit chance needs nothing, and its bruising is worked out from that Combat
 ## The uniques
 
 Three: Ebony Rose, Mage Fury, and the Driftwood Beater (`knuckle_wood`), wooden knuckles - which hit for two points less than the iron set at each end (2-4) but take an
-enchantment better than any knuckleduster short of orcish and daedric (3), since it is the medium, not the metal,
+enchantment better than any knuckleduster short of orcish, Nordic silver and daedric (3), since it is the medium, not the metal,
 that holds one. None of
 the three is in any levelled list: nobody sells them and no chest rolls them. They are placed in the
 world by `KatarWorldPlacements.omwaddon`, which is made by hand in OpenMW-CS - unlike `Katar.omwaddon`,
@@ -206,15 +264,18 @@ only what the engine keys to its built-in effects and so cannot give a new one.
   honours **Resist Poison** and **Weakness to Poison**; **Cure Poison** does not wash it out. A
   killing blow is handed to the engine as a Damage Health cast by whoever poisoned the victim, so the
   kill is theirs by the engine's own rules - murder included, when it is one.
-- **Its owner** is Dandras Vules, the Dark Brotherhood's master in Mournhold (Tribunal). He is handed
-  it the first time he comes into the world, by script rather than by editing his record, and fights
-  with it - bursts and all. The combat AI picks its weapon before every swing, by damage and by what
-  the enchantment casts on a strike (`weaponpriority.cpp`), and his own Adamantium Jinkblade of
-  Wounds - Paralyze and 10 points of Poison on every strike - would win that easily. An enchantment
-  without the charge for one more cast is not counted, so each time he comes into the world while he
-  has the Rose, the Jinkblade is left without charge: it takes a quarter of an hour to recharge that
-  far, and until then he fights with the Rose. It is still on him, and recharges as any enchanted
-  weapon does once taken.
+- **Its owner** is Dandras Vules, the Dark Brotherhood's master in Mournhold (Tribunal) - when Mercy:
+  Combat AI Overhaul runs the fights. He is handed it the first time he comes into the world, by
+  script rather than by editing his record, and the Rose placed in his room goes, as long as it is
+  still lying there. Without Mercy he is not handed one, and the one in his room is the one to find.
+  He fights with it and with his own Adamantium Jinkblade of Wounds - Paralyze and 10 points of
+  Poison on every strike - turn about (`scripts/roseowner.lua`, a step of Mercy's melee fight; Mercy
+  switches the engine's combat AI off while it fights, and with it the engine's own choice of weapon).
+  He opens with the Jinkblade and turns to the Rose once the enemy is paralysed, once the Jinkblade
+  has too little charge for another strike's paralysis, or after 8 swings with it; he keeps the Rose
+  at least 10 seconds, then goes back to the Jinkblade if it has the charge and the enemy is not
+  paralysed - back and forth until the Jinkblade's charge is gone. Both are the same weapon type, so
+  the swap is instant.
 
 **Mage Fury** (`knuckle_mage_fury`) - iron knuckledusters with a crystal set in them, hitting for a
 point less than the iron set at each end (3-5).
@@ -281,11 +342,6 @@ Options -> Scripts -> Katars and Knuckledusters.
 
 - **Strength influences hand to hand** (default Off) - must match the launcher option of the same
   name.
-- **Hand to Hand experience share** (0.7) - the rest goes to the weapon skill.
-- **Weapon skill bonus** (0.15) - share of the weapon skill added while it keeps up.
-- **Weapon skill bonus floor** (0.05) - the share a neglected weapon skill is still worth.
-- **Weapon skill bonus grace** (10) - points it may fall behind before the share starts tapering.
-- **Weapon skill bonus falloff** (20) - points past the grace over which it reaches the floor.
 - **Show the off-hand weapon** (on).
 - **Silence the draw and sheathe sound** (on).
 
@@ -342,8 +398,8 @@ installed, for the NIF library inside it, and it is safe to run twice.
 
 **The moveset.** Katars and knuckledusters move and fight with ReAnimation's own hand-to-hand
 animations - idle, walk, run, sneak, jump, draw and sheathe, and every punch with its mirrored
-variant - imported under the katar's names by `Sources/Tools/import_h2h_set.py`, with the weapon
-bones seated for the grip on the way. They keep the fist's timing: the engine's one-handed attack
+variant - brought into `Reanimv  starts Katsr.blend` under the katar's names, with the weapon bones
+seated for the grip, and exported from there. They keep the fist's timing: the engine's one-handed attack
 underneath is re-timed to them, not the other way round, so a hit still lands on the frame it
 should. That is also why these weapons have such low speeds - 0.9 for katars, 1.0 for
 knuckledusters: the fist's animations are quick to begin with, and at 1.0 about as quick as a
@@ -383,6 +439,21 @@ merged in (`Sources/Tools/make_third_person_anims.py`), in the folders of the th
 own legs. So one set of registrations covers both views and every NPC - whichever the engine has
 loaded is what plays.
 
+**The idle.** The engine plays a weapon idle to its `loop stop` key one to four times, then on to its
+`stop`, and plays it again whenever it ends (`CharacterController::refreshIdleAnims`). The katar idle
+loops until it is stopped instead of taking that count from its parent: it is the shorter of the two
+in first person (4 seconds against `idle1h`'s 5.3 a loop and 6 more to its stop), ran out first, and
+stood frozen on its last frame until the parent came round again. When the parent does come round,
+ReAnimation stops ours and plays it anew, and it carries on from where it was.
+
+The engine plays an actor's animations past Lua until the AnimationController's first update turns
+Lua on for it, so the idle an actor is loaded with, or comes into the world with, starts unseen - and
+ReAnimation used to look at what an actor is doing only when something played through Lua. With one of
+these out, the player stood in the engine's one-handed idle after a load until that idle ran out.
+ReAnimation 3.3 looks once, on its first update after an actor comes into the world, and gives an
+override whose parent is already playing the options the engine plays that idle or walk with; the
+katar idle starts from there.
+
 **Sneaking idle.** ReAnimation's own first-person sneak idles (`idle1hsneak`, `idle1ssneak`) play
 over the same one-handed idle as ours whenever the player sneaks, unranked, so nothing stops them;
 the engine shows whichever has the higher priority on each bone group, and on a tie the one whose
@@ -401,10 +472,20 @@ Merchants sell what they carry and what is in the chests they own in their shop 
 and most weapon merchants' stock comes from such chests rolling the `random_*` lists; so does loot.
 Knuckledusters go on the blunt list where their stand-in is on the short blade one. Vanilla has no
 orcish shortsword, so the orcish knuckles follow the dwarven one, and the orcish warhammer into
-`random_orcish_weapons` too. The shop-enchanted versions go where vanilla deals its own weak enchanted
-weapons - `l_m_wpn_melee_short blade`, `l_m_wpn_melee_blunt` and `random_loot_special` - each only where
-its material is already on offer at least twice, at the middle of those weapons' levels
-(`ENCHANTED_LEVELLED` in `make_plugin.py`). The uniques and the bound weapons are in no list.
+`random_orcish_weapons` too. Nor a glass one: the glass katar follows the glass dagger, which vanilla
+deals from `random_glass_weapon` alone. No vanilla list deals adamantium - Tribunal places its
+adamantium weapons by hand - so the adamantium katar is in Tamriel Data's lists only, and sold as
+below. The Nordic silver knuckles follow Bloodmoon's nordic silver shortsword, which is dealt on
+Solstheim alone - the Nord hunters', nordic silver and smugglers' lists. The shop-enchanted versions go where vanilla deals its own weak enchanted weapons -
+`l_m_wpn_melee_short blade`, `l_m_wpn_melee_blunt` and `random_loot_special` - each only where its
+material is already on offer at least twice, at the middle of those weapons' levels
+(`ENCHANTED_LEVELLED` in `make_plugin.py`). Two shops are stocked by hand (`CONTAINER_ADDITIONS`):
+Kjeld, the smuggler in Druscashti, keeps an Ebony Katar beside the Ebony Shortsword in the chest he
+sells from, and Bols Indalen, the smith in Mournhold's Craftsmen's Hall, restocks an Adamantium Katar
+with the rest of his adamantium weapons. Each is that chest's record, read from Morrowind.esm or
+Tribunal.esm with the katar added - which is why `Katar.omwaddon` needs Tribunal, as it needs
+Bloodmoon for the Nordic silver lists. The uniques and the
+bound weapons are in no list.
 
 A shop is stocked once: the engine rolls a merchant's levelled entries when they first come into the
 world, and a chest's when it is first opened, and from then on restocks what it rolled. Shops met
@@ -413,13 +494,15 @@ before the mod was installed keep what they had.
 A plugin can only replace a levelled list, not add to it, so a mod loaded later that edits one of the
 same lists wins it; with such a mod, run a merged-lists tool
 ([DeltaPlugin](https://gitlab.com/bmwinger/delta-plugin), OMWLLF) as you would for any mod that adds
-loot. Tamriel Data, Tamriel Rebuilt and OAAB leave these lists alone.
+loot. Tamriel Data, Tamriel Rebuilt and OAAB leave these lists alone. The two chests are whole records
+in the same way; DeltaPlugin and TES3Merge merge containers too, OMWLLF only lists.
 
 **Tamriel Rebuilt** deals its weapons from Tamriel Data's lists, and `KatarTamrielRebuilt.omwaddon`
 extends those the same way: the `t_mw` ones, which are Morrowind's - the rest are other provinces'
 - leaving out guards', Dwemer centurions' and Dwemer ruins' lists, and two-handed ones
 (`make_tr_plugin.py`). Tamriel Data has an orcish shortsword of its own, and the orcish knuckles
-follow it too. It needs Tamriel Data and `Katar.omwaddon` as masters, and goes after both.
+follow it too; and a glass one, which the glass katar follows. Its adamantium lists deal Tribunal's
+adamantium shortsword, and the adamantium katar with it. It needs Tamriel Data and `Katar.omwaddon` as masters, and goes after both.
 
 **Tooltips.** Two tooltip mods are given the weapons' real workings, both optional
 (`player.lua`): Inventory Extender's, through `I.InventoryExtender.registerTooltipModifier`, and the
@@ -449,8 +532,9 @@ script, so a rebuild is reproducible:
 - `Sources/Tools/export_weapons.py` - exports every weapon empty to its own `.nif`, centred on the
   grip bar. Superseded by `tools/mw_export.py`, which is what produces the shipped meshes now; this
   one is kept because it documents the grip-bar centring the records depend on.
-- `Sources/Tools/import_h2h_set.py` - makes the katar moveset from ReAnimation's hand-to-hand
-  animations: renames their groups, seats the weapon bone, and mirrors it onto `Weapon Bone.L`.
+- `Sources/Tools/import_h2h_set.py` - no longer used: it made the katar moveset by patching
+  ReAnimation's exported `.kf` files. The blend is the source now; `import_h2h_actions.py` brings the
+  actions in and `export_katar_anims.py` exports them.
 - `Sources/Tools/make_third_person_anims.py` - makes the third-person moveset from the first-person
   one, with ReAnimation's FBA merge (`Sources/Tools/FBACompat/fba_merge.py` in its repository, found
   beside this mod): our upper body over the legs, hips and root motion of vanilla's third-person
@@ -461,7 +545,11 @@ script, so a rebuild is reproducible:
   different: in game they play from the chest up only, over the one-handed walk's legs and spine, so
   their chest (`Bip01 Spine1`, where the engine's upper body starts) is keyed to sit on the vanilla
   one-handed walk's spine as it is on average, taking that walk's sway and lean with it. The upper body's bone offsets are moved from the first-person skeleton's to the third-person
-  one's. Through every swing and draw the head keeps looking ahead as it does in the idle: in first
+  one's, except the weapon bones': both views' hand meshes put the palm in the same place on the hand
+  bone, so the katar keeps its first-person seat. The third-person hand has two-joint fingers, the
+  last three as one, so the fingers are fitted rather than copied (`third_person_fingers.py`): the
+  first-person hand mesh is posed with the animation and the third-person finger rotations that put
+  the same vertices in the same places are solved for. Through every swing and draw the head keeps looking ahead as it does in the idle: in first
   person the head turns into a punch with the rest of the upper body, up to 95 degrees, which the
   camera never shows. The engine's head tracking still turns it toward whoever an NPC fights. Reads
   the vanilla animations out of Morrowind.bsa. Re-run it after every export of the
@@ -471,17 +559,22 @@ script, so a rebuild is reproducible:
 - `Sources/Tools/patch_skeleton.py` - adds `Weapon Bone.L`: `--bones-out Animations` writes the
   grafted-bone files, `-o meshes` the patched skeleton copies.
 - `Sources/Tools/mirror_weapon_track.py` - gives `Weapon Bone.L` the mirrored keyframe track of
-  `Weapon Bone` in a `.kf`. Run it over the animations after every export.
+  `Weapon Bone` in a `.kf`. The katar's own animations do not need it - the blend keys the bone and
+  the export keeps it, identical to what this writes - but any other animation can be given the
+  track with it (see above).
 - `Sources/Tools/mirror_bone.py` - the one definition of how this rig mirrors, shared by both of
   the above. Run it directly to self-test the quaternion maths.
 - `Sources/Tools/make_test_crate.py` - writes `Katars_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon`:
   a crate with one of every item this mod adds, by the stump with the axe in it near the Seyda Neen
   lighthouse. For testing only, left out of the release. Re-run it after adding an item.
 - `Sources/Tools/make_plugin.py` - writes `Katar.omwaddon` from the vanilla shortsword table, with
-  vanilla stand-ins for the uniques' enchantments. The real ones use custom magic effects, which an
+  vanilla stand-ins for the uniques' enchantments. Give it its three masters in load order: `--master`
+  Morrowind.esm, Tribunal.esm, Bloodmoon.esm. The real ones use custom magic effects, which an
   ESM file cannot name, so `scripts/MaxYari/H2HWeapons/content.lua` replaces them when the game starts.
 - `Sources/Tools/make_tr_plugin.py` - writes `KatarTamrielRebuilt.omwaddon`, Tamriel Data's lists
   extended as `make_plugin.py` extends vanilla's. Re-run it after `make_plugin.py`.
+- `Sources/Tools/make_hybrid_definitions.py` - writes `HybridWeaponDefinitions/<id>.yaml` for every
+  weapon `make_plugin.py` makes. Re-run it after adding one.
 
   ```
   python3 Sources/Tools/make_tr_plugin.py --master "<Data Files>/Morrowind.esm" \
@@ -493,16 +586,31 @@ script, so a rebuild is reproducible:
   shows inside it while it is charged (`<mesh>_charged.nif`).
 - `Sources/Tools/add_weapon_bone_l.py` - builds the ARP controller for that bone in the Blender file.
 - `Sources/Tools/import_h2h_actions.py` - brings ReAnimation's hand-to-hand `[Raw]` actions into the
-  Blender file as the katar's, the Blender side of `import_h2h_set.py`: renamed actions and text
-  keys, the weapon bone seated, and `Weapon Bone.L` keyed at the mirrored seat with the katar's turn.
-- `Sources/Tools/footstep_refs.py` - renames `SoundGen` keys to `SoundGenRef` in the `.kf` files it
-  is given, or back. `import_h2h_set.py`, `make_katar_1h_movement.py` and
-  `make_third_person_anims.py` all run it on what they write; safe to run twice.
+  Blender file as the katar's: renamed actions and text keys, footsteps as `SoundGenRef`, the weapon
+  bone seated, and `Weapon Bone.L` keyed at the mirrored seat with the katar's turn. Only for
+  starting over from ReAnimation - the actions are this mod's from then on.
+- `Sources/Tools/reseat_weapon_bones.py` - after moving `Weapon Bone` in `[Raw] Katar Idle`, gives
+  every katar action holding the old seat the new one and keys `Weapon Bone.L` at its mirror again.
+- `Sources/Tools/snap_attack_ends.py` - after changing the first frame of `[Raw] Katar Idle`, sets the
+  last key of every katar attack (and any key holding that same pose) to the idle's pose, so a swing
+  ends where the idle starts. Arms stay in FK; the weapon seat is left to `reseat_weapon_bones.py`.
+- `Sources/Tools/export_katar_anims.py` - exports every `[Raw] Katar` action to
+  `Animations/xbase_anim.1st`: ReAnimation's bake, its moveset builder for the walk, run and sneak, and
+  the first-person export, `Weapon Bone.L` kept. Nothing is changed in a file after it is written;
+  it checks that none carries a `SoundGen` key and that the one-handed loops lie as the one-handed
+  set's do. Run `make_third_person_anims.py` after it.
+
+  ```
+  blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/export_katar_anims.py
+  ```
+- `Sources/Tools/footstep_refs.py` - renames `SoundGen` keys to `SoundGenRef`, or back - the
+  footsteps of the katar animations, which would otherwise sound every step twice over the one-handed
+  animation underneath. The blend's markers carry `SoundGenRef` already; `make_third_person_anims.py`
+  reads them back as footsteps to match the legs by, and writes them as references again.
 - `Sources/Tools/make_katar_1h_movement.py` - lays `[Raw] Katar Walk` and `[Raw] Katar Sneak` out as
   the first-person one-handed walk and sneak are, as `[Raw] Katar Walk 1h` and `[Raw] Katar Sneak 1h`,
-  and with `--export` runs ReAnimation's own `build_and_export_moveset.py` (from its
-  `Sources/Reanimv3.blend`) on them - bake, moveset builder, export - then mirrors `Weapon Bone.L` in
-  and checks the loops against ReAnimation's `x1hMovement.kf` and `x1hSneakMovement.kf`. Re-run it
+  and with `--export` exports them through `export_katar_anims.py`, which checks the loops against
+  ReAnimation's `x1hMovement.kf` and `x1hSneakMovement.kf`. Re-run it
   after changing the katar walk or sneak. First person only: the third-person build leaves the files
   out.
 
@@ -544,7 +652,7 @@ diagonal sign matrix. Every vanilla skeleton uses `diag(1, 1, -1)`, a flip of th
 The bone is that mirror and nothing more, so any weapon modelled the vanilla way, blade up its
 +Y, hangs from it the right way up. The katar needs a half turn about its blade on top, or the face
 that should point away from the body points across it - and that turn is the katar's, so it lives in
-the katar's animations (`mirror_weapon_track.py` adds it to the track), not in the bone. In the
+the katar's animations (keyed in the blend, `import_h2h_actions.py`), not in the bone. In the
 Blender file the same mirror flips a different axis on the weapon's side, `diag(1, -1, 1)`, because
 io_scene_mw corrects the axes of `Bip01` bones and of every other bone differently;
 `add_weapon_bone_l.py` works that out from the importer's own matrices.

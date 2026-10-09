@@ -68,10 +68,19 @@ M.BURST_CHAIN = 3    -- ... each within this many seconds of the one before
 -- the blow landed (spellcasting.cpp).
 M.UNITS_PER_FOOT = 22
 
--- Its owner, who is handed it by global.lua: Dandras Vules, the Dark Brotherhood's master in
--- Mournhold (Tribunal) - and the enchanted shortsword he carried before it.
+-- Its owner, who is handed it by global.lua when Mercy: Combat AI Overhaul runs the fights: Dandras
+-- Vules, the Dark Brotherhood's master in Mournhold (Tribunal) - and the enchanted shortsword he
+-- carried before it, his Jinkblade, which paralyses on a strike. He fights with both (roseowner.lua).
+-- Without Mercy the Rose is not handed over: it lies in his room (KatarWorldPlacements.omwaddon).
 M.ROSE_OWNER = "dandras vules"
 M.ROSE_OWNER_WEAPON = "adamantium_shortsword_db"
+M.MERCY_CONTENT = "MercyCAO.omwscripts"
+M.ROOM_ROSE_CONTENT = "katarworldplacements.omwaddon"
+M.ROOM_ROSE_CELL = "Old Mournhold: Moril Manor, North Building"
+-- From the Jinkblade to the Rose after this many swings with it ...
+M.ROSE_OWNER_SWINGS = 8
+-- ... and back no sooner than this many seconds after.
+M.ROSE_OWNER_ROSE_MIN = 10
 
 --- Mage Fury -----------------------------------------------------------------------------------------
 -- A spell cast successfully with these on charges them; the next three strikes each deliver a third

@@ -10,6 +10,13 @@ local function check(ok, msg, extra)
     if not ok then fails = fails + 1; print("FAIL: " .. msg .. (extra and ("  [" .. tostring(extra) .. "]") or "")) end
 end
 
+-- A katar of a test's own, defined as the shipped steel katar is (the folder is listed once, on
+-- first use, so before anything asks).
+do
+    local f = assert(io.open(K .. "/HybridWeaponDefinitions/katar_steel.yaml"))
+    st.vfsText = { ["hybridweapondefinitions/katar_test.yaml"] = f:read("a") }
+    f:close()
+end
 st.weaponRecords["katar_steel"] = { type = 0, model = "meshes/steel_katar.nif" }
 st.weaponRecords["knuckle_iron"] = { type = 3, model = "meshes/iron_knuckle.nif" }
 st.weaponRecords["steel dagger"] = { type = 0, model = "meshes/w/w_dagger.nif" }
@@ -30,30 +37,38 @@ st.skills = {
 
 --- weapons.lua ---------------------------------------------------------------------------------------
 local weapons = require("scripts.MaxYari.H2HWeapons.scripts.weapons")
-check(weapons.kindOfId("katar_steel") == "katar", "steel katar is a katar")
-check(weapons.kindOfId("KATAR_STEEL") == "katar", "record ids are matched case-insensitively")
-check(weapons.kindOfId("knuckle_iron") == "knuckle", "iron knuckles are knuckles")
-check(weapons.kindOfId("steel dagger") == false, "a dagger is not one")
-check(weapons.kindOfId("katar axe") == false, "a two-handed axe called a katar is not one")
-check(weapons.kindOfId(nil) == false, "nil is not one")
+local katar = weapons.hybridOfId("katar_steel")
+local knuckle = weapons.hybridOfId("knuckle_iron")
+check(katar and katar.primarySkill == "handtohand" and katar.secondarySkill == "shortblade",
+      "the steel katar is a hybrid of hand-to-hand and short blade, by its definition file")
+check(weapons.hybridOfId("KATAR_STEEL") == katar, "record ids are matched case-insensitively")
+check(knuckle and knuckle.secondarySkill == "bluntweapon", "iron knuckles: hand-to-hand and blunt weapon")
+check(weapons.hybridOfId("steel dagger") == false, "a dagger is not one")
+check(weapons.hybridOfId("katar axe") == false, "and a weapon named like one, with no definition, is not one")
+check(weapons.hybridOfId(nil) == false, "nil is not one")
 check(weapons.modelOfId("katar_steel") == "meshes/steel_katar.nif", "model is cached", weapons.modelOfId("katar_steel"))
-check(weapons.FATIGUE_FACTOR.katar == 0.50, "katar fatigue factor")
-check(weapons.FATIGUE_FACTOR.knuckle == 0.75, "knuckle fatigue factor")
-check(weapons.WEAPON_SKILL.katar == "shortblade", "katars use short blade")
-check(weapons.WEAPON_SKILL.knuckle == "bluntweapon", "knuckles use blunt weapon")
+check(katar.fatigueDamage == 0.50, "katar fatigue factor")
+check(knuckle.fatigueDamage == 0.75, "knuckle fatigue factor")
+check(katar.weaponSkill == "shortblade", "katars swing with short blade, to the engine")
+check(knuckle.weaponSkill == "bluntweapon", "knuckles with blunt weapon")
+check(katar.handToHand and knuckle.handToHand, "both with the hand-to-hand moveset")
+check(katar.silentDraw and knuckle.silentDraw, "and both draw silently")
+check(katar.primaryExperience == 0.7 and katar.secondaryExperience == 0.3, "70% of a hit's experience to hand-to-hand")
+check(katar.scaling == "minorSecondaryBonus", "and a minor bonus from the secondary skill")
 check(weapons.specialOfId("katar_ebony_rose") == "venom", "Ebony Rose poisons", weapons.specialOfId("katar_ebony_rose"))
 check(weapons.specialOfId("knuckle_mage_fury") == "magefury", "Mage Fury channels spells")
 check(weapons.specialOfId("katar_steel") == false, "an ordinary katar has no trick")
-check(weapons.kindOfId("Generated:0x99") == "katar", "the burst copy is a katar though its id says nothing")
+check(weapons.hybridOfId("Generated:0x99").secondarySkill == "shortblade", "the burst copy is a katar though its id says nothing")
 check(weapons.specialOfId("Generated:0x99") == "burst", "and it is the one that bursts")
 check(weapons.modelOfId("Generated:0x99") == "meshes/ebony_rose.nif", "with Ebony Rose's mesh")
 -- A katar someone had enchanted is a new, generated record, and its id says nothing; its mesh does.
 st.weaponRecords["generated:0x31"] = { type = 0, model = "Meshes\\steel_katar.nif", enchant = "some_fire_en" }
-check(weapons.kindOfId("Generated:0x31") == "katar", "an enchanter's copy of a katar is still a katar")
+check(weapons.hybridOfId("Generated:0x31") == katar or weapons.hybridOfId("Generated:0x31").secondarySkill == "shortblade",
+      "an enchanter's copy of a katar is still a katar")
 st.weaponRecords["generated:0x32"] = { type = 3, model = "meshes/iron_knuckle.nif" }
-check(weapons.kindOfId("Generated:0x32") == "knuckle", "and of knuckledusters, knuckledusters")
+check(weapons.hybridOfId("Generated:0x32").secondarySkill == "bluntweapon", "and of knuckledusters, knuckledusters")
 st.weaponRecords["generated:0x33"] = { type = 0, model = "meshes/w/w_dagger_iron.nif" }
-check(weapons.kindOfId("Generated:0x33") == false, "an enchanted dagger is still a dagger")
+check(weapons.hybridOfId("Generated:0x33") == false, "an enchanted dagger is still a dagger")
 
 --- formulas.lua --------------------------------------------------------------------------------------
 local formulas = require("scripts.MaxYari.H2HWeapons.scripts.formulas")
@@ -69,8 +84,7 @@ check(math.abs(formulas.handToHandFatigue(actor, 1, 0) - 50 * 0.5) < 1e-6, "and 
 st.attributes.strength = { base = 40, modifier = 0 }
 
 -- skillBonus: a share of the weapon skill, full within the grace, tapering to a floor past it
-local BONUS = { skillBonusMax = 0.15, skillBonusMin = 0.05, skillBonusGrace = 10, skillBonusFalloff = 20 }
-local function bonus(h, w) return formulas.skillBonus(h, w, BONUS) end
+local function bonus(h, w) return formulas.skillBonus(h, w) end
 check(bonus(50, 50) == 7, "parity pays 15% of the weapon skill, rounded down", bonus(50, 50))
 check(bonus(50, 90) == 13, "a higher weapon skill pays 15% of the bigger number", bonus(50, 90))
 check(bonus(50, 40) == 6, "ten points behind is still the full share", bonus(50, 40))
@@ -78,7 +92,11 @@ check(bonus(50, 30) == 3, "halfway through the taper is halfway to the floor", b
 check(bonus(50, 20) == 1, "past the taper it is the floor rate", bonus(50, 20))
 check(bonus(50, 5) == 0, "which a low enough weapon skill still rounds away", bonus(50, 5))
 check(bonus(50, 50) % 1 == 0, "the bonus is always a whole number of skill points")
-check(formulas.effectiveSkill(50, 50, BONUS) == 57, "the bonus is added to hand-to-hand")
+check(formulas.effectiveSkill("minorSecondaryBonus", 50, 50) == 57, "the bonus is added to the primary skill")
+check(formulas.effectiveSkill("lowestSkill", 50, 30) == 30, "lowestSkill is the lower of the two")
+check(formulas.effectiveSkill("lowestSkill", 20, 30) == 20, "whichever it is")
+check(formulas.effectiveSkill("highestSkill", 50, 30) == 50, "highestSkill the higher")
+check(formulas.effectiveSkill("highestSkill", 20, 30) == 30, "whichever it is")
 -- the taper is monotonic: letting the weapon skill slide can never help
 local previous = math.huge
 for w = 100, 0, -1 do

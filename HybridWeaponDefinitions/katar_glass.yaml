@@ -1,0 +1,17 @@
+# Glass Katar, from Katars and Knuckledusters - written by Sources/Tools/make_hybrid_definitions.py.
+# What each field does: the mod's README, "Hybrid weapons for modders".
+primarySkill: handtohand
+secondarySkill: shortblade
+primaryExperience: 0.7
+secondaryExperience: 0.3
+scaling: minorSecondaryBonus
+moveset: handToHand
+fatigueDamage: 0.5
+silentDraw: true
+swingSounds:
+  - sound: HandToHand
+    volume: 1
+  - sound: own
+    volume: 0.85
+    groups: [sharpMetal]
+tooltip: "Hand-to-Hand weapon: effectiveness is determined by the %{primarySkill} skill (%{primary}), with a minor bonus from %{secondarySkill} (%{bonus})."

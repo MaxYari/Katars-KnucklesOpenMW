@@ -34,7 +34,16 @@ MATERIAL NAME TAGS (the usual way to drive this)
     [NormGen]     normal map from this material's baked albedo
     [Bump]        the supplied tiling metal normal instead
     [Alpha]       translucent (read by mw_export.py, not by this script)
-    A material with no metal tag bakes as plain non-metal.
+    [Alpha0.7]    the same at that opacity; [Alpha70] reads as 70%
+    [Bake]        bake it as plain non-metal, with no relief
+    [NoSpec]      bake it, but write no _spec map: OpenMW's PBR shaders then
+                  guess metalness and roughness from the albedo. Needs every
+                  baked material of the object to say so -- there is one map.
+    A material with a normal tag but no metal tag bakes as plain non-metal.
+    A material with none of these tags ([Alpha] aside) is not baked at all: it
+    keeps its own texture and UVs, so a thin inlay keeps its crisp polygon
+    edges. An mw_spec / mw_metal / mw_rough / mw_ao / mw_albedo_gain property
+    on the material counts as a tag.
 
 CUSTOM PROPERTIES (per material, or per object as a fallback)
     mw_spec            "tarnished"        a preset name from SPEC_PRESETS
@@ -67,6 +76,7 @@ import struct
 import subprocess
 import sys
 
+import bmesh
 import bpy
 import mathutils
 import numpy as np
@@ -144,9 +154,12 @@ SPEC_PRESETS = {
 #   [RoughPlate]  like the orcish bracket    -- partial coverage, rough
 #   [NormGen]     albedo-derived relief for this material's area
 #   [Bump]        the supplied tiling metal normal for this material's area
+#   [Bake]        none of the above, but bake it anyway, as plain non-metal
+#   [NoSpec]      bake it, but leave the spec map out altogether
 #
 # [NormGen] and [Bump] are mutually exclusive. A material with no metal tag gets
-# vanilla non-metal values, and one with neither normal tag stays flat.
+# vanilla non-metal values, and one with neither normal tag stays flat. One with
+# no tag at all is left out of the bake -- see material_is_baked().
 
 MATERIAL_TAGS = {
     "[metal]":      "iron",           # (206, 60, 132)
@@ -162,9 +175,34 @@ MATERIAL_TAGS = {
 NORMGEN_TAG = "[normgen]"
 BUMP_TAG = "[bump]"
 NORMCOPY_TAG = "[normcopy]"
+# On a MATERIAL: bake it with no metal preset. The object's own [Bake] is a
+# separate check on the object name.
+BAKE_MATERIAL_TAG = "[bake]"
+# On a MATERIAL: bake it but write no _spec map. A spec map's mere presence
+# switches off the PBR shaders' own guess, so this is the only way to get it.
+# One map covers the whole texture: it takes every baked material saying so.
+NOSPEC_TAG = "[nospec]"
 # Read by mw_export.py rather than here, but still legitimate on a material.
 EXPORT_TAGS = {"[alpha]", "[alphaclip]"}
-KNOWN_TAGS = set(MATERIAL_TAGS) | {NORMGEN_TAG, BUMP_TAG, NORMCOPY_TAG} | EXPORT_TAGS
+KNOWN_TAGS = (set(MATERIAL_TAGS) | {NORMGEN_TAG, BUMP_TAG, NORMCOPY_TAG, BAKE_MATERIAL_TAG,
+                                    NOSPEC_TAG} | EXPORT_TAGS)
+# Material properties that stand in for a tag, so they also mark it for baking.
+BAKE_PROPS = ("mw_spec", "mw_metal", "mw_rough", "mw_ao", "mw_albedo_gain")
+# [Alpha] with a number: that opacity, as a fraction ([Alpha0.7]) or a percentage ([Alpha70]).
+ALPHA_TAG_RE = re.compile(r"\[alpha(\d+(?:\.\d+)?)\]")
+
+
+def alpha_tag_value(tag):
+    """The opacity an [Alpha<n>] tag asks for, 0-1, or None for any other tag."""
+    m = ALPHA_TAG_RE.fullmatch(tag)
+    if not m:
+        return None
+    value = float(m.group(1))
+    return value / 100.0 if value > 1.0 else value
+
+
+def is_export_tag(tag):
+    return tag in EXPORT_TAGS or alpha_tag_value(tag) is not None
 
 CONFIG = {
     "bake_tag": "[bake]",
@@ -273,8 +311,12 @@ CONFIG = {
     "detail_tiles": 1.5,
     "detail_slope_deg": 5.5,
 
-    # OpenMW reads normal maps as OpenGL tangent space (green = +V).
-    "norm_flip_green": False,
+    # OpenMW reads normal maps in the DirectX convention (green = down the
+    # image): its docs say so (texture-modding/texture-basics.rst), and its
+    # tangent frame is built from the NIF's top-left UVs. Blender bakes OpenGL,
+    # so the green channel is flipped on the way out -- and on the way in for
+    # [NormCopy] sources, which are OpenMW maps already.
+    "norm_flip_green": True,
 
     "magick": "magick",
 }
@@ -328,7 +370,7 @@ def material_spec_preset(mat):
 
 def warn_unknown_tags(mat):
     unknown = [t for t in name_tags(mat.name if mat else "")
-               if t not in KNOWN_TAGS and not NORM_TAG_RE.fullmatch(t)]
+               if t not in KNOWN_TAGS and not NORM_TAG_RE.fullmatch(t) and not is_export_tag(t)]
     if unknown:
         log(f"  !! {mat.name!r} has unrecognised tag(s) {' '.join(unknown)} -- "
             f"known: {' '.join(sorted(KNOWN_TAGS))}")
@@ -354,6 +396,27 @@ def material_norm_mode(mat):
             f"{[p[0] for p in picked]} -- they are mutually exclusive, "
             f"using {picked[0][0]!r}")
     return picked[0] if picked else ("flat", 1.0)
+
+
+def material_is_baked(mat):
+    """Whether this material of a [Bake] object goes into the bake.
+
+    Only the tags this script reads count -- a metal tag, a normal tag, or a
+    bare [Bake] or [NoSpec] -- and the properties standing in for them;
+    [Alpha] does not.
+    An untagged material is left as it is, texture and UVs, for a part whose
+    polygon edges ARE its look: the lining on the adamantium blade is a strip
+    about one texel wide at any sane bake size, and baked it comes out as a
+    staircase.
+    """
+    if mat is None:
+        return False
+    tags = name_tags(mat.name)
+    if tags & (set(MATERIAL_TAGS) | {BAKE_MATERIAL_TAG, NOSPEC_TAG}):
+        return True
+    if any(NORM_TAG_RE.fullmatch(t) for t in tags):
+        return True
+    return any(key in mat.keys() for key in BAKE_PROPS)
 
 
 def mw_prop(material, obj, key, default=None):
@@ -540,6 +603,8 @@ def spec_color_for(material, obj, image, shiny_dir):
 
     mw_spec custom property > [tag] in the material name > untagged default.
     """
+    if NOSPEC_TAG in name_tags(material.name if material else ""):
+        return CONFIG["untagged_spec"], "[nospec] -> non-metal wherever it shares a map"
     explicit = _parse_spec(mw_prop(material, obj, "mw_spec"))
     source = "mw_spec property"
 
@@ -614,8 +679,11 @@ def _uv_stats(me, layer_name):
     return (u0, v0, u1, v1), area
 
 
-def count_source_texels(obj):
-    """How many texels of the ORIGINAL textures this mesh actually samples."""
+def count_source_texels(obj, keep=()):
+    """How many texels of the ORIGINAL textures this mesh actually samples.
+
+    Slots in keep are left out of the bake, so they claim no texels.
+    """
     me = obj.data
     source_uv = None
     for slot in obj.material_slots:
@@ -635,6 +703,8 @@ def count_source_texels(obj):
     uvs = layer.uv
     total = 0.0
     for poly in me.polygons:
+        if poly.material_index in keep:
+            continue
         loop = [tuple(uvs[i].vector) for i in poly.loop_indices]
         acc = 0.0
         for k in range(len(loop)):
@@ -806,9 +876,31 @@ def apply_modifiers_through_subsurf(obj):
     return True
 
 
-def unwrap_bake_uv(obj):
+def park_kept_uvs(me, keep):
+    """Put the bake UVs of the faces left out of the bake on a single point.
+
+    With no UV area they rasterise nothing in any bake pass, and the texel
+    measurements skip them. The point is the corner of the baked faces' own
+    bounding box, so the layout's extent does not move either. Those faces
+    never read this layer in game: their material keeps its own.
+    """
+    layer = me.uv_layers[CONFIG["uv_layer"]]
+    uv = np.empty(len(layer.uv) * 2, dtype=np.float64)
+    layer.uv.foreach_get("vector", uv)
+    uv = uv.reshape(-1, 2)
+    mats = np.empty(len(me.polygons), dtype=np.int32)
+    me.polygons.foreach_get("material_index", mats)
+    totals = np.empty(len(me.polygons), dtype=np.int32)
+    me.polygons.foreach_get("loop_total", totals)
+    kept = np.isin(np.repeat(mats, totals), list(keep))
+    uv[kept] = uv[~kept].min(axis=0)
+    layer.uv.foreach_set("vector", uv.ravel())
+
+
+def unwrap_bake_uv(obj, keep=()):
     """Fresh non-overlapping UV layer, rescaled to fill the image.
 
+    Faces whose slot is in keep are not unwrapped -- see park_kept_uvs().
     Returns (aspect, coverage).
     """
     me = obj.data
@@ -826,6 +918,15 @@ def unwrap_bake_uv(obj):
     bpy.context.view_layer.objects.active = obj
 
     bpy.ops.object.mode_set(mode="EDIT")
+    if keep:
+        # Hidden rather than deselected: every UV operator below skips hidden
+        # faces whatever the select mode, where vertex mode would reselect a
+        # kept strip whose corners all sit on baked faces.
+        bm = bmesh.from_edit_mesh(me)
+        for face in bm.faces:
+            if face.material_index in keep:
+                face.hide_set(True)
+        bmesh.update_edit_mesh(me)
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.select_all(action="SELECT")
     # correct_aspect MUST be off. It skews the unwrap by the aspect ratio of the
@@ -854,7 +955,11 @@ def unwrap_bake_uv(obj):
     bpy.ops.uv.select_all(action="SELECT")
     bpy.ops.uv.pack_islands(rotate=True, scale=True, margin=CONFIG["island_margin"],
                             rotate_method="ANY", shape_method="CONCAVE")
+    if keep:
+        bpy.ops.mesh.reveal(select=False)
     bpy.ops.object.mode_set(mode="OBJECT")
+    if keep:
+        park_kept_uvs(me, keep)
 
     (u0, v0, u1, v1), area = _uv_stats(me, name)
     du = max(u1 - u0, 1e-6)
@@ -1068,11 +1173,21 @@ def add_bake_target(mat, image):
     return node
 
 
-def run_bake(obj, target_image, per_slot_materials, bake_type="EMIT", margin=None):
-    """Swap in temporary materials, bake, restore the originals."""
+def run_bake(obj, target_image, per_slot_materials, bake_type="EMIT", margin=None,
+             uv_layer=None):
+    """Swap in temporary materials, bake through uv_layer (default BakeUV), restore.
+
+    Every scene setting it touches is put back too: mw_paint_prep.py bakes in
+    the very file that gets painted and rendered, not in a throwaway copy.
+    """
     scene = bpy.context.scene
-    original_engine = scene.render.engine
+    uv_layer = uv_layer or CONFIG["uv_layer"]
     original = [(slot.link, slot.material) for slot in obj.material_slots]
+    settings = [(scene.render, "engine"), (scene.cycles, "device"), (scene.cycles, "samples"),
+                (scene.cycles, "use_denoising")] + [
+        (scene.render.bake, name) for name in ("use_clear", "margin", "margin_type",
+                                               "use_selected_to_active", "normal_space")]
+    saved = [(holder, name, getattr(holder, name)) for holder, name in settings]
     try:
         scene.render.engine = "CYCLES"
         scene.cycles.device = "CPU"
@@ -1089,8 +1204,8 @@ def run_bake(obj, target_image, per_slot_materials, bake_type="EMIT", margin=Non
             slot.material = per_slot_materials[i]
             add_bake_target(per_slot_materials[i], target_image)
 
-        obj.data.uv_layers.active = obj.data.uv_layers[CONFIG["uv_layer"]]
-        obj.data.uv_layers[CONFIG["uv_layer"]].active_render = True
+        obj.data.uv_layers.active = obj.data.uv_layers[uv_layer]
+        obj.data.uv_layers[uv_layer].active_render = True
 
         bpy.ops.object.select_all(action="DESELECT")
         obj.select_set(True)
@@ -1100,7 +1215,8 @@ def run_bake(obj, target_image, per_slot_materials, bake_type="EMIT", margin=Non
         for i, (link, mat) in enumerate(original):
             obj.material_slots[i].link = link
             obj.material_slots[i].material = mat
-        scene.render.engine = original_engine
+        for holder, name, value in saved:
+            setattr(holder, name, value)
 
 
 def save_image(image, png_path, dds_path):
@@ -1156,14 +1272,65 @@ def gaussian_blur(arr, sigma):
     return arr
 
 
-def height_from_albedo(albedo_image):
-    """Luminance, high-passed so broad shading does not become a dome."""
+def island_labels(mask):
+    """The connected UV islands of a coverage mask (4-neighbour): (labels, count), 0 outside."""
+    labels = np.zeros(mask.shape, dtype=np.int32)
+    h, w = mask.shape
+    count = 0
+    for start in zip(*np.nonzero(mask)):
+        if labels[start]:
+            continue
+        count += 1
+        labels[start] = count
+        stack = [start]
+        while stack:
+            r, c = stack.pop()
+            for rr, cc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                if 0 <= rr < h and 0 <= cc < w and mask[rr, cc] and not labels[rr, cc]:
+                    labels[rr, cc] = count
+                    stack.append((rr, cc))
+    return labels, count
+
+
+def island_local_mean(lum, mask, sigma):
+    """Each island's blurred luminance, from its own texels only.
+
+    A plain blur reaches over the island's edge into the bake margin and the
+    black background, which pulls the mean down along every border: the
+    high-pass then raised a rim round each island, and wherever Smart UV cut
+    a rounded surface two rims met in a crease.
+    """
+    labels, count = island_labels(mask)
+    out = lum.copy()
+    reach = 3 * max(1, int(round(sigma * 0.9))) + 1
+    for i in range(1, count + 1):
+        rows, cols = np.nonzero(labels == i)
+        r0, r1 = max(rows.min() - reach, 0), min(rows.max() + reach + 1, lum.shape[0])
+        c0, c1 = max(cols.min() - reach, 0), min(cols.max() + reach + 1, lum.shape[1])
+        own = (labels[r0:r1, c0:c1] == i).astype(np.float32)
+        num = gaussian_blur(lum[r0:r1, c0:c1] * own, sigma)
+        den = gaussian_blur(own, sigma)
+        mean = num / np.maximum(den, 1e-6)
+        out[rows, cols] = mean[rows - r0, cols - c0]
+    return out
+
+
+def height_from_albedo(albedo_image, coverage):
+    """Luminance, high-passed so broad shading does not become a dome.
+
+    coverage is the exact (zero-margin) island mask. The high-pass works island
+    by island, and outside the islands the height is grown on from their edges,
+    so the Bump node sampling across a border finds the island going on rather
+    than a cliff.
+    """
     px = image_to_array(albedo_image)
     lum = 0.2126 * px[:, :, 0] + 0.7152 * px[:, :, 1] + 0.0722 * px[:, :, 2]
     lum = np.sqrt(np.clip(lum, 0.0, 1.0))          # linear -> perceptual
     if CONFIG["norm_highpass"]:
-        lum = lum - gaussian_blur(lum, CONFIG["norm_highpass_sigma"]) + 0.5
-    height = np.clip(lum, 0.0, 1.0)
+        lum = lum - island_local_mean(lum, coverage, CONFIG["norm_highpass_sigma"]) + 0.5
+    grown = dilate_into_gaps(np.repeat(lum[:, :, None], 3, axis=2),
+                             coverage.astype(np.float32), CONFIG["bake_margin_px"])
+    height = np.clip(grown[:, :, 0], 0.0, 1.0)
     out = np.empty(px.shape, dtype=np.float32)
     out[:, :, 0] = out[:, :, 1] = out[:, :, 2] = height
     out[:, :, 3] = 1.0
@@ -1321,7 +1488,21 @@ def bake_transfer_normal(obj, sources, width, height):
             nmap.space = "TANGENT"
             nmap.uv_map = src["uv"]
             tree.links.new(uv.outputs["UV"], tex.inputs["Vector"])
-            tree.links.new(tex.outputs["Color"], nmap.inputs["Color"])
+            color = tex.outputs["Color"]
+            if CONFIG["norm_flip_green"]:
+                # An OpenMW map is DirectX; the Normal Map node reads OpenGL.
+                split = tree.nodes.new("ShaderNodeSeparateColor")
+                flip = tree.nodes.new("ShaderNodeMath")
+                flip.operation = "SUBTRACT"
+                flip.inputs[0].default_value = 1.0
+                join = tree.nodes.new("ShaderNodeCombineColor")
+                tree.links.new(color, split.inputs["Color"])
+                tree.links.new(split.outputs["Red"], join.inputs["Red"])
+                tree.links.new(split.outputs["Green"], flip.inputs[1])
+                tree.links.new(flip.outputs[0], join.inputs["Green"])
+                tree.links.new(split.outputs["Blue"], join.inputs["Blue"])
+                color = join.outputs["Color"]
+            tree.links.new(color, nmap.inputs["Color"])
             tree.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
             used.append(path.name)
         mats.append(mat)
@@ -1504,8 +1685,10 @@ def make_normal_map(obj, albedo_image, width, height, modes, settings, out_name,
         return None
 
     relief = detail = None
+    exact = None
     if "normgen" in modes:
-        height_arr = height_from_albedo(albedo_image)
+        exact = bake_coverage_mask(obj, width, height, len(modes)) > 0.5
+        height_arr = height_from_albedo(albedo_image, exact)
         height_img = array_to_image("__height", height_arr)
         try:
             raw = decode_normal(bake_relief_normal(obj, height_img, width, height))
@@ -1561,7 +1744,7 @@ def make_normal_map(obj, albedo_image, width, height, modes, settings, out_name,
     # continuous noise and needs no masking.
     if "normgen" in modes:
         if coverage is None:
-            coverage = bake_coverage_mask(obj, width, height, len(modes)) > 0.5
+            coverage = exact
         rgb = dilate_into_gaps(rgb, coverage.astype(np.float32), CONFIG["bake_margin_px"])
 
     if CONFIG["norm_flip_green"]:
@@ -1577,13 +1760,15 @@ def make_normal_map(obj, albedo_image, width, height, modes, settings, out_name,
 # per-object driver
 # --------------------------------------------------------------------------
 
-def assign_baked_material(obj, image, name, carry_tags=()):
-    """Collapse the object to a single MW material pointing at the baked texture.
+def assign_baked_material(obj, image, name, carry_tags=(), keep=()):
+    """Collapse the baked slots to a single MW material pointing at the baked texture.
 
     Tags the EXPORTER reads are carried onto the new material's name. Baking
     throws the source materials away, so without this a crystal tagged [Alpha]
     would come out opaque: the tag lived on a material that no longer exists by
     the time mw_export goes looking for it.
+
+    Slots in keep come after it, their materials untouched.
     """
     from io_scene_mw import nif_shader
     me = obj.data
@@ -1594,12 +1779,21 @@ def assign_baked_material(obj, image, name, carry_tags=()):
     mat.mw.base_texture.layer = CONFIG["uv_layer"]
     mat.mw.base_texture.use_mipmaps = True
     mat.mw.base_texture.use_repeat = False
+
+    kept = sorted(keep)
+    kept_mats = [obj.material_slots[i].material for i in kept]
+    remap = np.array([1 + kept.index(i) if i in keep else 0
+                      for i in range(len(obj.material_slots))], dtype=np.int32)
+    # Read before clearing: clearing the materials zeroes every face's index.
+    indices = np.empty(len(me.polygons), dtype=np.int32)
+    me.polygons.foreach_get("material_index", indices)
+
     me.materials.clear()
-    me.materials.append(None)
-    obj.material_slots[0].link = "OBJECT"
-    obj.material_slots[0].material = mat
-    for poly in me.polygons:
-        poly.material_index = 0
+    for slot_mat in (mat, *kept_mats):
+        me.materials.append(None)
+        obj.material_slots[-1].link = "OBJECT"
+        obj.material_slots[-1].material = slot_mat
+    me.polygons.foreach_set("material_index", remap[np.clip(indices, 0, len(remap) - 1)])
     return mat
 
 
@@ -1613,18 +1807,20 @@ def process_object(obj, shiny_dir, do_spec, do_norm):
         repair_mw_material(slot.material)
         warn_unknown_tags(slot.material)
 
+    keep = {i for i, slot in enumerate(obj.material_slots) if not material_is_baked(slot.material)}
+    if len(keep) == len(obj.material_slots):
+        log("  no material is tagged for baking -- left as it is")
+        return None
+
     if obj.data.users > 1:
         obj.data = obj.data.copy()
         log("  mesh was multi-user, made a single-user copy")
 
     # ---- gather per-slot source info and spec colours ----
     sources, spec_colors = [], []
-    for slot in obj.material_slots:
+    for i, slot in enumerate(obj.material_slots):
         mat = slot.material
         image, uv_name, interp, ext = mw_base_texture(mat)
-        color, source = spec_color_for(mat, obj, image, shiny_dir)
-        spec_colors.append(color)
-
         gain = float(mw_prop(mat, obj, "mw_albedo_gain", CONFIG["albedo_gain"]))
         sources.append({
             "image": image,
@@ -1632,14 +1828,28 @@ def process_object(obj, shiny_dir, do_spec, do_norm):
             "interp": interp, "ext": ext,
             "tint": mw_diffuse_color(mat), "gain": gain,
         })
+        if i in keep:
+            spec_colors.append(None)
+            log(f"  slot {mat.name if mat else None!r}: kept as it is (no bake tag), "
+                f"tex={image.name if image else None!r} on {sources[-1]['uv']!r}")
+            continue
+
+        color, source = spec_color_for(mat, obj, image, shiny_dir)
+        spec_colors.append(color)
         log(f"  slot {mat.name if mat else None!r}: tex={image.name if image else None!r} "
             f"spec=rgb{color} [{source}] norm={material_norm_mode(mat)[0]}" + (f" gain={gain:g}" if abs(gain - 1.0) > 1e-4 else ""))
+
+    # Kept slots cover no texels in any bake pass (park_kept_uvs), so they
+    # borrow a baked slot's spec colour and normal mode rather than adding one
+    # of their own to the flat-or-baked decisions below.
+    stand_in = min(set(range(len(spec_colors))) - keep)
+    spec_colors = [spec_colors[stand_in] if i in keep else c for i, c in enumerate(spec_colors)]
 
     # ---- resolution ----
     max_axis = int(mw_prop(None, obj, "mw_max_res", CONFIG["max_axis"]))
     apply_nonuniform_scale(obj)
-    source_texels = count_source_texels(obj)
-    layout, aspect, coverage = unwrap_bake_uv(obj)
+    source_texels = count_source_texels(obj, keep)
+    layout, aspect, coverage = unwrap_bake_uv(obj, keep)
     width, height = choose_size(source_texels, aspect, coverage, max_axis)
     fit_uv_to_image(obj, layout, width, height)
     aniso = texel_anisotropy(obj, width, height)
@@ -1652,8 +1862,8 @@ def process_object(obj, shiny_dir, do_spec, do_norm):
     # real surface is the only thing that helps.
     if not (0.8 <= aniso <= 1.25) and apply_modifiers_through_subsurf(obj):
         before = aniso
-        source_texels = count_source_texels(obj)
-        layout, aspect, coverage = unwrap_bake_uv(obj)
+        source_texels = count_source_texels(obj, keep)
+        layout, aspect, coverage = unwrap_bake_uv(obj, keep)
         width, height = choose_size(source_texels, aspect, coverage, max_axis)
         fit_uv_to_image(obj, layout, width, height)
         aniso = texel_anisotropy(obj, width, height)
@@ -1681,6 +1891,19 @@ def process_object(obj, shiny_dir, do_spec, do_norm):
     written = {"albedo": albedo_dds}
 
     # ---- spec ----
+    no_spec = [i for i, slot in enumerate(obj.material_slots) if i not in keep
+               and NOSPEC_TAG in name_tags(slot.material.name if slot.material else "")]
+    if do_spec and len(no_spec) == len(obj.material_slots) - len(keep):
+        # A spec map left over from an earlier bake would still be picked up.
+        stale = [p for p in (out_dir / f"{slug}_spec.dds", png_dir / f"{slug}_spec.png") if p.is_file()]
+        for path in stale:
+            path.unlink()
+        log("  spec   -> none ([NoSpec]: the PBR shaders guess it from the albedo)"
+            + (f", removed the old {', '.join(p.name for p in stale)}" if stale else ""))
+        do_spec = False
+    elif do_spec and no_spec:
+        log("  !! [NoSpec] on only some materials: one spec map covers the whole texture, "
+            "so theirs get plain non-metal values in it")
     if do_spec:
         d = CONFIG["spec_size_divisor"]
         sw = max(CONFIG["min_axis"], width // d)
@@ -1713,6 +1936,7 @@ def process_object(obj, shiny_dir, do_spec, do_norm):
     # ---- normal ----
     if do_norm:
         modes = [material_norm_mode(slot.material) for slot in obj.material_slots]
+        modes = [modes[stand_in] if i in keep else m for i, m in enumerate(modes)]
         settings = {
             "slope": float(mw_prop(None, obj, "mw_normal_slope", CONFIG["norm_slope_deg"])),
             "tiles": float(mw_prop(None, obj, "mw_detail_tiles", CONFIG["detail_tiles"])),
@@ -1723,7 +1947,7 @@ def process_object(obj, shiny_dir, do_spec, do_norm):
         if "normcopy" in mode_names:
             for i, src in enumerate(sources):
                 src["normal_path"] = (find_source_normal(src["image"])
-                                      if mode_names[i] == "normcopy" else None)
+                                      if mode_names[i] == "normcopy" and i not in keep else None)
         norm_img = make_normal_map(obj, albedo, width, height, modes, settings,
                                    f"{slug}{CONFIG['norm_suffix']}", sources)
         if norm_img is not None:
@@ -1740,14 +1964,18 @@ def process_object(obj, shiny_dir, do_spec, do_norm):
     baked.name = f"{slug}.dds"
     baked.colorspace_settings.name = "sRGB"
     carry = set()
-    for slot in obj.material_slots:
-        if slot.material:
-            carry |= name_tags(slot.material.name) & EXPORT_TAGS
-    assign_baked_material(obj, baked, slug, carry)
+    for i, slot in enumerate(obj.material_slots):
+        if slot.material and i not in keep:
+            carry |= {t for t in name_tags(slot.material.name) if is_export_tag(t)}
+    assign_baked_material(obj, baked, slug, carry, keep)
 
     if CONFIG["drop_source_uv"]:
+        # Kept materials still read their own layer. The exporter writes every
+        # layer and points each texture at its own by name, and OpenMW honours
+        # that per texture (nifloader.cpp), _n and _spec following the diffuse.
         me = obj.data
-        for layer in [l for l in me.uv_layers if l.name != CONFIG["uv_layer"]]:
+        needed = {CONFIG["uv_layer"]} | {sources[i]["uv"] for i in keep}
+        for layer in [l for l in me.uv_layers if l.name not in needed]:
             me.uv_layers.remove(layer)
         me.uv_layers.active = me.uv_layers[0]
         me.uv_layers[0].active_render = True
@@ -1767,7 +1995,9 @@ def log_banner():
     log("   [Metal] [MetalPolished] [MetalRough] [PlateRough] [Glass]")
     log("                                               what it is made of")
     log("   [NormGen] | [Bump]                          where its relief comes from")
-    log("An untagged material bakes as plain non-metal with no relief.")
+    log("   [Bake]                                      plain non-metal, no relief")
+    log("   [NoSpec]                                    no _spec map: PBR guesses it")
+    log("An untagged material is not baked: it keeps its own texture and UVs.")
     log("Run with --help for everything else.")
     log("=" * 68)
 
@@ -1869,8 +2099,9 @@ def main():
     if args["list"]:
         log(f"would bake {len(groups)} texture(s) from {len(targets)} object(s):")
         for rep, followers in groups:
-            mats = ", ".join(sorted({sl.material.name for sl in rep.material_slots
-                                     if sl.material})) or "no materials"
+            mats = ", ".join(sorted({sl.material.name + ("" if material_is_baked(sl.material)
+                                                         else " (kept as it is)")
+                                     for sl in rep.material_slots if sl.material})) or "no materials"
             log(f"  {rep.name!r} -> {slugify(rep.name)}")
             log(f"      materials: {mats}")
             for f in followers:
@@ -1890,7 +2121,10 @@ def main():
         for obj in (rep, *followers):
             obj.hide_viewport = False
             obj.hide_render = False
-        results[rep.name] = process_object(rep, shiny, args["spec"], args["norm"])
+        written = process_object(rep, shiny, args["spec"], args["norm"])
+        if written is None:
+            continue
+        results[rep.name] = written
         for follower in followers:
             share_bake(rep, follower)
             results[rep.name].setdefault("clones", []).append(follower.name)

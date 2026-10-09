@@ -277,74 +277,67 @@ play("slash start")
 play("slash large follow start")
 check(lastGlobal("H2HWeapons_StageBurst") == nil, "an ordinary katar's swing is an ordinary swing")
 
---- Handed a weapon --------------------------------------------------------------------------------
-fire("H2HWeapons_Wield", { item = rose })
-check(st.equipped == rose, "a weapon handed over goes in the hand")
-local elsewhere = stubs.object({ recordId = "katar_steel", isItem = true, parentContainer = stubs.object({}) })
-fire("H2HWeapons_Wield", { item = elsewhere })
-check(st.equipped == rose, "one that is not in the inventory does not")
-
 --- Ebony Rose's owner (global.lua) ----------------------------------------------------------------
 local global = require("scripts.MaxYari.H2HWeapons.global")
 local onActorActive = global.engineHandlers.onActorActive
+st.weaponRecords["adamantium_shortsword_db"] = { type = 0, model = "meshes/w/w_adamantium_shortsword.nif",
+                                                  enchant = "db_poison" }
+st.enchantRecords["db_poison"] = { cost = 45, charge = 90 }
 local dandras = stubs.object({ recordId = "Dandras Vules" })
-local jinkblade = stubs.object({ recordId = "adamantium_shortsword_db", isItem = true, data = { enchantmentCharge = 90 } })
+local jinkblade = stubs.object({ recordId = "adamantium_shortsword_db", isItem = true, data = { enchantmentCharge = 0 } })
 st.inventories[dandras] = { jinkblade }
+-- The Rose placed in his room, and one the player left there.
+local function lying(fields)
+    fields.recordId, fields.isItem, fields.count = "katar_ebony_rose", true, 1
+    fields.remove = function(self) self.count = 0; self.removed = true end
+    return stubs.object(fields)
+end
+local placed, dropped = lying({ contentFile = U.ROOM_ROSE_CONTENT }), lying({})
+st.cells[U.ROOM_ROSE_CELL] = { getAll = function() return { placed, dropped } end }
+local function roses()
+    local n = 0
+    for _, i in ipairs(st.inventories[dandras]) do if i.recordId == U.EBONY_ROSE then n = n + 1 end end
+    return n
+end
+
+st.missingContent[U.MERCY_CONTENT] = true
 st.events = {}
-onActorActive(stubs.object({ recordId = "fargoth" }))
-check(#st.events == 0, "nobody else is handed anything")
 onActorActive(dandras)
-local given
-for _, i in ipairs(st.inventories[dandras]) do if i.recordId == U.EBONY_ROSE then given = i end end
-check(given ~= nil, "Dandras Vules is handed the Rose")
-local wield = stubs.eventsNamed("H2HWeapons_Wield")[1]
-check(wield and wield.target == dandras and wield.data.item == given, "and told to take it in hand")
-check(jinkblade.data.enchantmentCharge == 0, "his Jinkblade is left without charge, so the AI fights with the Rose")
+check(roses() == 0, "without Mercy he is not handed the Rose")
+check(not placed.removed, "and the one in his room stays where it is")
+check(jinkblade.data.enchantmentCharge == 0, "and his Jinkblade is left alone")
+st.missingContent[U.MERCY_CONTENT] = nil
+
+onActorActive(stubs.object({ recordId = "fargoth" }))
+check(not placed.removed and #st.events == 0, "nobody else is handed anything")
+onActorActive(dandras)
+check(roses() == 1, "with Mercy, Dandras Vules is handed the Rose")
+check(#st.events == 0, "and not told to take it in hand: he opens with the Jinkblade (roseowner.lua)")
+check(placed.removed, "the one in his room goes")
+check(not dropped.removed, "but not one that came to lie there from elsewhere")
+check(jinkblade.data.enchantmentCharge == 90, "and the charge an older save drained is put back")
 
 jinkblade.data.enchantmentCharge = 30
-st.events = {}
 onActorActive(dandras)
-local roses = 0
-for _, i in ipairs(st.inventories[dandras]) do if i.recordId == U.EBONY_ROSE then roses = roses + 1 end end
-check(roses == 1 and #st.events == 0, "only once")
-check(jinkblade.data.enchantmentCharge == 0, "but the Jinkblade is emptied each time he comes back")
+check(roses() == 1, "only once")
+check(jinkblade.data.enchantmentCharge == 30, "and the charge only once")
 
 -- A copy, as the engine's save would be.
 local data = {}
 for k, v in pairs(global.engineHandlers.onSave()) do data[k] = v end
-check(data.roseGiven == true, "the gift is kept in the save")
+check(data.roseGiven == true and data.jinkbladeRecharged == true, "both are kept in the save")
 global.engineHandlers.onLoad({ roseGiven = false })
 global.engineHandlers.onLoad(data)
 onActorActive(dandras)
-roses = 0
-for _, i in ipairs(st.inventories[dandras]) do if i.recordId == U.EBONY_ROSE then roses = roses + 1 end end
-check(roses == 1, "and a load does not give it again")
+check(roses() == 1 and jinkblade.data.enchantmentCharge == 30, "and a load does neither again")
 
-given.isValid = function() return false end -- taken off him
-jinkblade.data.enchantmentCharge = 30
-onActorActive(dandras)
-check(jinkblade.data.enchantmentCharge == 30, "without the Rose he keeps his Jinkblade's charge")
-given.isValid = function() return true end
-dandras.dead = true
-onActorActive(dandras)
-check(jinkblade.data.enchantmentCharge == 30, "and a dead man's is left alone")
-
--- Met dead the first time: the Rose is on his body, and he is told nothing.
-global.engineHandlers.onLoad({ roseGiven = false })
-local corpse = stubs.object({ recordId = "dandras vules", dead = true })
-st.events = {}
-onActorActive(corpse)
-check(st.inventories[corpse] and st.inventories[corpse][1].recordId == U.EBONY_ROSE and #st.events == 0,
-      "one met dead has it on the body")
-
--- Without Katar.omwaddon's records, nothing.
-global.engineHandlers.onLoad({ roseGiven = false })
-local record = st.weaponRecords["katar_ebony_rose"]
-st.weaponRecords["katar_ebony_rose"] = nil
-local another = stubs.object({ recordId = "dandras vules" })
-onActorActive(another)
-check(st.inventories[another] == nil, "with the plugin off, nobody is handed a weapon that does not exist")
-st.weaponRecords["katar_ebony_rose"] = record
+global.engineHandlers.onLoad({})
+local body = stubs.object({ recordId = "dandras vules", dead = true })
+st.inventories[body] = {}
+onActorActive(body)
+local onBody = false
+for _, i in ipairs(st.inventories[body]) do if i.recordId == U.EBONY_ROSE then onBody = true end end
+check(onBody, "dead by the time he comes into the world, it is on his body")
 
 print(string.format("\n%d checks, %d failures", checks, fails))
 os.exit(fails == 0 and 0 or 1)

@@ -40,6 +40,17 @@ table.insert(package.searchers or package.loaders, 1, function(name)
     return nil
 end)
 
+-- The engine's skills, named as their GMSTs name them.
+M.SKILL_NAMES = {
+    block = "Block", armorer = "Armorer", mediumarmor = "Medium Armor", heavyarmor = "Heavy Armor",
+    bluntweapon = "Blunt Weapon", longblade = "Long Blade", axe = "Axe", spear = "Spear",
+    athletics = "Athletics", enchant = "Enchant", destruction = "Destruction", alteration = "Alteration",
+    illusion = "Illusion", conjuration = "Conjuration", mysticism = "Mysticism", restoration = "Restoration",
+    alchemy = "Alchemy", unarmored = "Unarmored", security = "Security", sneak = "Sneak",
+    acrobatics = "Acrobatics", lightarmor = "Light Armor", shortblade = "Short Blade", marksman = "Marksman",
+    mercantile = "Mercantile", speechcraft = "Speechcraft", handtohand = "Hand-to-hand",
+}
+
 --- state the tests poke at -------------------------------------------------------------------------
 M.state = {
     textKeys = {},        -- ["group: key"] = time
@@ -78,6 +89,7 @@ M.state = {
     taught = {},          -- log of types.Actor.spells(actor):add: { actor, spell }
     spawnedVfx = {},      -- log of world.vfx.spawn
     inventories = setmetatable({}, { __mode = "k" }), -- [actor] = { items }, as moveInto puts them
+    cells = {},           -- [cell name] = a cell, for world.getCellByName: { getAll = function(self, type) }
 }
 local st = M.state
 
@@ -228,9 +240,14 @@ packages['openmw.core'] = {
             createRecordDraft = function(t) t.isEnchantment = true; return t end,
         },
     },
+    -- Every skill there is, by its name; a test may give one more fields in st.skillRecords.
     stats = { Skill = {
         record = function() return { skillGain = { 1, 1, 1, 1 } } end,
-        records = setmetatable({}, { __index = function(_, id) return st.skillRecords[id] end }),
+        records = setmetatable({}, { __index = function(_, id)
+            if st.skillRecords[id] then return st.skillRecords[id] end
+            local name = M.SKILL_NAMES[id]
+            return name and { id = id, name = name } or nil
+        end }),
     } },
 }
 -- contentFiles.has is called as a method in some scripts and plainly in others.
@@ -354,6 +371,7 @@ packages['openmw.types'] = {
 
 -- A fake world for the global script: records get generated ids, objects are plain tables.
 packages['openmw.world'] = {
+    getCellByName = function(name) return st.cells[name] end,
     vfx = { spawn = function(model, position, options)
         table.insert(st.spawnedVfx, { model = model, position = position, options = options })
     end },
@@ -399,6 +417,7 @@ packages['openmw.animation'] = {
     getTextKeyTime = function(_, key) return st.textKeys[string.lower(key)] end,
     getCurrentTime = function(_, g) return st.groups[g] and 0 or nil end,
     getCompletion = function() return 0 end,
+    getLoopCount = function(_, g) return st.groups[g] and 3 or nil end,
     getSpeed = function() return 1 end,
     setSpeed = function(_, g, speed) st.speeds = st.speeds or {}; st.speeds[g] = speed end,
     cancel = function(_, g) st.cancelled = st.cancelled or {}; table.insert(st.cancelled, g) end,
@@ -427,10 +446,204 @@ packages['openmw.camera'] = { getMode = function() return st.cameraMode or 0 end
 packages['openmw.nearby'] = setmetatable({}, { __index = function(_, k)
     if k == "actors" then return st.nearbyActors end
 end })
+-- The VFS: st.files for paths that only need to exist, st.vfsText for files a test makes up
+-- ([path] = contents), and the hybrid weapon definitions this mod and ReAnimation really ship, read
+-- from disk - unless a test sets st.realDefinitions = false. Paths are lowercased, as the engine's are.
+local DEFINITIONS = "hybridweapondefinitions/"
+local realDefinitions = nil -- [vfs path] = file on disk
+local function definitionFiles()
+    if realDefinitions == nil then
+        realDefinitions = {}
+        for _, root in ipairs(roots) do
+            local pipe = io.popen('find "' .. root .. '" -maxdepth 3 -type f -ipath "*/' .. DEFINITIONS .. '*" 2>/dev/null')
+            for file in pipe:lines() do
+                local rel = string.lower(file:sub(#root + 2)):gsub("\\", "/")
+                rel = rel:gsub("^%./", "")
+                if rel:sub(1, #DEFINITIONS) == DEFINITIONS then realDefinitions[rel] = file end
+            end
+            pipe:close()
+        end
+    end
+    if st.realDefinitions == false then return {} end
+    return realDefinitions
+end
+local function vfsText(path)
+    path = string.lower(path)
+    if st.vfsText and st.vfsText[path] then return st.vfsText[path] end
+    local file = definitionFiles()[path]
+    if not file then return nil end
+    local f = assert(io.open(file, "r"))
+    local text = f:read("a")
+    f:close()
+    return text
+end
 packages['openmw.vfs'] = {
-    fileExists = function(path) return st.files ~= nil and st.files[path] == true end,
+    fileExists = function(path)
+        return (st.files ~= nil and st.files[path] == true) or vfsText(path) ~= nil
+    end,
     open = function() return nil end,
-    pathsWithPrefix = function() return function() return nil end end,
+    pathsWithPrefix = function(prefix)
+        prefix = string.lower(prefix)
+        local paths = {}
+        for path in pairs(definitionFiles()) do paths[#paths + 1] = path end
+        for path in pairs(st.vfsText or {}) do
+            if not definitionFiles()[path] then paths[#paths + 1] = path end
+        end
+        table.sort(paths)
+        local i = 0
+        return function()
+            repeat i = i + 1 until paths[i] == nil or paths[i]:sub(1, #prefix) == prefix
+            return paths[i]
+        end
+    end,
+}
+
+--- A YAML reader for openmw.markup: the part of YAML the definition files use - block maps and
+-- lists, flow maps and lists, quoted and plain scalars, comments - and JSON, which is flow style.
+-- Raises on anything it cannot read, as the engine does.
+local function yamlScalar(text)
+    if text == "" or text == "~" or text == "null" then return nil end
+    if text == "true" then return true end
+    if text == "false" then return false end
+    local number = tonumber(text)
+    if number then return number end
+    local quote = text:sub(1, 1)
+    if (quote == '"' or quote == "'") then
+        if text:sub(-1) ~= quote or #text < 2 then error("unterminated string: " .. text) end
+        return text:sub(2, -2)
+    end
+    return text
+end
+
+-- Flow style: { a: b, "c": [1, 2] }, from position i of text; returns the value and the next position.
+local function yamlFlow(text, i)
+    local function skip() i = text:find("[^%s]", i) or #text + 1 end
+    skip()
+    local c = text:sub(i, i)
+    if c == "{" or c == "[" then
+        local map, close = c == "{", (c == "{" and "}" or "]")
+        local result = {}
+        i = i + 1
+        skip()
+        if text:sub(i, i) == close then return result, i + 1 end
+        while true do
+            if map then
+                local key
+                key, i = yamlFlow(text, i)
+                skip()
+                if text:sub(i, i) ~= ":" then error("expected ':' in flow map at " .. i) end
+                local value
+                value, i = yamlFlow(text, i + 1)
+                result[key] = value
+            else
+                local value
+                value, i = yamlFlow(text, i)
+                result[#result + 1] = value
+            end
+            skip()
+            local sep = text:sub(i, i)
+            if sep == close then return result, i + 1 end
+            if sep ~= "," then error("expected ',' or '" .. close .. "' at " .. i) end
+            i = i + 1
+        end
+    end
+    if c == '"' or c == "'" then
+        local stop = text:find(c, i + 1, true)
+        if not stop then error("unterminated string") end
+        return text:sub(i + 1, stop - 1), stop + 1
+    end
+    local stop = text:find("[,:%]}]", i) or #text + 1
+    -- a plain scalar's colon only ends it when a space or the end follows
+    while text:sub(stop, stop) == ":" and text:sub(stop + 1, stop + 1):match("[^%s,%]}]") do
+        stop = text:find("[,:%]}]", stop + 1) or #text + 1
+    end
+    return yamlScalar((text:sub(i, stop - 1):gsub("%s+$", ""))), stop
+end
+
+local function stripComment(line)
+    local quote = nil
+    for i = 1, #line do
+        local c = line:sub(i, i)
+        if quote then
+            if c == quote then quote = nil end
+        elseif c == '"' or c == "'" then
+            quote = c
+        elseif c == "#" and (i == 1 or line:sub(i - 1, i - 1):match("%s")) then
+            return line:sub(1, i - 1)
+        end
+    end
+    return line
+end
+
+local function yamlValue(text)
+    local c = text:sub(1, 1)
+    if c == "{" or c == "[" then return (yamlFlow(text, 1)) end
+    return yamlScalar(text)
+end
+
+function M.decodeYaml(text)
+    local trimmed = text:gsub("^%s+", "")
+    if trimmed:sub(1, 1) == "{" or trimmed:sub(1, 1) == "[" then return (yamlFlow(trimmed, 1)) end
+    local lines = {}
+    for raw in (text .. "\n"):gmatch("(.-)\r?\n") do
+        local line = stripComment(raw):gsub("%s+$", "")
+        if line:match("%S") then
+            local indent = #line:match("^ *")
+            lines[#lines + 1] = { indent = indent, text = line:sub(indent + 1) }
+        end
+    end
+    local n = 1
+    local block
+    local function map(indent)
+        local result = {}
+        while lines[n] and lines[n].indent == indent and lines[n].text:sub(1, 1) ~= "-" do
+            local key, rest = lines[n].text:match("^([^:]+):%s*(.*)$")
+            if not key then error("expected 'key: value': " .. lines[n].text) end
+            key = yamlScalar(key)
+            n = n + 1
+            if rest == "" then
+                result[key] = (lines[n] and lines[n].indent > indent) and block(lines[n].indent) or nil
+            else
+                result[key] = yamlValue(rest)
+            end
+        end
+        return result
+    end
+    local function list(indent)
+        local result = {}
+        while lines[n] and lines[n].indent == indent and lines[n].text:sub(1, 1) == "-" do
+            local rest = lines[n].text:gsub("^%-%s*", "")
+            if rest == "" then
+                n = n + 1
+                result[#result + 1] = block(lines[n].indent)
+            elseif rest:match("^[^%[{\"'][^:]*:%s") or rest:match("^[^%[{\"'][^:]*:$") then
+                -- "- key: value" opens a map whose lines sit where its first key does
+                lines[n] = { indent = indent + 2, text = rest }
+                result[#result + 1] = map(indent + 2)
+            else
+                result[#result + 1] = yamlValue(rest)
+                n = n + 1
+            end
+        end
+        return result
+    end
+    block = function(indent)
+        if lines[n].text:sub(1, 1) == "-" then return list(indent) end
+        return map(indent)
+    end
+    if #lines == 0 then return nil end
+    local result = block(lines[1].indent)
+    if lines[n] then error("could not read the line: " .. lines[n].text) end
+    return result
+end
+
+packages['openmw.markup'] = {
+    decodeYaml = M.decodeYaml,
+    loadYaml = function(path)
+        local text = vfsText(path)
+        if text == nil then error("Resource '" .. path .. "' not found") end
+        return M.decodeYaml(text)
+    end,
 }
 -- Sections keep their values and tell their subscribers, so a test can change another mod's setting
 -- and see the scripts react.

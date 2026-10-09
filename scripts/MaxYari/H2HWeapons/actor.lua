@@ -1,5 +1,5 @@
--- What a hand-to-hand weapon does to whoever it hits, run on the one hit: fatigue damage, Ebony
--- Rose's venom, and Mage Fury's stored spell.
+-- What a hybrid weapon does to whoever it hits, run on the one hit: the fatigue damage its
+-- definition gives it (a katar's, knuckledusters'), Ebony Rose's venom, and Mage Fury's stored spell.
 --
 -- The engine hands the whole attack to the victim (LuaManager::onHit -> the "Hit" event ->
 -- I.Combat.onHit), and a handler may add to attack.damage before the built-in one applies it. That
@@ -39,7 +39,8 @@ local function effectMagnitude(id, maxAge)
 end
 
 --- Fatigue ----------------------------------------------------------------------------------------
--- The bruising a fist would do (MWMechanics::getHandToHandDamage), at the weapon's share of it, put
+-- The bruising a fist would do (MWMechanics::getHandToHandDamage), at the weapon's share of it (its
+-- definition's fatigueDamage), put
 -- through what Npc::hit puts a fist's through after that - the engine has done the same to the
 -- weapon's own damage by the time this runs:
 --   * a blocked hit does nothing: blockMeleeAttack zeroes the damage, so the weapon's comes here as
@@ -105,13 +106,14 @@ local function wasCritical(attack, knockedDown)
     return expected > 0 and attack.damage.health / expected >= CRITICAL_THRESHOLD
 end
 
-local function addFatigue(attack, kind)
+local function addFatigue(attack, hybrid)
+    if hybrid.fatigueDamage <= 0 then return end
     local damage = attack.damage
     if damage == nil then return end -- the engine always sends one; another mod's call might not
     if (damage.health or 0) <= 0 then return end -- blocked, or dealt to a god
 
     local fatigue = formulas.handToHandFatigue(attack.attacker, attack.strength or 0,
-        settings.values.strengthFactor) * weapons.FATIGUE_FACTOR[kind]
+        settings.values.strengthFactor) * hybrid.fatigueDamage
     if fatigue <= 0 then return end
 
     local knockedDown = isKnockedDown()
@@ -506,10 +508,10 @@ I.Combat.addOnHitHandler(function(attack)
     local attacker = attack.attacker
     if attacker == nil then return end
 
-    local kind = weapons.kindOfItem(attack.weapon)
-    if not kind then return end
+    local hybrid = weapons.hybridOfItem(attack.weapon)
+    if not hybrid then return end
 
-    addFatigue(attack, kind)
+    addFatigue(attack, hybrid)
 
     local special = weapons.specialOfItem(attack.weapon)
     if special == SPECIAL.Venom or special == SPECIAL.Burst then
@@ -526,27 +528,54 @@ I.Combat.addOnHitHandler(function(attack)
 end)
 
 --- Combat Sounds Overhaul Overhauled -------------------------------------------------------------
--- With Combat Sounds Overhaul Overhauled, a hand-to-hand weapon swings with a fist's whoosh: a katar's
--- blade whoosh plays under it, softer, and a knuckle's own whoosh not at all. A script only sees
--- the interfaces of those attached before it, so this needs CSO's plugin above
--- H2HWeapons.omwscripts.
+-- With Combat Sounds Overhaul Overhauled, a hybrid swings with the whooshes its definition lists
+-- (swingSounds, definitions.parseSwingSounds): a katar with a fist's whoosh and its own, sharp and
+-- softer, under it; knuckledusters with a fist's alone. A script only sees the interfaces of those
+-- attached before it, so this needs CSO's plugin above H2HWeapons.omwscripts.
 local cso = I.CombatSoundsOO
+
+-- CSO's WEAPON kind by a definition's name for it, in any case; nil for one CSO does not have, which
+-- the player's copy of this script says once.
+local csoWeapons = nil
+local unknownSound = {}
+local function csoWeapon(name)
+    if csoWeapons == nil then
+        csoWeapons = {}
+        for key, value in pairs(cso.WEAPON) do csoWeapons[string.lower(key)] = value end
+    end
+    local weapon = csoWeapons[string.lower(name)]
+    if weapon == nil and not unknownSound[name] and types.Player.objectIsInstance(omwself) then
+        unknownSound[name] = true
+        print("[H2HWeapons] swingSounds: '" .. name .. "' is not a Combat Sounds Overhaul Overhauled weapon kind "
+            .. "(I.CombatSoundsOO.WEAPON) - left out")
+    end
+    return weapon
+end
+
+local function swingSoundsOf(recordId)
+    local hybrid = weapons.hybridOfId(recordId)
+    return hybrid and hybrid.swingSounds or nil
+end
+
 if cso and cso.addOnPlayHandler then
     cso.addOnPlayHandler(function(info)
         if info.kind ~= "swing" then return end
-        local kind = weapons.kindOfId(info.weaponId)
-        if not kind then return end
-        -- playSwing has no weaponId, so this doesn't come back here
-        cso.playSwing(cso.WEAPON.HandToHand, info.volume)
-        if kind == weapons.KIND.Knuckle then return false end
-        info.volume = info.volume * 0.85
+        local sounds = swingSoundsOf(info.weaponId)
+        if not sounds then return end
+        for i = 1, #sounds.extra do
+            local extra = sounds.extra[i]
+            local weapon = csoWeapon(extra.sound)
+            -- playSwing has no weaponId, so this doesn't come back here
+            if weapon then cso.playSwing(weapon, info.volume * extra.volume, info.attackType) end
+        end
+        if not sounds.own then return false end
+        info.volume = info.volume * sounds.own.volume
     end)
 end
--- A katar's own whoosh is only ever the sharp metal one: the dagger's ringing ones and plain ones
--- don't suit it
 if cso and cso.addSwingGroupsHandler then
     cso.addSwingGroupsHandler(function(recordId)
-        if weapons.kindOfId(recordId) == weapons.KIND.Katar then return { cso.SWING_GROUPS.sharpMetal } end
+        local sounds = swingSoundsOf(recordId)
+        return sounds and sounds.own and sounds.own.groups or nil
     end)
 end
 

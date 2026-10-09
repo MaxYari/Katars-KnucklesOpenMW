@@ -57,14 +57,19 @@ check(formulas.boundWeight(8.1, 300, D) == 0, "and never below nothing")
 
 --- recognising the weapons ----------------------------------------------------------------------------
 local weapons = require("scripts/MaxYari/H2HWeapons/scripts/weapons")
-check(weapons.kindOfId("h2h_bound_katar") == "katar", "the bound katar is a katar")
-check(weapons.kindOfId("h2h_bound_knuckle_spiked") == "knuckle", "the bound spiked knuckles are knuckles")
+local function skillOf(id)
+    local hybrid = weapons.hybridOfId(id)
+    return hybrid and hybrid.secondarySkill
+end
+check(skillOf("h2h_bound_katar") == "shortblade", "the bound katar is a katar, by its definition")
+check(skillOf("h2h_bound_knuckle_spiked") == "bluntweapon", "the bound spiked knuckles are knuckles")
+check(weapons.hybridOfId("h2h_bound_katar").handToHand, "and both swing as fists")
 st.weaponRecords["generated:0x10"] = { type = 0, model = "meshes/daedric_katar.nif" }
 st.weaponRecords["generated:0x11"] = { type = 3, model = "Meshes\\Daedric_Knuckle_Sharp.NIF" }
 st.weaponRecords["generated:0x12"] = { type = 3, model = "meshes/daedric_katar.nif" }
-check(weapons.kindOfId("Generated:0x10") == "katar", "a scaled copy is known by its mesh")
-check(weapons.kindOfId("Generated:0x11") == "knuckle", "whatever the case and slashes of its path")
-check(weapons.kindOfId("Generated:0x12") == false, "but only if its weapon type agrees")
+check(skillOf("Generated:0x10") == "shortblade", "a scaled copy is known by its mesh")
+check(skillOf("Generated:0x11") == "bluntweapon", "whatever the case and slashes of its path")
+check(weapons.hybridOfId("Generated:0x12") == false, "but only if its weapon type agrees")
 
 --- the load-time records -------------------------------------------------------------------------------
 local content = {

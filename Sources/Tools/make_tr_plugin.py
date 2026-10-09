@@ -28,6 +28,8 @@ TR_PREFIXES = ("t_mw_", "t_mwde_", "t_mwimp_")
 # random_orcish_weapons does.
 TR_STAND_INS = dict(mp.LEVELLED_STAND_INS)
 TR_STAND_INS["knuckle_orcish"] = ("dwarven shortsword", "t_orc_regular_shortsword_01", "orcish warhammer")
+# Tamriel Data has a glass shortsword too, and the katar is dealt where it is, not where the dagger is.
+TR_STAND_INS["katar_glass"] = "t_de_glass_shortsword_01"
 
 TR_SKIP = {
     "t_mw_random_weaponshlaguard",      # what Hlaalu guards carry
@@ -46,11 +48,13 @@ TR_BLUNT_LIST_FOR = {"t_mw_lvl_weaponsshortonehand": "t_mw_lvl_weaponsbluntoneha
 # at the middle of those weapons' levels, and ours 15% of a list's enchanted weapons at most.
 TR_ENCHANTED_LEVELLED = {
     "t_mw_lvl_e_wpnsshortblade": [("katar_steel_smoulder", 7), ("katar_silver_ice", 6),
-                                  ("katar_ebony_spark", 18)],
+                                  ("katar_ebony_spark", 18), ("katar_glass_flame", 18)],
     "t_mw_lvl_e_wpnsbluntmain": [("knuckle_chitin_shard", 1), ("knuckle_iron_spark", 3),
                                  ("knuckle_silver_shard", 6), ("knuckle_orcish_smoulder", 14)],
     "t_mw_lvl_weaponsshortonehand": [("katar_steel_smoulder", 3), ("katar_silver_ice", 4),
-                                     ("katar_ebony_spark", 20)],
+                                     ("katar_ebony_spark", 20), ("katar_glass_flame", 20)],
+    # Tamriel Data's own list of enchanted glass weapons, as the plain glass katar is in its glass one.
+    "t_mw_random_weaponsglassenchant": [("katar_glass_flame", 1)],
     "t_mw_random_weaponsshortenclvl1": [("katar_steel_smoulder", 1), ("katar_silver_ice", 1)],
     "t_mw_random_weaponsshortenclvl2": [("katar_steel_smoulder", 1), ("katar_silver_ice", 1),
                                         ("katar_ebony_spark", 1)],

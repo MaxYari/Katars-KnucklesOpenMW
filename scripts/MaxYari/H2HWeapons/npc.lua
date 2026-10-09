@@ -1,8 +1,9 @@
--- A katar or knuckledusters in an NPC's hands: the second one in the off hand, the shield or torch
--- they leave no room for, Ebony Rose's burst, and the draw sound these do not make.
+-- A weapon swung with the hand-to-hand moveset - a katar, knuckledusters - in an NPC's hands: the
+-- second one in the off hand, and the shield or torch they leave no room for; the draw sound of any
+-- hybrid whose definition silences it; and Ebony Rose's burst.
 --
--- An NPC needs far less than the player (player.lua). They pick these up and fight with them by the
--- skill the engine gives them - Short Blade, Blunt Weapon: weaponpriority.cpp rates a weapon by
+-- An NPC needs far less than the player (player.lua). They pick up hybrid weapons and fight with them
+-- by the skill the engine gives them - Short Blade, Blunt Weapon: weaponpriority.cpp rates a weapon by
 -- getEquipmentSkill - so there is no skill to swap and no experience to split. They never channel a
 -- spell into Mage Fury (actor.lua gives back what their strikes cost). Their animations are
 -- animations.lua's, which runs on NPCs as on the player, and whoever they hit is actor.lua's.
@@ -32,6 +33,7 @@ local hands = require(mp .. "scripts/hands")
 local roseState = require(mp .. "scripts/rose")
 local settings = require(mp .. "scripts/settings")
 local swing = require(mp .. "scripts/swing")
+local U = require(mp .. "scripts/uniques")
 local weapons = require(mp .. "scripts/weapons")
 
 local cfg = settings.values
@@ -40,6 +42,12 @@ local WEAPON_STANCE = types.Actor.STANCE.Weapon
 
 local function weapon()
     return types.Actor.getEquipment(omwself, CARRIED_RIGHT)
+end
+
+-- The hybrid an item is, if it swings with the hand-to-hand moveset; nil for anything else.
+local function handToHand(item)
+    local hybrid = weapons.hybridOfItem(item)
+    return hybrid and hybrid.handToHand and hybrid or nil
 end
 
 --- The off hand -------------------------------------------------------------------------------------
@@ -61,11 +69,15 @@ local stanceLeftAt = nil
 local checkLeftHand        -- the left hand's (below)
 
 local rose = roseState.new(omwself)
+-- Ebony Rose's owner fights with both his blades, when Mercy runs his fights (roseowner.lua).
+local owner = string.lower(omwself.recordId) == U.ROSE_OWNER
+    and require(mp .. "scripts/roseowner").attach(omwself) or nil
 
 local function refresh()
     if not active then return end
     local item = shown and cfg.showOffHandWeapon and weapon() or nil
-    local model = item and weapons.kindOfItem(item) and weapons.modelOfId(item.recordId) or nil
+    local hybrid = item and handToHand(item)
+    local model = hybrid and hybrid.model or nil
     onBones.attach(OFF_HAND, model)
 end
 
@@ -124,15 +136,15 @@ local function settle()
 end
 
 --- The left hand ----------------------------------------------------------------------------------
--- Nothing in it while a katar or knuckledusters are out (carriedleft.lua): from the draw's start to
--- the hand putting it away. Looked at on those, and with everything else twice a second while a weapon
--- is out - so a shield or torch the engine puts back in an NPC's hand somewhere dark, once a second
+-- Nothing in it while a weapon swung with the hand-to-hand moveset is out (carriedleft.lua): from the
+-- draw's start to the hand putting it away. Looked at on those, and with everything else twice a
+-- second while a weapon is out - so a shield or torch the engine puts back in an NPC's hand somewhere dark, once a second
 -- (Actors::updateEquippedLight), can be seen there for up to half a second.
 local left = carriedLeft.new(omwself)
 
 local function isOut()
     if not shown and types.Actor.getStance(omwself) ~= WEAPON_STANCE then return false end
-    return weapons.kindOfItem(weapon()) and true or false
+    return handToHand(weapon()) ~= nil
 end
 
 checkLeftHand = function()
@@ -150,9 +162,9 @@ end
 -- sees start, so the first stop lands a frame later, and a few more follow in case it came late.
 local SILENCE_AT = { 0.01, 0.03, 0.06, 0.1, 0.15 }
 
-local function silence(kind)
-    if not kind or not cfg.silenceDrawSound then return end
-    local sounds = weapons.DRAW_SOUNDS[kind]
+local function silence(hybrid)
+    if not (hybrid and hybrid.silentDraw and cfg.silenceDrawSound) then return end
+    local sounds = hybrid.drawSounds
     local function stop()
         core.sound.stopSound3d(sounds[1], omwself)
         core.sound.stopSound3d(sounds[2], omwself)
@@ -161,8 +173,8 @@ local function silence(kind)
 end
 
 --- Animation events ---------------------------------------------------------------------------------
--- Runs for every playBlended on this NPC; anything that is not a one-handed weapon group leaves on the
--- first table lookup.
+-- Runs for every playBlended on this NPC; anything that is not a melee weapon group leaves on the first
+-- table lookup.
 I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options)
     if not swing.WEAPON_GROUPS[groupname] then return end
     local startKey = options.startKey or options.startkey
@@ -171,25 +183,17 @@ I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options
     if startKey == "equip start" or startKey == "unequip start" then
         -- Sheathing plays with the weapon still in hand, and a swap plays the incoming one's group, so
         -- the hand holds the one to ask about either way.
-        silence(weapons.kindOfItem(weapon()))
+        silence(weapons.hybridOfItem(weapon()))
         if startKey == "equip start" then checkLeftHand() end
+        if startKey == "unequip start" and owner then owner.sheathe() end
     elseif swing.isWindUpStart(startKey) then
         local item = weapon()
         if weapons.specialOfItem(item) == weapons.SPECIAL.Venom then rose.windUp(item) end
+        if owner then owner.windUp(item) end
     elseif swing.isFollowStart(startKey) then
         rose.followStart()
     end
 end)
-
---- Handed a weapon ----------------------------------------------------------------------------------
--- By the global script, which cannot equip anyone itself (setEquipment is for an actor's own scripts).
-local function wield(e)
-    local item = e and e.item
-    if item == nil or not item:isValid() or item.parentContainer ~= omwself.object then return end
-    local equipment = types.Actor.getEquipment(omwself)
-    equipment[CARRIED_RIGHT] = item
-    types.Actor.setEquipment(omwself, equipment)
-end
 
 return {
     eventHandlers = {
@@ -203,7 +207,6 @@ return {
             onBones.forget()
             refresh()
         end,
-        H2HWeapons_Wield = wield,
     },
     engineHandlers = {
         onActive = function()
