@@ -215,27 +215,34 @@ stubs.I.CombatSoundsOO = {
     addOnPlayHandler = function(f) playHandlers[#playHandlers + 1] = f end,
     addSwingGroupsHandler = function(f) groupHandlers[#groupHandlers + 1] = f end,
 }
+-- A fist's whoosh is the engine's own sound record, not a CSO swing
+local fistSwishes = {}
+require("openmw.core").sound.playSound3d = function(id, object, options)
+    fistSwishes[#fistSwishes + 1] = { id = id, volume = options.volume, pitch = options.pitch }
+end
 require("scripts.MaxYari.H2HWeapons.actor")
 local onPlay, groupsOf = playHandlers[1], groupHandlers[1]
 check(onPlay ~= nil and groupsOf ~= nil, "a play handler and a swing groups handler are added")
 
-local info = { kind = "swing", weaponId = "katar_steel", volume = 0.8, attackType = 2 }
+local info = { kind = "swing", weaponId = "katar_steel", volume = 0.8, pitch = 1.05, attackType = 2 }
 local stopped = onPlay(info) == false
-check(#swings == 1 and swings[1].weapon == "handToHand" and math.abs(swings[1].volume - 0.8) < 1e-9
-      and swings[1].attackType == 2, "a katar's swing plays a fist's whoosh, at its volume")
+check(#fistSwishes == 1 and fistSwishes[1].id == "Weapon Swish" and math.abs(fistSwishes[1].volume - 0.8) < 1e-9
+      and fistSwishes[1].pitch == 1.05, "a katar's swing plays the vanilla fist whoosh, at its volume")
+check(#swings == 0, "not CSO's hand-to-hand swing")
 check(not stopped and math.abs(info.volume - 0.68) < 1e-9, "and its own at 85% of it", info.volume)
 local groups = groupsOf("katar_steel")
 check(groups and #groups == 1 and groups[1] == "sharpMetal", "drawn from the sharp metal whooshes")
 
-swings = {}
-info = { kind = "swing", weaponId = "knuckle_iron", volume = 1 }
-check(onPlay(info) == false and #swings == 1 and swings[1].weapon == "handToHand",
+fistSwishes = {}
+info = { kind = "swing", weaponId = "knuckle_iron", volume = 1, pitch = 1 }
+check(onPlay(info) == false and #fistSwishes == 1 and fistSwishes[1].id == "Weapon Swish" and #swings == 0,
       "knuckledusters whoosh as a fist alone: their own swing is stopped")
 check(groupsOf("knuckle_iron") == nil, "and pick no groups")
 
-swings = {}
+fistSwishes = {}
 info = { kind = "swing", weaponId = "mace_of_fire", volume = 1 }
-check(onPlay(info) == nil and #swings == 0 and info.volume == 1, "a hybrid with no swing sounds swings as its type")
+check(onPlay(info) == nil and #swings == 0 and #fistSwishes == 0 and info.volume == 1,
+      "a hybrid with no swing sounds swings as its type")
 check(groupsOf("mace_of_fire") == nil, "with its type's groups")
 
 printed = {}

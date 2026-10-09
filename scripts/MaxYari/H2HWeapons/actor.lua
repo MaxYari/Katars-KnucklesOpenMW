@@ -557,6 +557,11 @@ local function swingSoundsOf(recordId)
     return hybrid and hybrid.swingSounds or nil
 end
 
+-- The one sound the engine swings a bare fist with (CharacterController::playSwishSound). CSO leaves it
+-- be on a fist, so a definition's HandToHand plays it too - not CSO's HandToHand swing, which draws
+-- from all four vanilla swishes.
+local FIST_SWISH = "Weapon Swish"
+
 if cso and cso.addOnPlayHandler then
     cso.addOnPlayHandler(function(info)
         if info.kind ~= "swing" then return end
@@ -564,9 +569,13 @@ if cso and cso.addOnPlayHandler then
         if not sounds then return end
         for i = 1, #sounds.extra do
             local extra = sounds.extra[i]
-            local weapon = csoWeapon(extra.sound)
-            -- playSwing has no weaponId, so this doesn't come back here
-            if weapon then cso.playSwing(weapon, info.volume * extra.volume, info.attackType) end
+            if string.lower(extra.sound) == "handtohand" then
+                core.sound.playSound3d(FIST_SWISH, omwself, { volume = info.volume * extra.volume, pitch = info.pitch })
+            else
+                local weapon = csoWeapon(extra.sound)
+                -- playSwing has no weaponId, so this doesn't come back here
+                if weapon then cso.playSwing(weapon, info.volume * extra.volume, info.attackType) end
+            end
         end
         if not sounds.own then return false end
         info.volume = info.volume * sounds.own.volume

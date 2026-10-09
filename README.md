@@ -195,8 +195,8 @@ is), `%{primaryExperience}` and `%{secondaryExperience}` (as `70%`).
 
 **Swing sounds** are a list, one whoosh per entry, all played on every swing. `sound` is `own` - the
 weapon's own whoosh, from Combat Sounds Overhaul Overhauled's swing `groups` if you give some - or one
-of that mod's weapon kinds (`HandToHand`, `ShortBlade`, `Blunt`, `Axe`...). Leave `own` out and the
-weapon's own whoosh is silent. A katar's:
+of that mod's weapon kinds (`HandToHand`, `ShortBlade`, `Blunt`, `Axe`...). `HandToHand` is the
+vanilla whoosh a bare fist swings with. Leave `own` out and the weapon's own whoosh is silent. A katar's:
 
 ```yaml
 swingSounds:
