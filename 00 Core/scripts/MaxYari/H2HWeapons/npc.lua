@@ -198,6 +198,19 @@ I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options
 end)
 
 return {
+    -- The player's I.H2HWeapons (player.lua) on an NPC, and on a creature that can hold these, for other mods' scripts
+    -- on it, e.g. an AI mod telling a knuckleduster (a blunt weapon to the engine) for a fist weapon. It is read when
+    -- asked, so any script on the actor can use it once loaded, whichever comes first in the load order.
+    interfaceName = "H2HWeapons",
+    interface = {
+        version = 1,
+        --- The hybrid weapon a record id is, or false: as on the player. Shared - read it, never change it.
+        hybridOfId = weapons.hybridOfId,
+        --- The same for an item object.
+        hybridOfItem = weapons.hybridOfItem,
+        --- The hybrid in this actor's right hand, or false.
+        equippedHybrid = function() return weapons.hybridOfItem(weapon()) end,
+    },
     eventHandlers = {
         H2HWeapons_VenomStrike = rose.onVenomStrike,
         H2HWeapons_CopyStaged = function(e)

@@ -342,5 +342,19 @@ local onBody = false
 for _, i in ipairs(st.inventories[body]) do if i.recordId == U.EBONY_ROSE then onBody = true end end
 check(onBody, "dead by the time he comes into the world, it is on his body")
 
+-- I.H2HWeapons on an NPC, as on the player: what other mods' scripts on it ask.
+local api = npc.interface
+check(npc.interfaceName == "H2HWeapons" and api.version == 1, "the NPC script carries I.H2HWeapons")
+local asKatar = api.hybridOfId("katar_steel")
+check(asKatar and asKatar.handToHand == true, "a katar is a hybrid swung with the hand-to-hand moveset")
+check(api.hybridOfItem(katar) == asKatar, "by item too")
+check(api.hybridOfItem(dagger) == false and api.hybridOfId("steel dagger") == false, "a dagger is no hybrid")
+st.equipped = katar
+check(api.equippedHybrid() == asKatar, "the katar in its right hand")
+st.equipped = dagger
+check(api.equippedHybrid() == false, "a dagger in its right hand is none")
+st.equipped = nil
+check(api.equippedHybrid() == false, "nor are empty hands")
+
 print(string.format("\n%d checks, %d failures", checks, fails))
 os.exit(fails == 0 and 0 or 1)

@@ -349,8 +349,10 @@ Good to know:
 
 ### Scripts and source
 
-Scripts can ask about hybrids through `I.H2HWeapons` (in player scripts): `hybridOfId(recordId)`,
-`hybridOfItem(item)` and `equippedHybrid()` give a weapon's definition, or `false`.
+Scripts can ask about hybrids through `I.H2HWeapons`, in scripts on the player, on NPCs and on creatures that can hold
+these: `hybridOfId(recordId)`, `hybridOfItem(item)` and `equippedHybrid()` (the actor's own right hand) give a weapon's
+definition, or `false`. A definition's `handToHand` says the weapon is swung with this mod's hand-to-hand moveset, as
+katars and knuckledusters are.
 
 How everything works is written up in the [technical notes](Sources/DEVELOPMENT.md). The plugins,
 meshes, textures and animations are all built by scripts, from the Blender files in the repository:
