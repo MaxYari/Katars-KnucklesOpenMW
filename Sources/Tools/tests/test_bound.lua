@@ -16,7 +16,7 @@ local U = require("scripts/MaxYari/H2HWeapons/scripts/uniques")
 local formulas = require("scripts/MaxYari/H2HWeapons/scripts/formulas")
 local D = U.BOUND_SCALING_DEFAULTS
 
--- The tier records as Katar.omwaddon writes them.
+-- The tier records as Katars&Knuckles.omwaddon writes them.
 st.weaponRecords["h2h_bound_knuckle"] = { id = "h2h_bound_knuckle", type = 3, model = "meshes/daedric_knuckle_basic.nif",
     chopMinDamage = 5, chopMaxDamage = 13, slashMinDamage = 5, slashMaxDamage = 13, thrustMinDamage = 6, thrustMaxDamage = 12, weight = 0 }
 st.weaponRecords["h2h_bound_knuckle_spiked"] = { id = "h2h_bound_knuckle_spiked", type = 3, model = "meshes/daedric_knuckle_sharp.nif",
@@ -155,7 +155,7 @@ dropped.remove = function(self) self.removed = true end
 G.H2HWeapons_DismissFist({ item = dropped })
 check(dropped.removed == true and #st.spawnedVfx == 1, "and with a puff from the ground")
 
--- The merchants, a content file of their own (H2HWeapons_SpellTraders.omwscripts).
+-- The merchants, a content file of their own (Katars&Knuckles_Conjuration.omwscripts).
 st.taught = {}
 global.engineHandlers.onActorActive(stubs.object({ recordId = "Masalinie Merian" }))
 check(#st.taught == 0, "the main mod teaches nobody; that is the traders script's job")

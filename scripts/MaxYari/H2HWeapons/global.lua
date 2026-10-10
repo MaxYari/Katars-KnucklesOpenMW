@@ -312,9 +312,9 @@ end
 -- turn about (roseowner.lua) - but only when Mercy: Combat AI Overhaul runs his fights. Mercy switches
 -- the engine's combat AI off while it fights, and with it the engine's choice of weapon before every
 -- swing, so the choice has to be a step of Mercy's own. Without Mercy he is not handed the Rose: the
--- one placed in his room (KatarWorldPlacements.omwaddon) is the one there is. With Mercy he is handed
--- one the first time he comes into the world - on his body, if he is dead by then - and the one in his
--- room goes, as long as it is still lying there: there is only ever one Rose to find.
+-- one placed in his room (Katars&Knuckles_WorldPlacements.omwaddon) is the one there is. With Mercy
+-- he is handed one the first time he comes into the world - on his body, if he is dead by then - and
+-- the one in his room goes, as long as it is still lying there: there is only ever one Rose to find.
 --
 -- Older saves kept his Jinkblade drained, so that the engine's AI would fight with the Rose; its
 -- charge is put back once.

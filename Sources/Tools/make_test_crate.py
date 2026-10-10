@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Writes Katars_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon - FOR TESTING ONLY, never released.
+"""Writes Katars&Knuckles_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon - FOR TESTING ONLY, never
+released.
 
 One crate with one of everything this mod adds - every katar and knuckleduster, the uniques, the
 shop-enchanted versions and the Bound Fist weapons included, and the note - set on the ground beside the stump with the iron
@@ -12,7 +13,7 @@ the plants around it.
 
     python3 Sources/Tools/make_test_crate.py --master "<Data Files>/Morrowind.esm"
 
-Enable it after Katar.omwaddon. It is left out of the release (.nexusignore).
+Enable it after Katars&Knuckles.omwaddon. It is left out of the release (.nexusignore).
 """
 import argparse
 import math
@@ -24,8 +25,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_plugin  # noqa: E402
 from make_plugin import record, sub, zstr  # noqa: E402
 
-OUT = "Katars_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon"
-PLUGIN = "Katar.omwaddon"
+OUT = "Katars&Knuckles_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon"
+PLUGIN = "Katars&Knuckles.omwaddon"
 
 CRATE_ID = "h2h_test_crate_all_items"
 CRATE_NAME = "TEST: every Katars item"

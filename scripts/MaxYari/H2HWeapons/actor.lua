@@ -478,7 +478,7 @@ end)
 -- With Combat Sounds Overhaul Overhauled, a hybrid swings with the whooshes its definition lists
 -- (swingSounds, definitions.parseSwingSounds): a katar with a fist's whoosh and its own, sharp and
 -- softer, under it; knuckledusters with a fist's alone. A script only sees the interfaces of those
--- attached before it, so this needs CSO's plugin above H2HWeapons.omwscripts.
+-- attached before it, so this needs CSO's plugin above Katars&Knuckles.omwscripts.
 local cso = I.CombatSoundsOO
 
 -- CSO's WEAPON kind by a definition's name for it, in any case; nil for one CSO does not have, which

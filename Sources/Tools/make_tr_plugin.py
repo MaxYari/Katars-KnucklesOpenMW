@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Writes KatarTamrielRebuilt.omwaddon: Tamriel Data's Morrowind levelled lists - the ones Tamriel
-Rebuilt's merchants, chests and NPCs roll - extended with the weapons, the way Katar.omwaddon extends
-vanilla's. Nothing else: the weapons themselves are Katar.omwaddon's, which is a master of this one.
+"""Writes Katars&Knuckles_TamrielRebuilt.omwaddon: Tamriel Data's Morrowind levelled lists - the ones
+Tamriel Rebuilt's merchants, chests and NPCs roll - extended with the weapons, the way
+Katars&Knuckles.omwaddon extends vanilla's. Nothing else: the weapons themselves are
+Katars&Knuckles.omwaddon's, which is a master of this one.
 
 Plain weapons go where their material's shortsword is (TR_STAND_INS), as in vanilla, and the
 shop-enchanted versions into the enchanted lists (TR_ENCHANTED_LEVELLED). Only the t_mw lists - the
 Morrowind ones; Tamriel Data's lists for Cyrodiil, Skyrim, Hammerfell and the rest are other
 projects' - and no list Tamriel Rebuilt does not use for weapons a katar belongs among (TR_SKIP).
 
-    python3 Sources/Tools/make_tr_plugin.py -o KatarTamrielRebuilt.omwaddon \\
+    python3 Sources/Tools/make_tr_plugin.py -o "Katars&Knuckles_TamrielRebuilt.omwaddon" \\
         --master "<Morrowind>/Data Files/Morrowind.esm" --tamriel-data "<path>/Tamriel_Data.esm"
 """
 import argparse
@@ -18,7 +19,7 @@ import struct
 import make_plugin as mp
 from make_plugin import record, sub, zstr
 
-PLUGIN = "Katar.omwaddon"
+PLUGIN = "Katars&Knuckles.omwaddon"
 
 # The Morrowind lists, by prefix: t_mw_ itself, the Dunmer and Imperial ones.
 TR_PREFIXES = ("t_mw_", "t_mwde_", "t_mwimp_")
@@ -89,10 +90,11 @@ def build(morrowind, tamriel_data, katar):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("-o", "--out", default="KatarTamrielRebuilt.omwaddon")
+    ap.add_argument("-o", "--out", default="Katars&Knuckles_TamrielRebuilt.omwaddon")
     ap.add_argument("--master", required=True, help="path to Morrowind.esm")
     ap.add_argument("--tamriel-data", required=True, help="path to Tamriel_Data.esm")
-    ap.add_argument("--plugin", default=PLUGIN, help="path to Katar.omwaddon, recorded as a master")
+    ap.add_argument("--plugin", default=PLUGIN,
+                    help="path to Katars&Knuckles.omwaddon, recorded as a master")
     args = ap.parse_args()
 
     data, additions = build(args.master, args.tamriel_data, args.plugin)

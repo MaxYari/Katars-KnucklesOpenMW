@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Writes Katar.omwaddon: the WEAP records for every katar and knuckleduster and their shop-enchanted
-versions (see ENCHANTED_VERSIONS), stand-ins for the two uniques' enchantments (see ENCHANTMENTS),
+"""Writes Katars&Knuckles.omwaddon: the WEAP records for every katar and knuckleduster and their
+shop-enchanted versions (see ENCHANTED_VERSIONS), stand-ins for the two uniques' enchantments (see ENCHANTMENTS),
 Bound Fist's spell and weapons, the notes (see NOTES), and the vanilla levelled lists extended with
 the weapons (see LEVELLED_STAND_INS and ENCHANTED_LEVELLED - this needs --master, to read them from).
 Tamriel Data's lists are make_tr_plugin.py's.
@@ -10,7 +10,7 @@ scales it - katars to 80%, knuckledusters to 50% (DAMAGE_FACTOR), rounded to the
 the rule the mod documents. Weight takes the same share of the shortsword's. Silver and daedric take
 their damage from steel and ebony instead (SILVER_OVER_STEEL, DAEDRIC_OVER_EBONY). Change SHORTSWORDS or the factors and re-run; nothing else needs touching.
 
-    python3 Sources/Tools/make_plugin.py -o Katar.omwaddon --master "<Data Files>/Morrowind.esm" \
+    python3 Sources/Tools/make_plugin.py -o "Katars&Knuckles.omwaddon" --master "<Data Files>/Morrowind.esm" \
         --master "<Data Files>/Tribunal.esm" --master "<Data Files>/Bloodmoon.esm"
 """
 import argparse
@@ -284,11 +284,13 @@ NOTE_HEADER = '<DIV ALIGN="LEFT"><FONT COLOR="000000" SIZE="3" FACE="Magic Cards
 
 NOTES = {
     # id: (title, [lines])
-    "h2h_note_piece_found": ("About the piece you found", [
-        "Apart from the agreed-upon armaments, I'm sending you the broken knuckles I mentioned. They look "
-        "quite unique and seem vaguely responsive to magic - see if you can fix them.",
+    "h2h_note_piece_found": ("A parcel letter from B", [
+        "You were right, they never saw it coming. We clipped them good, no witnesses. I noticed one of "
+        "the things lighting up while I was slinging lesser fireballs beside it - it's the one you're "
+        "probably twiddling with right now. So the usual deal: fix it up, find a client, do your magic. "
+        "If it will fetch a good price - we are even.",
         "",
-        "- M",
+        "- B.",
     ]),
 }
 
@@ -709,7 +711,7 @@ def build(master_paths, meshes_dir):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("-o", "--out", default="Katar.omwaddon")
+    ap.add_argument("-o", "--out", default="Katars&Knuckles.omwaddon")
     ap.add_argument("--master", action="append", default=[],
                     help="a master to read from and record, in load order: Morrowind.esm, then Tribunal.esm")
     ap.add_argument("--meshes", default="meshes",

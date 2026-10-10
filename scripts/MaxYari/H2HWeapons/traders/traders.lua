@@ -2,8 +2,8 @@
 -- world. A spell merchant sells what they know (MWGui::SpellBuyingWindow reads the NPC's own spell
 -- list), and that list is theirs in the save, so a spell taught once stays taught.
 --
--- Done from a script rather than from Katar.omwaddon because a plugin can only give an NPC a spell by
--- replacing that NPC's whole record, which fights every other mod that touches them; this changes
+-- Done from a script rather than from Katars&Knuckles.omwaddon because a plugin can only give an NPC a
+-- spell by replacing that NPC's whole record, which fights every other mod that touches them; this changes
 -- nothing but the spell list. It is its own content file so it can be left out: without it, nobody
 -- sells these spells, and nothing else changes.
 local core = require('openmw.core')

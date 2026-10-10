@@ -4,7 +4,7 @@
 -- acts on them at run time, so an id cannot say one thing in one file and another in the next.
 -- Plain data only: content.lua runs before most of the openmw packages exist.
 --
--- The weapon records and the stand-in enchantments they point at come from Katar.omwaddon
+-- The weapon records and the stand-in enchantments they point at come from Katars&Knuckles.omwaddon
 -- (Sources/Tools/make_plugin.py) - keep the ids there in step with these.
 local M = {}
 
@@ -71,11 +71,12 @@ M.UNITS_PER_FOOT = 22
 -- Its owner, who is handed it by global.lua when Mercy: Combat AI Overhaul runs the fights: Dandras
 -- Vules, the Dark Brotherhood's master in Mournhold (Tribunal) - and the enchanted shortsword he
 -- carried before it, his Jinkblade, which paralyses on a strike. He fights with both (roseowner.lua).
--- Without Mercy the Rose is not handed over: it lies in his room (KatarWorldPlacements.omwaddon).
+-- Without Mercy the Rose is not handed over: it lies in his room
+-- (Katars&Knuckles_WorldPlacements.omwaddon).
 M.ROSE_OWNER = "dandras vules"
 M.ROSE_OWNER_WEAPON = "adamantium_shortsword_db"
 M.MERCY_CONTENT = "MercyCAO.omwscripts"
-M.ROOM_ROSE_CONTENT = "katarworldplacements.omwaddon"
+M.ROOM_ROSE_CONTENT = "katars&knuckles_worldplacements.omwaddon"
 M.ROOM_ROSE_CELL = "Old Mournhold: Moril Manor, North Building"
 -- From the Jinkblade to the Rose after this many swings with it ...
 M.ROSE_OWNER_SWINGS = 8
@@ -113,8 +114,8 @@ M.BOUND_FIST_EFFECT = "h2h_boundfist"
 M.BOUND_FIST = { duration = 60, cost = 6 }  -- a vanilla bound weapon spell's
 
 -- By the caster's Conjuration: the first tier whose `below` it is under. `weapon` is the record in
--- Katar.omwaddon (make_plugin.py BOUND_WEAPONS); a scaled copy of it has a generated id, and is known
--- for a katar or knuckledusters by its mesh (weapons.lua). `baseWeight` is the daedric original's,
+-- Katars&Knuckles.omwaddon (make_plugin.py BOUND_WEAPONS); a scaled copy of it has a generated id, and
+-- is known for a katar or knuckledusters by its mesh (weapons.lua). `baseWeight` is the daedric original's,
 -- which bound item scaling starts from (as Unofficial TR Spells does with its BOUND_BASE_WEIGHTS).
 M.BOUND_FIST_TIERS = {
     { below = 40, weapon = "h2h_bound_knuckle", baseWeight = 4.5 },

@@ -54,8 +54,8 @@ local RA = I.ReAnimation
 if RA == nil then
     -- Installed, but loaded after this mod: its interface is not there yet when this script starts.
     if types.Player.objectIsInstance(omwself) then
-        print("[H2HWeapons] ERROR: ReAnimation is loaded after H2HWeapons.omwscripts. Move it above " ..
-            "this mod in the launcher's Content Files, or these weapons have no animations of their own.")
+        print("[H2HWeapons] ERROR: ReAnimation is loaded after Katars&Knuckles.omwscripts. Move it " ..
+            "above this mod in the launcher's Content Files, or these weapons have no animations of their own.")
     end
     return
 end

@@ -41,7 +41,7 @@ of the fatigue - they are made for bruising.
 Sixteen weapons, in wood, iron, chitin, steel, silver, Nordic silver, adamantium, orcish, glass, ebony
 and daedric. Their stats are
 derived from the vanilla shortswords rather than picked by hand - see `Sources/Tools/make_plugin.py`,
-which is what writes `Katar.omwaddon`.
+which is what writes `Katars&Knuckles.omwaddon`.
 
 **Weight** goes with damage: the same share of the shortsword - a katar 80% of its weight, a
 knuckleduster half. It is also what a swing costs you: the engine charges the attacker
@@ -236,8 +236,8 @@ Three: Ebony Rose, Mage Fury, and the Driftwood Beaters (`knuckle_wood`), wooden
 enchantment better than any knuckleduster short of orcish, Nordic silver and daedric (3), since it is the medium, not the metal,
 that holds one. None of
 the three is in any levelled list: nobody sells them and no chest rolls them. They are placed in the
-world by `KatarWorldPlacements.omwaddon`, which is made by hand in OpenMW-CS - unlike `Katar.omwaddon`,
-it is not generated, so edit it there. Ebony Rose also has an owner, below.
+world by `Katars&Knuckles_WorldPlacements.omwaddon`, which is made by hand in OpenMW-CS - unlike
+`Katars&Knuckles.omwaddon`, it is not generated, so edit it there. Ebony Rose also has an owner, below.
 
 Ebony Rose and Mage Fury are enchanted with magic effects of this mod's own, so their tooltips and your active effects
 name and explain what they do. The engine carries those effects the way it carries any other -
@@ -487,7 +487,7 @@ material is already on offer at least twice, at the middle of those weapons' lev
 Kjeld, the smuggler in Druscashti, keeps Ebony Katars beside the Ebony Shortsword in the chest he
 sells from, and Bols Indalen, the smith in Mournhold's Craftsmen's Hall, restocks Adamantium Katars
 with the rest of his adamantium weapons. Each is that chest's record, read from Morrowind.esm or
-Tribunal.esm with the katar added - which is why `Katar.omwaddon` needs Tribunal, as it needs
+Tribunal.esm with the katar added - which is why `Katars&Knuckles.omwaddon` needs Tribunal, as it needs
 Bloodmoon for the Nordic silver lists. The uniques and the
 bound weapons are in no list.
 
@@ -501,12 +501,13 @@ same lists wins it; with such a mod, run a merged-lists tool
 loot. Tamriel Data, Tamriel Rebuilt and OAAB leave these lists alone. The two chests are whole records
 in the same way; DeltaPlugin and TES3Merge merge containers too, OMWLLF only lists.
 
-**Tamriel Rebuilt** deals its weapons from Tamriel Data's lists, and `KatarTamrielRebuilt.omwaddon`
-extends those the same way: the `t_mw` ones, which are Morrowind's - the rest are other provinces'
+**Tamriel Rebuilt** deals its weapons from Tamriel Data's lists, and
+`Katars&Knuckles_TamrielRebuilt.omwaddon` extends those the same way: the `t_mw` ones, which are Morrowind's - the rest are other provinces'
 - leaving out guards', Dwemer centurions' and Dwemer ruins' lists, and two-handed ones
 (`make_tr_plugin.py`). Tamriel Data has an orcish shortsword of its own, and the orcish knuckles
 follow it too; and a glass one, which the glass katar follows. Its adamantium lists deal Tribunal's
-adamantium shortsword, and the adamantium katar with it. It needs Tamriel Data and `Katar.omwaddon` as masters, and goes after both.
+adamantium shortsword, and the adamantium katar with it. It needs Tamriel Data and
+`Katars&Knuckles.omwaddon` as masters, and goes after both.
 
 **Tooltips.** Two tooltip mods are given the weapons' real workings, both optional
 (`player.lua`): Inventory Extender's, through `I.InventoryExtender.registerTooltipModifier`, and the

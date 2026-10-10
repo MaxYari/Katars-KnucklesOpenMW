@@ -23,19 +23,19 @@ Run everything from the repository root.
 
 ## Plugins and definitions
 
-**`make_plugin.py`** writes `Katar.omwaddon`: every weapon and its shop-enchanted versions, the
+**`make_plugin.py`** writes `Katars&Knuckles.omwaddon`: every weapon and its shop-enchanted versions, the
 uniques' enchantments (stand-ins that `content.lua` replaces in game), Bound Fist and its weapons, the
 note, the vanilla levelled lists with the weapons added, and the two shop chests. Give it the masters
 in load order:
 
 ```
-python3 Sources/Tools/make_plugin.py -o Katar.omwaddon --master "<Data Files>/Morrowind.esm" \
+python3 Sources/Tools/make_plugin.py -o "Katars&Knuckles.omwaddon" --master "<Data Files>/Morrowind.esm" \
     --master "<Data Files>/Tribunal.esm" --master "<Data Files>/Bloodmoon.esm"
 ```
 
 After it, re-run the three below: they read its tables or record its size.
 
-**`make_tr_plugin.py`** writes `KatarTamrielRebuilt.omwaddon`, Tamriel Data's Morrowind lists
+**`make_tr_plugin.py`** writes `Katars&Knuckles_TamrielRebuilt.omwaddon`, Tamriel Data's Morrowind lists
 extended the same way:
 
 ```
@@ -50,15 +50,15 @@ python3 Sources/Tools/make_tr_plugin.py --master "<Data Files>/Morrowind.esm" \
 python3 Sources/Tools/make_hybrid_definitions.py
 ```
 
-**`make_test_crate.py`** writes `Katars_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon`, a crate with
-one of every item by the stump near the Seyda Neen lighthouse. For testing; it is never released.
+**`make_test_crate.py`** writes `Katars&Knuckles_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon`, a
+crate with one of every item by the stump near the Seyda Neen lighthouse. For testing; it is never released.
 
 ```
 python3 Sources/Tools/make_test_crate.py --master "<Data Files>/Morrowind.esm"
 ```
 
-`KatarWorldPlacements.omwaddon` has no script: it is placed by hand in OpenMW-CS. The CS saves it in
-its own data folder (`~/.local/share/openmw/data/` on Linux), which outranks this one in game, so copy
+`Katars&Knuckles_WorldPlacements.omwaddon` has no script: it is placed by hand in OpenMW-CS. The CS
+saves it in its own data folder (`~/.local/share/openmw/data/` on Linux), which outranks this one in game, so copy
 it back here before committing.
 
 ## Animations

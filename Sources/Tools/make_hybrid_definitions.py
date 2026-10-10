@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Writes HybridWeaponDefinitions/<record id>.yaml for every weapon Katar.omwaddon has - make_plugin.py's
-ITEMS, ENCHANTED_VERSIONS and BOUND_WEAPONS - saying what makes each one a hybrid: a hand-to-hand
+"""Writes HybridWeaponDefinitions/<record id>.yaml for every weapon Katars&Knuckles.omwaddon has -
+make_plugin.py's ITEMS, ENCHANTED_VERSIONS and BOUND_WEAPONS - saying what makes each one a hybrid: a hand-to-hand
 weapon that trains Hand to Hand first and its weapon skill second. The scripts read these
 (scripts/MaxYari/H2HWeapons/scripts/definitions.lua); README.md documents the fields for other mods.
 

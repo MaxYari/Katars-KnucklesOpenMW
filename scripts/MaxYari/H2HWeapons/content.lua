@@ -9,8 +9,8 @@
 -- hard-coded effect id, which includes all damage and all resistances. The venom's damage is
 -- therefore dealt by actor.lua; everything else here is left to the engine.
 --
--- Katar.omwaddon ships vanilla stand-ins under the same enchantment ids, so the plugin is whole on
--- its own; the ones made here replace them.
+-- Katars&Knuckles.omwaddon ships vanilla stand-ins under the same enchantment ids, so the plugin is
+-- whole on its own; the ones made here replace them.
 local mp = "scripts/MaxYari/H2HWeapons/"
 
 local content = require('openmw.content')
