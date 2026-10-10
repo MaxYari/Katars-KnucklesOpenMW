@@ -25,8 +25,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_plugin  # noqa: E402
 from make_plugin import record, sub, zstr  # noqa: E402
 
-OUT = "Katars&Knuckles_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon"
-PLUGIN = "Katars&Knuckles.omwaddon"
+# The mod's data folder, where the plugins live.
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "00 Core")
+OUT = os.path.join(DATA, "Katars&Knuckles_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon")
+PLUGIN = os.path.join(DATA, "Katars&Knuckles.omwaddon")
 
 CRATE_ID = "h2h_test_crate_all_items"
 CRATE_NAME = "TEST: every Katars item"

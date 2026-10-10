@@ -59,7 +59,7 @@ python3 Sources/Tools/make_test_crate.py --master "<Data Files>/Morrowind.esm"
 
 `Katars&Knuckles_WorldPlacements.omwaddon` has no script: it is placed by hand in OpenMW-CS. The CS
 saves it in its own data folder (`~/.local/share/openmw/data/` on Linux), which outranks this one in game, so copy
-it back here before committing.
+it back into `00 Core/` before committing.
 
 ## Animations
 
@@ -80,7 +80,7 @@ The first-person set lives in the blend. In order, after changing it:
    ```
 
 3. **`export_katar_anims.py`** (*Blender*) - exports every `[Raw] Katar` action to
-   `Animations/xbase_anim.1st` as `.kf`, and checks the footsteps and the one-handed loops.
+   `00 Core/Animations/xbase_anim.1st` as `.kf`, and checks the footsteps and the one-handed loops.
    `-- --only Idle` exports only the actions whose name contains it.
 
    ```
@@ -93,7 +93,7 @@ The first-person set lives in the blend. In order, after changing it:
 
    ```
    blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/make_katar_1h_movement.py -- \
-       --save --export Animations/xbase_anim.1st
+       --save --export "00 Core/Animations/xbase_anim.1st"
    ```
 
 5. **`make_third_person_anims.py`** - the third-person sets, `Animations/xbase_anim` and
@@ -170,8 +170,8 @@ python3 Sources/Tools/venom_fx.py --data "<Data Files>" --bsatool <OpenMW folder
 while it is charged (`<mesh>_charged.nif`, next to the weapon's mesh):
 
 ```
-python3 Sources/Tools/charge_fx.py --alpha meshes/mage_fury.nif --shape Crystal
-python3 Sources/Tools/charge_fx.py --effect meshes/mage_fury_charged.nif --from-mesh meshes/mage_fury.nif --between
+python3 Sources/Tools/charge_fx.py --alpha "00 Core/meshes/mage_fury.nif" --shape Crystal
+python3 Sources/Tools/charge_fx.py --effect "00 Core/meshes/mage_fury_charged.nif" --from-mesh "00 Core/meshes/mage_fury.nif" --between
 ```
 
 **`glowset_patch.py`** writes `01 Glass Glowset Patch/meshes/glass_katar.nif`: the glass katar with

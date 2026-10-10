@@ -58,7 +58,7 @@ env:
   NEXUSMODS_MOD_ID: "CHANGEME"
   FILE_DISPLAY_NAME: Katars & Knuckles - OpenMW
   ZIP_NAME: KatarsAndKnuckles
-  VERSION_SOURCE: scripts/MaxYari/H2HWeapons/player.lua
+  VERSION_SOURCE: 00 Core/scripts/MaxYari/H2HWeapons/player.lua
 
 jobs:
   # The scripts are the part that can quietly break, and they run against fakes for the openmw API,

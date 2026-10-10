@@ -10,12 +10,15 @@ scales it - katars to 80%, knuckledusters to 50% (DAMAGE_FACTOR), rounded to the
 the rule the mod documents. Weight takes the same share of the shortsword's. Silver and daedric take
 their damage from steel and ebony instead (SILVER_OVER_STEEL, DAEDRIC_OVER_EBONY). Change SHORTSWORDS or the factors and re-run; nothing else needs touching.
 
-    python3 Sources/Tools/make_plugin.py -o "Katars&Knuckles.omwaddon" --master "<Data Files>/Morrowind.esm" \
+    python3 Sources/Tools/make_plugin.py --master "<Data Files>/Morrowind.esm" \
         --master "<Data Files>/Tribunal.esm" --master "<Data Files>/Bloodmoon.esm"
 """
 import argparse
 import os
 import struct
+
+# The mod's data folder: the plugin, meshes and icons live there.
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "00 Core")
 
 # Officially these are ordinary weapons - the engine has no hand-to-hand weapon type - so katars are
 # short blades and knuckledusters are blunt. The scripts put the hand-to-hand skill back in charge.
@@ -660,7 +663,7 @@ def build(master_paths, meshes_dir):
     for item in missing:
         print("  skipping %-24s meshes/%s is not there yet" % (item[0], item[4]))
     for item in items:
-        icon = os.path.join("Icons", icon_for(item[4]).replace("\\", os.sep))
+        icon = os.path.join(DATA, "Icons", icon_for(item[4]).replace("\\", os.sep))
         if not os.path.exists(icon):
             print("  warning: %-24s has no icon yet, %s" % (item[0], icon))
     present = {i[0] for i in items}
@@ -711,10 +714,10 @@ def build(master_paths, meshes_dir):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("-o", "--out", default="Katars&Knuckles.omwaddon")
+    ap.add_argument("-o", "--out", default=os.path.join(DATA, "Katars&Knuckles.omwaddon"))
     ap.add_argument("--master", action="append", default=[],
                     help="a master to read from and record, in load order: Morrowind.esm, then Tribunal.esm")
-    ap.add_argument("--meshes", default="meshes",
+    ap.add_argument("--meshes", default=os.path.join(DATA, "meshes"),
                     help="where the meshes live; an item whose mesh is missing is left out")
     args = ap.parse_args()
     for path in args.master:

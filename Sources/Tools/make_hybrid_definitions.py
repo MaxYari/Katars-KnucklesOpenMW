@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_plugin  # noqa: E402
 
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "HybridWeaponDefinitions")
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "00 Core", "HybridWeaponDefinitions")
 
 TOOLTIP = ("Hand-to-Hand weapon: effectiveness is determined by the %{primarySkill} skill (%{primary}), "
            "with a minor bonus from %{secondarySkill} (%{bonus}).")

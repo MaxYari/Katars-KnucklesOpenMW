@@ -210,7 +210,7 @@ CONFIG = {
 
     # Output, relative to the .blend. Keep "textures" in the path: the exporter
     # turns ".../textures/katars/x.dds" into "textures\katars\x.dds".
-    "out_dir": "textures/katars",
+    "out_dir": "00 Core/textures/katars",
     "png_dir": "bake_source",
 
     # UV unwrap for the bake layer.

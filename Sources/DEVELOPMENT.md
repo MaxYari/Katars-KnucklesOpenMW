@@ -541,9 +541,12 @@ built by a script, so a rebuild is reproducible. What each script does, and how 
 
 None of it ships: the release is the game's files alone (`.nexusignore`).
 
-Only `textures/katars/` and `textures/katars_vfx/` are in the repository. The rest of `textures/` is
-loose vanilla textures for the Blender files to preview against, git-ignored and never shipped;
-extract them from Morrowind.bsa, Tribunal.bsa and Bloodmoon.bsa if you want them back.
+The repository is laid out as the release is: `00 Core/` is the mod - point a data path at it -
+`01 Glass Glowset Patch/` the optional patch, and `fomod/` the installer; everything else is for
+building it. The `textures/` folder beside them (not the one in `00 Core`) is loose vanilla textures
+for the Blender files to preview against, git-ignored and never shipped, and outside the data folder
+so the game never loads them; extract them from Morrowind.bsa, Tribunal.bsa and Bloodmoon.bsa if you
+want them back.
 
 ### The third-person animations
 

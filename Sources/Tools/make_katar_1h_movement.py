@@ -33,7 +33,7 @@ blend - and checks their step cycles, footsteps and loop lengths against the one
 export changes the file in memory, so --save saves first.
 
     blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/make_katar_1h_movement.py -- \\
-        --save --export Animations/xbase_anim.1st
+        --save --export "00 Core/Animations/xbase_anim.1st"
 """
 import os
 import sys

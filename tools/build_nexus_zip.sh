@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Packs the mod for Nexus: every file committed to git, minus whatever .nexusignore
-# matches (same syntax as .gitignore), laid out BAIN style:
+# matches (same syntax as .gitignore). The repository is already laid out BAIN style, so
+# every file keeps its path:
 #
-#   00 Core/                  the mod - every file not in one of the folders below
-#   01 Glass Glowset Patch/   an optional patch: any top-level "NN Name" folder in the repo
-#                             keeps its place in the archive
+#   00 Core/                  the mod
+#   01 Glass Glowset Patch/   an optional patch: any top-level "NN Name" folder
 #   fomod/                    the installer mod organisers show, which explains the patches
+#
+# A file anywhere else would be shipped loose beside them, so that stops the packing instead.
 #
 #   bash tools/build_nexus_zip.sh [output.zip]    (default: nexus-upload.zip)
 set -euo pipefail
@@ -28,11 +30,14 @@ stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 while IFS= read -r f; do
     case "$f" in
-        fomod/* | [0-9][0-9]\ */*) dest="$f" ;;
-        *) dest="00 Core/$f" ;;
+        fomod/* | [0-9][0-9]\ */*) ;;
+        *)
+            echo "$f is outside \"00 Core\", the patch folders and fomod/ - move it, or add it to .nexusignore" >&2
+            exit 1
+            ;;
     esac
-    mkdir -p "$stage/$(dirname "$dest")"
-    cp -p "$f" "$stage/$dest"
+    mkdir -p "$stage/$(dirname "$f")"
+    cp -p "$f" "$stage/$f"
 done <<< "$files"
 
 (cd "$stage" && zip -q -X -r "$out" .)

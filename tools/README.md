@@ -12,7 +12,7 @@ BLENDER=<path to Blender 5.1>/blender
 # 1. bake every "[Bake]" object down to one texture + PBR maps
 "$BLENDER" -b Katars_bake_work.blend --python tools/mw_bake.py -- --save
 
-# 2. export each weapon empty to meshes/<name>.nif
+# 2. export each weapon empty to "00 Core/meshes/<name>.nif"
 "$BLENDER" -b Katars_bake_work.blend --python tools/mw_export.py -- --overwrite
 ```
 
@@ -61,7 +61,7 @@ mere presence switches that guess off. There is one map per texture, so it
 takes every baked material of the object to say so; a stale `_spec` from an
 earlier bake is deleted.
 
-Output goes to `textures/katars/` (shipping) and `bake_source/` (lossless PNG
+Output goes to `00 Core/textures/katars/` (shipping) and `bake_source/` (lossless PNG
 masters, not shipped). Resolution is chosen to preserve the original texel
 density; tune `texel_multiplier`, or force it with `--res N`.
 
@@ -74,7 +74,7 @@ auto use object normal maps = true
 ```
 
 It appends `_spec` / `_n` to the diffuse texture's path, which is why the maps
-must sit next to the albedo in `textures/katars/`.
+must sit next to the albedo in `00 Core/textures/katars/`.
 
 ## mw_paint_prep.py
 

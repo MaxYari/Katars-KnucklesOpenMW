@@ -119,7 +119,7 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data", required=True, help="Morrowind's Data Files folder")
     ap.add_argument("--bsatool", default="bsatool", help="OpenMW's bsatool")
-    ap.add_argument("--root", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "../.."),
+    ap.add_argument("--root", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../00 Core"),
                     help="the mod's root folder")
     args = ap.parse_args()
 

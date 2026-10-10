@@ -18,7 +18,7 @@ What is checked: that no file carries a SoundGen key, and that the one-handed wa
 lie where the one-handed set's do (make_katar_1h_movement.check_loops).
 
 The .kf files - only those, not the .nif the exporter writes beside each - land in
-Animations/xbase_anim.1st under the names already there, whatever case the export gives them:
+00 Core/Animations/xbase_anim.1st under the names already there, whatever case the export gives them:
 ReAnimation's builder names a movement set from its marker group, so "[Raw] Katar Walk" comes out
 as xkatarMovement. Then run make_third_person_anims.py for the third-person sets.
 
@@ -70,7 +70,7 @@ def _tools_dir():
 
 TOOLS = _tools_dir()
 MOD = TOOLS.parent.parent
-OUT = MOD / "Animations" / "xbase_anim.1st"
+OUT = MOD / "00 Core" / "Animations" / "xbase_anim.1st"
 if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 import make_katar_1h_movement as one_handed  # noqa: E402

@@ -139,7 +139,7 @@ def main():
     if args:
         roots = [pathlib.Path(a).resolve() for a in args]
     else:
-        roots = [pathlib.Path(__file__).resolve().parent.parent / "textures" / "katars"]
+        roots = [pathlib.Path(__file__).resolve().parent.parent / "00 Core" / "textures" / "katars"]
 
     total = skipped = 0
     for root in roots:

@@ -17,7 +17,7 @@ The glow maps are Glowset's and are not shipped: the patch needs Glowset install
 
 Run it after every export of the glass katar:
 
-    python3 glowset_patch.py                  (meshes/glass_katar.nif)
+    python3 glowset_patch.py                  (00 Core/meshes/glass_katar.nif)
     python3 glowset_patch.py meshes/a.nif ...
 """
 import os
@@ -29,7 +29,7 @@ from es3.nif import NiSourceTexture, NiStream, NiTexturingProperty, NiTexturingP
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PATCH_DIR = os.path.join(ROOT, "01 Glass Glowset Patch")
-DEFAULT_MESHES = [os.path.join(ROOT, "meshes", "glass_katar.nif")]
+DEFAULT_MESHES = [os.path.join(ROOT, "00 Core", "meshes", "glass_katar.nif")]
 
 # Texture -> the glow map Glowset's meshes give it. For the crystal blade, the one 11 of its 14
 # blade shapes use, and Smooth Glass Weapons' patch too.

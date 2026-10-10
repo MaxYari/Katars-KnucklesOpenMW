@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The installer mod organisers show. The archive is also laid out for BAIN and for installing by
-     hand: "00 Core" is the mod, every other numbered folder an optional patch (tools/build_nexus_zip.sh). -->
+<!-- The installer mod organisers show. The archive - and the git repository, which has the same
+     layout - also works for BAIN and for installing by hand: "00 Core" is the mod, every other numbered
+     folder an optional patch (tools/build_nexus_zip.sh). -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://qconsulting.ca/fo3/ModConfig5.0.xsd">
     <moduleName>Katars &amp; Knuckles</moduleName>
     <requiredInstallFiles>

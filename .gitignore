@@ -5,13 +5,13 @@ __pycache__/
 *.blend2
 .claude/
 
-# The loose vanilla Morrowind textures here are only so the Blender source has something to preview
-# against; they ship with the game, so they do not belong in the repo or the release. Extract them
-# again if you need them in Blender.
-#
-# Textures baked for this mod go in textures/katars/ and DO ship - that is the one path under
-# textures/ that is tracked, so put new ones there (or add another exception below).
-/textures/*
-!/textures/katars/
-# The venom's recoloured poison effects (Sources/Tools/venom_fx.py), kept apart from the weapon bake.
-!/textures/katars_vfx/
+# The loose vanilla Morrowind textures in the root textures/ folder are only so the Blender source has
+# something to preview against; they ship with the game, so they do not belong in the repo or the
+# release, and they sit outside "00 Core" so the game never loads them. Extract them again if you need
+# them in Blender. Textures baked for this mod go in "00 Core/textures/katars/" and do ship.
+/textures/
+
+# Bizarre Anim's Export Animation writes a .nif beside every .kf. The game reads nothing from them,
+# so they are never committed - only each skeleton folder's h2h_weapon_bone_l.nif is real.
+/00 Core/Animations/**/*.nif
+!/00 Core/Animations/**/h2h_weapon_bone_l.nif

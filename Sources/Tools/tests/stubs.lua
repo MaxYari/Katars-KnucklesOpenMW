@@ -7,12 +7,13 @@ function M.addRoot(path) roots[#roots+1] = path end
 --- This mod's folder, and ReAnimation's next to it. Override either with H2H_MOD / H2H_REANIMATION.
 function M.findMods()
     local here = arg[0]:gsub("[^/]*$", "")
-    local mod = os.getenv("H2H_MOD") or (here .. "../../..")
+    local repo = here .. "../../.."
+    local mod = os.getenv("H2H_MOD") or (repo .. "/00 Core")
     local reanimation = os.getenv("H2H_REANIMATION")
     if not reanimation then
         -- The Nexus download folder carries a version suffix, and other ReAnimation-something
         -- folders sit next to it, so the API script is what is actually looked for.
-        local pipe = io.popen('for d in "' .. mod ..
+        local pipe = io.popen('for d in "' .. repo ..
             '"/../*/scripts/MaxYari/ReAnimation_v3/ReAnimationAPI.lua; do [ -f "$d" ] && ' ..
             'echo "${d%/scripts/MaxYari/ReAnimation_v3/ReAnimationAPI.lua}" && break; done 2>/dev/null')
         reanimation = pipe:read("l")

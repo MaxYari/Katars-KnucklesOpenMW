@@ -56,7 +56,7 @@ import mw_bake  # noqa: E402
 CONFIG = {
     # Case-insensitive; the first one that exists is used.
     "collections": ["Exports", "Export"],
-    "out_dir": "meshes",
+    "out_dir": "00 Core/meshes",
 
     # Custom property on an empty that pins its output filename.
     "name_property": "mw_nif",

@@ -67,7 +67,7 @@ import footstep_refs  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.normpath(os.path.join(HERE, '..', '..'))
-FIRST_PERSON = os.path.join(MOD, 'Animations', 'xbase_anim.1st')
+FIRST_PERSON = os.path.join(MOD, '00 Core', 'Animations', 'xbase_anim.1st')
 # Third-person skeleton folder -> the vanilla kf whose hand-to-hand gives the legs.
 TARGETS = {
     'xbase_anim': 'meshes\\xbase_anim.kf',
@@ -284,7 +284,7 @@ def main():
 
     for folder, kf_name in TARGETS.items():
         theirs_kf = load_vanilla(kf_name)
-        out_dir = os.path.join(MOD, 'Animations', folder)
+        out_dir = os.path.join(MOD, '00 Core', 'Animations', folder)
         third_rest = rest_translations(theirs_kf)
         third_rest[OFF_HAND_BONE] = off_hand_rest(out_dir)
         lower = list(M.LOWER_BONES[:9]) + [b for b in EXTRA_LOWER if b in theirs_kf.bone_data]

@@ -112,14 +112,29 @@ Daedric Katars (high conjuration level)
 
 </details>
 
+<details>
+<summary>Uniques</summary>
+
+The lesser unique
+
+![The lesser unique](imgs/screenshots/driftwood_beaters_rocks.png)
+
+The middle unique
+
+![The middle unique](imgs/screenshots/mage_fury_rocks.png)
+
+The highest unique
+
+![The highest unique](imgs/screenshots/ebony_rose_hills.png)
+
+</details>
+
 **Where to find the uniques** (each one opens with a vague tip, the exact location is a spoiler inside it)
 
 <details>
 <summary>The lesser unique</summary>
 
-The lesser of uniques (barely a unique) is made of driftwood by someone with a lot of time on their hands and a habbit to watch over the ships in the sea.
-
-![The lesser unique](imgs/screenshots/driftwood_beaters_rocks.png)
+The lesser of uniques (barely a unique) is made of driftwood by someone with a lot of time on their hands and a habit to watch over the ships in the sea.
 
 <details>
 <summary>Exact location (full spoiler)</summary>
@@ -135,8 +150,6 @@ The lesser of uniques (barely a unique) is made of driftwood by someone with a l
 
 The middle of the uniques is of an arcane origin and as such is drawn to places of high magic. It also rather fancies inland lakes.
 
-![The middle unique](imgs/screenshots/mage_fury_rocks.png)
-
 <details>
 <summary>Exact location (full spoiler)</summary>
 
@@ -151,8 +164,6 @@ scrolls and potions.
 <summary>The highest unique</summary>
 
 The highest of the three is of a dark and vicious nature, its kiss is poison and its owner schemes deep underground.
-
-![The highest unique](imgs/screenshots/ebony_rose_hills.png)
 
 <details>
 <summary>Exact location (full spoiler)</summary>

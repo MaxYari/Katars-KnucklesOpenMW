@@ -9,7 +9,7 @@ shop-enchanted versions into the enchanted lists (TR_ENCHANTED_LEVELLED). Only t
 Morrowind ones; Tamriel Data's lists for Cyrodiil, Skyrim, Hammerfell and the rest are other
 projects' - and no list Tamriel Rebuilt does not use for weapons a katar belongs among (TR_SKIP).
 
-    python3 Sources/Tools/make_tr_plugin.py -o "Katars&Knuckles_TamrielRebuilt.omwaddon" \\
+    python3 Sources/Tools/make_tr_plugin.py \\
         --master "<Morrowind>/Data Files/Morrowind.esm" --tamriel-data "<path>/Tamriel_Data.esm"
 """
 import argparse
@@ -19,7 +19,9 @@ import struct
 import make_plugin as mp
 from make_plugin import record, sub, zstr
 
-PLUGIN = "Katars&Knuckles.omwaddon"
+# The mod's data folder, where the plugins live.
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "00 Core")
+PLUGIN = os.path.join(DATA, "Katars&Knuckles.omwaddon")
 
 # The Morrowind lists, by prefix: t_mw_ itself, the Dunmer and Imperial ones.
 TR_PREFIXES = ("t_mw_", "t_mwde_", "t_mwimp_")
@@ -90,7 +92,7 @@ def build(morrowind, tamriel_data, katar):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("-o", "--out", default="Katars&Knuckles_TamrielRebuilt.omwaddon")
+    ap.add_argument("-o", "--out", default=os.path.join(DATA, "Katars&Knuckles_TamrielRebuilt.omwaddon"))
     ap.add_argument("--master", required=True, help="path to Morrowind.esm")
     ap.add_argument("--tamriel-data", required=True, help="path to Tamriel_Data.esm")
     ap.add_argument("--plugin", default=PLUGIN,
