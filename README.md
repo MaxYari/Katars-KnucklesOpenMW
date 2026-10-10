@@ -4,7 +4,7 @@
 
 Fully integrated class of Hand-to-hand weapons for OpenMW. Katars & Knuckles. They mostly use a **Hand to Hand** skill but also receive a small bonus from blunt/blade skill. Same goes for skill leveling.
 
-**16 weapons**: 7 katars and 9 sets of knuckledusters across different materials and rarities of the base game, Tribunal and Bloodmoon. **3 of them are unique** with 2 of those having truly original custom enchantments. All the weapons are distributed through the world in a fashion similar to original gear - can be found in random enemy loots, chests, merchants or in a few hand-picked locations in the world. Uniques can only be found in the world.
+**16 weapons**: 7 katars and 9 sets of knuckledusters across different materials and rarities of the base game, Tribunal and Bloodmoon. All with unique looks and human-made meshes, imagine that! **3 of them are unique** with 2 of those having truly original custom enchantments. All the weapons are distributed through the world in a fashion similar to original gear - can be found in random enemy loots, chests, merchants or in a few hand-picked locations in the world. Uniques can only be found in the world.
 
 A matching conjuration spell - a **Bound Fist** - allows you to summon bound fist weapons with their look changing depending on your conjuration level.
 
@@ -115,17 +115,19 @@ Daedric Katars (high conjuration level)
 <details>
 <summary>Uniques</summary>
 
-The lesser unique
+**Driftwood Beaters** - unenchanted, but with a higher enchantment capacity than usual.
 
-![The lesser unique](imgs/screenshots/driftwood_beaters_rocks.png)
+![Driftwood Beaters](imgs/screenshots/driftwood_beaters_rocks.png)
 
-The middle unique
+**Mage Fury** - a custom enchantment that adds temporary elemental damage to your strikes, based on the
+last spell you cast; the extra damage scales with the strength of that spell.
 
-![The middle unique](imgs/screenshots/mage_fury_rocks.png)
+![Mage Fury](imgs/screenshots/mage_fury_rocks.png)
 
-The highest unique
+**Ebony Rose** - a custom enchantment that triggers a venomous explosive blast after a series of
+successful attacks.
 
-![The highest unique](imgs/screenshots/ebony_rose_hills.png)
+![Ebony Rose](imgs/screenshots/ebony_rose_hills.png)
 
 </details>
 
