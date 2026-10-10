@@ -105,6 +105,16 @@ The first-person set lives in the blend. In order, after changing it:
    python3 Sources/Tools/make_third_person_anims.py
    ```
 
+6. **`make_fba_compat.py`** - `02 FBA Compatibility`, the first-person set for OpenMW Full Body
+   Awareness: FBA's legs and movement under ours, built by ReAnimation's FBA builder
+   (`Sources/Tools/FBACompat` in ReAnimation's repository) with the katar's groups pointed at FBA's
+   hand-to-hand ones. Re-run it after every first-person export too. It finds ReAnimation next to this
+   mod (`--reanimation` otherwise) and FBA from `openmw.cfg` (`--fba` otherwise).
+
+   ```
+   python3 Sources/Tools/make_fba_compat.py
+   ```
+
 The blending rules in `Animations/xbase_anim.1st` are ReAnimation's own hand-to-hand ones,
 `xh2hJump.yaml`, `xh2hSlash.yaml` and `xh2hThrust.yaml`, under the katar's names. There are only
 those three because ReAnimation has only those three.

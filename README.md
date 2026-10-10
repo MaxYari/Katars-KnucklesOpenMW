@@ -207,9 +207,10 @@ on Windows or [Nerevarine Organizer](https://github.com/grazelandsnomad/nerevari
 on Linux).
 **Or**: [read this tutorial](https://modding-openmw.com/tips/installing-mods/) on how to install mods
 using the launcher or completely manually (it's also very easy).
-The archive has two folders: `00 Core` is the mod and `01 Glass Glowset Patch` is an optional patch
-(see Optional below). Mod organisers show an installer that explains them. If you install by hand,
-add `00 Core` as the data folder, and `01 Glass Glowset Patch` after it if you want it.
+The archive has three folders: `00 Core` is the mod, and `01 Glass Glowset Patch` and
+`02 FBA Compatibility` are optional patches (see Optional below). Mod organisers show an installer
+that explains them. If you install by hand, add `00 Core` as the data folder, and the patches you
+want after it.
 
 3) Enable these in the "Content Files" tab of the OpenMW launcher, after [ReAnimation](https://www.nexusmods.com/morrowind/mods/52596):
    - `Katars&Knuckles.omwaddon` - needs Tribunal and Bloodmoon.
@@ -243,6 +244,10 @@ Optional:
 - [Glass Glowset](https://www.nexusmods.com/morrowind/mods/42762): tick "Glass Glowset Patch" in the
   installer (or add the `01 Glass Glowset Patch` folder after `00 Core`) and the glass katars fit its
   style - they glow like the rest of the glass set. Needs Glass Glowset installed.
+- [OpenMW Full Body Awareness](https://www.nexusmods.com/morrowind/mods/56625): tick "FBA Compatibility"
+  in the installer (or add the `02 FBA Compatibility` folder after `00 Core`) and the katars' and
+  knuckledusters' first-person animations get FBA's legs, as ReAnimation's own FBA Compatibility does
+  for ReAnimation's. Needs FBA and ReAnimation's FBA Compatibility installed.
 
 Have fun!
 

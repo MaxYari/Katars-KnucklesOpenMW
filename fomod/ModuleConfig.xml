@@ -23,6 +23,17 @@ Requires Glass Glowset (https://www.nexusmods.com/morrowind/mods/42762) to be in
                                 <type name="Optional" />
                             </typeDescriptor>
                         </plugin>
+                        <plugin name="FBA Compatibility">
+                            <description>For OpenMW Full Body Awareness: the katar and knuckleduster first-person animations get FBA's legs and movement, the way ReAnimation's FBA Compatibility does it for ReAnimation's own. Without it the legs hang in the first-person pose while one of these weapons is out.
+
+Requires OpenMW Full Body Awareness (https://www.nexusmods.com/morrowind/mods/56625) and ReAnimation's FBA Compatibility. Leave this unticked if you don't use FBA.</description>
+                            <files>
+                                <folder source="02 FBA Compatibility" destination="" priority="2" />
+                            </files>
+                            <typeDescriptor>
+                                <type name="Optional" />
+                            </typeDescriptor>
+                        </plugin>
                     </plugins>
                 </group>
             </optionalFileGroups>

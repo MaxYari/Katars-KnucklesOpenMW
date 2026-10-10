@@ -441,6 +441,14 @@ merged in (`Sources/Tools/make_third_person_anims.py`), in the folders of the th
 own legs. So one set of registrations covers both views and every NPC - whichever the engine has
 loaded is what plays.
 
+With OpenMW Full Body Awareness the whole body shows in first person, on third-person legs, and our
+first-person animations - which play on the whole body there - left the legs in the first-person rig's
+pose. The optional `02 FBA Compatibility` is the first-person set again, with FBA's legs, hips and root
+motion merged in by ReAnimation's FBA builder, as for ReAnimation's own set
+(`Sources/Tools/make_fba_compat.py`). The katar's groups take FBA's hand-to-hand legs, stepping on our
+`SoundGenRef` keys; the run strafes play our part at half speed, as ReAnimation's do there (the
+builder's strafing animation speed fix).
+
 **The idle.** The engine plays a weapon idle to its `loop stop` key one to four times, then on to its
 `stop`, and plays it again whenever it ends (`CharacterController::refreshIdleAnims`). The katar idle
 loops until it is stopped instead of taking that count from its parent: it is the shorter of the two
