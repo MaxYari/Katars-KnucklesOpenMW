@@ -97,20 +97,27 @@ def reanimation_helpers(reanimation):
 
 @contextlib.contextmanager
 def export_settings(exporter, folder):
-    """The addon preferences and frame rate the export wants, put back afterwards."""
+    """The addon preferences, export folder and frame rate the export wants, put back afterwards.
+    The folder is the file's own (the add-on's per-file Export Folder, 1.9) when the add-on has one,
+    which wins over the preference."""
     prefs = exporter.get_prefs()
     scene = bpy.context.scene
     saved = {name: getattr(prefs, name) for name in list(SETTINGS) + ["export_folder"]}
+    own = getattr(scene, "bizarre_export_folder", None)
     fps = scene.render.fps, scene.render.fps_base
     try:
         for name, value in SETTINGS.items():
             setattr(prefs, name, value)
         prefs.export_folder = folder
+        if own is not None:
+            scene.bizarre_export_folder = folder
         scene.render.fps, scene.render.fps_base = FPS, 1.0
         yield
     finally:
         for name, value in saved.items():
             setattr(prefs, name, value)
+        if own is not None:
+            scene.bizarre_export_folder = own
         scene.render.fps, scene.render.fps_base = fps
 
 
@@ -154,6 +161,12 @@ def live_footsteps(path):
             found += sum(1 for line in text.replace("\r\n", "\n").split("\n")
                          if line.partition(":")[0].strip().lower() == "soundgen")
     return found
+
+
+def reanimation_data(reanimation):
+    """ReAnimation's data folder: its "00 Core", or the folder itself in the layout before that."""
+    core = os.path.join(reanimation, "00 Core")
+    return core if os.path.isdir(core) else reanimation
 
 
 def destination(name, out_dir):
@@ -215,8 +228,8 @@ def export_actions(names, out_dir=OUT, reanimation=None):
         if stem.lower() in {k.lower() for k in ONE_HANDED}:
             theirs = ONE_HANDED[next(k for k in ONE_HANDED if k.lower() == stem.lower())]
             try:
-                one_handed.check_loops(path, os.path.join(reanimation, "Animations", "xbase_anim.1st",
-                                                          theirs))
+                one_handed.check_loops(path, os.path.join(reanimation_data(reanimation), "Animations",
+                                                          "xbase_anim.1st", theirs))
             except SystemExit as exc:          # it exits on a mismatch; a Text Editor run must not
                 problems.append(str(exc))
         # Only the .kf: the exporter's .nif beside it is never read. The engine plays the .kf against

@@ -4,6 +4,7 @@
      folder an optional patch (tools/build_nexus_zip.sh). -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://qconsulting.ca/fo3/ModConfig5.0.xsd">
     <moduleName>Katars &amp; Knuckles</moduleName>
+    <moduleImage path="fomod/images/katars.png" />
     <requiredInstallFiles>
         <folder source="00 Core" destination="" />
     </requiredInstallFiles>
@@ -16,6 +17,7 @@
                             <description>Simply makes the glass katars fit the style of Glass Glowset: they glow like the rest of the glass set.
 
 Requires Glass Glowset (https://www.nexusmods.com/morrowind/mods/42762) to be installed. Leave this unticked if you don't use it.</description>
+                            <image path="fomod/images/glowset.png" />
                             <files>
                                 <folder source="01 Glass Glowset Patch" destination="" priority="1" />
                             </files>
@@ -27,6 +29,7 @@ Requires Glass Glowset (https://www.nexusmods.com/morrowind/mods/42762) to be in
                             <description>For OpenMW Full Body Awareness: the katar and knuckleduster first-person animations get FBA's legs and movement, the way ReAnimation's FBA Compatibility does it for ReAnimation's own. Without it the legs hang in the first-person pose while one of these weapons is out.
 
 Requires OpenMW Full Body Awareness (https://www.nexusmods.com/morrowind/mods/56625) and ReAnimation's FBA Compatibility. Leave this unticked if you don't use FBA.</description>
+                            <image path="fomod/images/fba.png" />
                             <files>
                                 <folder source="02 FBA Compatibility" destination="" priority="2" />
                             </files>

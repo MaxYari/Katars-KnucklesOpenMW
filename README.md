@@ -247,13 +247,20 @@ Optional:
 - [OpenMW Full Body Awareness](https://www.nexusmods.com/morrowind/mods/56625): tick "FBA Compatibility"
   in the installer (or add the `02 FBA Compatibility` folder after `00 Core`) and the katars' and
   knuckledusters' first-person animations get FBA's legs, as ReAnimation's own FBA Compatibility does
-  for ReAnimation's. Needs FBA and ReAnimation's FBA Compatibility installed.
+  for ReAnimation's. Needs FBA, its First Person Hands patch (from
+  [FBA's mod page](https://www.nexusmods.com/morrowind/mods/56625?tab=files)) and ReAnimation's FBA
+  Compatibility (an option in ReAnimation's installer).
 
 Have fun!
 
 ## Mod compatibility
 
 Probably compatible with mostly everything. If your mod needs to know whether a weapon is actually an H2H weapon or not (instead of the official short blade/blunt, as the engine sees them), there's a Lua API that can provide this information - see the "For modders" section below.
+
+**[OpenMW Full Body Awareness](https://www.nexusmods.com/morrowind/mods/56625)**: compatible through the
+installer's "FBA Compatibility" option (see Optional above). It also requires FBA's First Person Hands
+patch from [FBA's mod page](https://www.nexusmods.com/morrowind/mods/56625?tab=files), and ReAnimation's
+FBA Compatibility.
 
 ## Credits
 

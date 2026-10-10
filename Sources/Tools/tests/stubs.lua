@@ -12,12 +12,17 @@ function M.findMods()
     local reanimation = os.getenv("H2H_REANIMATION")
     if not reanimation then
         -- The Nexus download folder carries a version suffix, and other ReAnimation-something
-        -- folders sit next to it, so the API script is what is actually looked for.
-        local pipe = io.popen('for d in "' .. repo ..
-            '"/../*/scripts/MaxYari/ReAnimation_v3/ReAnimationAPI.lua; do [ -f "$d" ] && ' ..
+        -- folders sit next to it, so the API script is what is actually looked for - in the
+        -- folder's "00 Core", or the folder itself in ReAnimation's layout before that.
+        local api = "scripts/MaxYari/ReAnimation_v3/ReAnimationAPI.lua"
+        local pipe = io.popen('for d in "' .. repo .. '"/../*/"00 Core"/' .. api .. ' "' .. repo ..
+            '"/../*/' .. api .. '; do [ -f "$d" ] && ' ..
             'echo "${d%/scripts/MaxYari/ReAnimation_v3/ReAnimationAPI.lua}" && break; done 2>/dev/null')
         reanimation = pipe:read("l")
         pipe:close()
+    else
+        local f = io.open(reanimation .. "/00 Core/scripts/MaxYari/ReAnimation_v3/ReAnimationAPI.lua", "r")
+        if f then f:close(); reanimation = reanimation .. "/00 Core" end
     end
     if not reanimation or reanimation == "" then
         error("ReAnimation not found next to this mod. Set H2H_REANIMATION to its folder.")
