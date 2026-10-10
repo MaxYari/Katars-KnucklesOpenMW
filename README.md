@@ -31,6 +31,8 @@ It's safe to open: everything inside is organised into smaller spoilers - every 
 
 **What the weapons look like**
 
+All screenshots were made with [Wareya's PBR shaders](https://github.com/wareya/OpenMW-PBR/tree/0.51) and [Aesthetically Shiny Things](https://www.nexusmods.com/morrowind/mods/52114).
+
 <details>
 <summary>Iron</summary>
 
@@ -115,7 +117,7 @@ Daedric Katars (high conjuration level)
 <details>
 <summary>The lesser unique</summary>
 
-The lesser of uniques (barely a unique) is made of driftwood by someone with a lot of time on their hands to watch ships in the sea.
+The lesser of uniques (barely a unique) is made of driftwood by someone with a lot of time on their hands and a habbit to watch over the ships in the sea.
 
 ![The lesser unique](imgs/screenshots/driftwood_beaters_rocks.png)
 
