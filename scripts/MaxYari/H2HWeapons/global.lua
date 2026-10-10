@@ -40,20 +40,6 @@ I.Settings.registerGroup {
                 items = { "off", "on", "onExceptWerewolves" },
             },
         },
-        {
-            key = "showOffHandWeapon",
-            name = "show_off_hand_weapon",
-            description = "show_off_hand_weapon_description",
-            default = settings.DEFAULTS.showOffHandWeapon,
-            renderer = "checkbox",
-        },
-        {
-            key = "silenceDrawSound",
-            name = "silence_draw_sound",
-            description = "silence_draw_sound_description",
-            default = settings.DEFAULTS.silenceDrawSound,
-            renderer = "checkbox",
-        },
     },
 }
 

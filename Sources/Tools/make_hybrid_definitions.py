@@ -63,7 +63,7 @@ def number(value):
 def definition(name, kind):
     k = KINDS[kind]
     lines = [
-        f"# {name}, from Katars and Knuckledusters - written by Sources/Tools/make_hybrid_definitions.py.",
+        f"# {name}, from Katars & Knuckles - written by Sources/Tools/make_hybrid_definitions.py.",
         "# What each field does: the mod's README, \"Hybrid weapons for modders\".",
         "primarySkill: handtohand",
         f"secondarySkill: {k['secondarySkill']}",

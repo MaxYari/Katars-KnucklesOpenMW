@@ -43,7 +43,7 @@ local cfg = settings.values
 -- it should always be there; if it is not, say so once rather than failing with a stack trace.
 if not core.contentFiles.has("MaxYariScriptServices.omwscripts") then
     print("[H2HWeapons] ERROR: Max Yari's Script Services (MSS) is missing. It is required.")
-    ui.showMessage("Katars and Knuckledusters: Max Yari's Script Services (MSS) is missing, please install it.")
+    ui.showMessage("Katars & Knuckles: Max Yari's Script Services (MSS) is missing, please install it.")
     return {}
 end
 
@@ -75,6 +75,19 @@ I.Settings.registerPage {
     l10n = "H2HWeapons",
     name = "page_name",
     description = "page_description",
+}
+
+-- The banner, its renderer in menu.lua. A group with no name and nothing to store, ahead of the rest.
+I.Settings.registerGroup {
+    key = "SettingsPlayerH2HWeaponsBanner",
+    page = "H2HWeapons",
+    l10n = "H2HWeapons",
+    name = "banner",
+    permanentStorage = false,
+    order = -1,
+    settings = {
+        { key = "banner", name = "banner", renderer = "H2HWeapons_banner" },
+    },
 }
 
 --- Bound Fist's scaling ---------------------------------------------------------------------------
@@ -448,7 +461,7 @@ local function updateAttachments(stance)
     end
 
     local drawn = equippedHandToHand and weaponShown
-    local offHand = (drawn and cfg.showOffHandWeapon and equippedModel) or nil
+    local offHand = (drawn and equippedModel) or nil
     local glow = (drawn and fury.strikes > 0 and equippedChargeModel) or nil
     onBones.attach(OFF_HAND, offHand)
     onBones.attach(GLOW_RIGHT, glow)
@@ -512,7 +525,7 @@ I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options
         -- The sheathe plays while the weapon is still in hand, and a swap plays the incoming
         -- weapon's group, so the current item is the right one to ask either way.
         refreshEquipped()
-        if cfg.silenceDrawSound and equippedHybrid and equippedHybrid.silentDraw then
+        if equippedHybrid and equippedHybrid.silentDraw then
             silenceSounds = equippedHybrid.drawSounds
             silenceLeft = SILENCE_UPDATES
         end

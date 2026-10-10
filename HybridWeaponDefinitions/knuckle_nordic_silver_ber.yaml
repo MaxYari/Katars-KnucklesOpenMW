@@ -1,4 +1,4 @@
-# Berserker Silver Knuckles, from Katars and Knuckledusters - written by Sources/Tools/make_hybrid_definitions.py.
+# Berserker Silver Knuckles, from Katars & Knuckles - written by Sources/Tools/make_hybrid_definitions.py.
 # What each field does: the mod's README, "Hybrid weapons for modders".
 primarySkill: handtohand
 secondarySkill: bluntweapon

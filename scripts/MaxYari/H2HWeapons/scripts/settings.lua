@@ -21,8 +21,6 @@ local STRENGTH_VALUES = { off = 0, on = 1, onExceptWerewolves = 2 }
 -- Defaults, also used as the registered defaults in global.lua. Keep the two in step.
 M.DEFAULTS = {
     strengthInfluencesHandToHand = "off",
-    showOffHandWeapon = true,
-    silenceDrawSound = true,
 }
 
 M.values = {}

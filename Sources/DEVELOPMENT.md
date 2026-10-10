@@ -1,4 +1,4 @@
-# Katars and Knuckledusters - technical notes
+# Katars & Knuckles - technical notes
 
 How the mod works, in detail, and how to build it: for modders and anyone curious. The user-facing
 README is at the repository root. This covers the uniques' magic and everything else in full, so it
@@ -176,7 +176,7 @@ This works for NPCs swinging these weapons as well as for you.
 
 A second copy of the weapon is put in your left hand while the weapon is drawn, hanging off a
 `Weapon Bone.L` bone that this mod grafts onto the skeletons beside the engine's own weapon bone. See
-*Compatibility* below, and turn it off in the settings if it gets in the way.
+*Compatibility* below.
 
 Animations pose the weapon bone to seat a weapon in the grip, so the off-hand one needs the same
 track or it sits wherever the skeleton's rest pose left it. This mod's own animations carry it, in
@@ -342,15 +342,13 @@ player->addspell h2h_bound_fist
 
 ## Settings
 
-Options -> Scripts -> Katars and Knuckledusters.
+Options -> Scripts -> Katars & Knuckles.
 
 - **Factor Strength into Hand-to-Hand Combat** (default Off) - must match the launcher option of
   the same name.
-- **Show the off-hand weapon** (on).
-- **Silence the draw and sheathe sound** (on).
 
-These are shared by every actor, so they live in the save rather than in your settings file. Below
-them, read-only, is where Bound Fist's scaling comes from.
+This is shared by every actor, so it lives in the save rather than in your settings file. Below it,
+read-only, is where Bound Fist's scaling comes from.
 
 ## Performance
 

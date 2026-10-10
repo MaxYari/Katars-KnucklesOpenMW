@@ -1,25 +1,27 @@
-# Katars and Knuckles
+# Katars & Knuckles
 
 ![Katars & Knuckles](imgs/banner.png)
 
-Fully integrated class of Hand-to-hand weapons for OpenMW. Katars and Knuckles. They mostly use a **Hand to Hand** skill but also receive a small bonus from blunt/blade skill. Same goes for skill leveling.
+Fully integrated class of Hand-to-hand weapons for OpenMW. Katars & Knuckles. They mostly use a **Hand to Hand** skill but also receive a small bonus from blunt/blade skill. Same goes for skill leveling.
 
-**16 weapons**: 7 katars and 9 sets of knuckledusters across different materials and rarities of the base game, Tribunal and Bloodmoon. **3 of them are unique** with 2 of those having a truly original custom enchantments. All the weapons are distributed through the world in a fashion similar to original gear - can be found in random enemy loots, chests, merchants or in a few hand-picked locations in the world. Uniques can only be found in the world.
+**16 weapons**: 7 katars and 9 sets of knuckledusters across different materials and rarities of the base game, Tribunal and Bloodmoon. **3 of them are unique** with 2 of those having truly original custom enchantments. All the weapons are distributed through the world in a fashion similar to original gear - can be found in random enemy loots, chests, merchants or in a few hand-picked locations in the world. Uniques can only be found in the world.
 
-A matching conjuration spell - a **Bound Fist** - allows to summon bound fist weapons with their look changing depending on your conjuraion level.
+A matching conjuration spell - a **Bound Fist** - allows you to summon bound fist weapons with their look changing depending on your conjuration level.
 
 Developed for OpenMW. **Requires OpenMW 0.51+**.
 
 <p><a href="https://ko-fi.com/maxyari"><img src="imgs/morrowind_kofi_banner_left_half_bright124.gif" width="25.72%" align="top" alt="Support me on Ko-fi"></a><a href="https://ko-fi.com/maxyari"><img src="imgs/banner_right.png" width="73.88%" align="top" alt="Support me on Ko-fi"></a><br><a href="https://ko-fi.com/maxyari"><img src="imgs/banner_glow.png" width="99.6%" align="top" alt=""></a></p>
 
-## What they do
+## What do they do
 
-- "Officially" Katars are shortblades and knuckledusters are blunt weapons, that's what you will see on a tooltip in the world. Don't trust that - they use and level Hand to Hand and they also damage victim's stamina akin to regular H2H. Note that tooltips should be correct in your inventory or inside containers if you are using [Inventory Extender](https://www.nexusmods.com/morrowind/mods/59205) and/or [QuickLoot](https://www.nexusmods.com/morrowind/mods/54950)
-- Yet contrary to regular H2H they also deal damage, albeit small. In general knuckledusters deal lower physical damage but higher stamina damage and Katars are the opposite.
-- The new weapons are added to the game's levelled lists - the ones merchants' stock, chests and loot, and NPCs' and enemies' weapons are rolled from - so they turn up as ordinary weapons of their material do: now and then, not in every shop. Uniques are... well... unique and need to be found in the world.
+- Katars and Knuckles are hybrid type weapons that primarily work off of your Hand to Hand skill, but receive a small bonus from your blade/blunt skill. They damage the victim's stamina akin to regular H2H.
+- Yet contrary to regular H2H they also deal damage, albeit small. In general knuckledusters deal lower physical damage but higher stamina damage and Katars are the opposite. For the sake of gameplay balance damage numbers are fairly moderate and stamina damage is lower than that of bare-fist H2H (since bare fists don't have the advantage of also doing regular physical damage).
+- Added to loot and merchant lists and hand-placed in the world. Uniques can only be found in the world. All hand-placed items, including uniques, can be found on Vvardenfell - except for one unique, which is in Mournhold. In Tamriel Rebuilt or the official add-ons, Katars and Knuckles can still be found in merchant stock and loot.
 - Conjured fist weapons change their looks based on your conjuration skill.
-- They take both hands, same as bare fists: your shield or torch comes off while they are out and goes back on once you put them away.
-- NPCs use them too, off-hand weapon and all - and so do armed creatures like dremora and skeletons. In third person the weapons have their own animations.
+- Properly animated in 1st and 3rd person.
+- Dual-wielding!
+- NPCs can use them too!
+- "Officially" Katars are shortblades and knuckledusters are blunt weapons, that's what you will see on a tooltip in the world. Note that tooltips should be correct in your inventory or inside containers if you are using [Inventory Extender](https://www.nexusmods.com/morrowind/mods/59205) and/or [QuickLoot](https://www.nexusmods.com/morrowind/mods/54950).
 
 If you want to know more details and know what to expect, look under the spoiler below, otherwise just play the game :)
 It's safe to open: everything inside is organised into smaller spoilers - every material has its own, and so does every unique's location - so you only see what you click on.
@@ -94,17 +96,17 @@ Silver Knuckles
 <details>
 <summary>Daedric</summary>
 
-Daedric Katars
-
-![Daedric Katars](imgs/screenshots/daedric_katars_hills.png)
-
-Daedric Knuckles
+Daedric Knuckles (low conjuration level)
 
 ![Daedric Knuckles](imgs/screenshots/daedric_knuckles_hills.png)
 
-Daedric Spiked Knuckles
+Daedric Spiked Knuckles (medium conjuration level)
 
 ![Daedric Spiked Knuckles](imgs/screenshots/daedric_spiked_knuckles_hills.png)
+
+Daedric Katars (high conjuration level)
+
+![Daedric Katars](imgs/screenshots/daedric_katars_hills.png)
 
 </details>
 
@@ -198,36 +200,31 @@ add `00 Core` as the data folder, and `01 Glass Glowset Patch` after it if you w
    - `Katars&Knuckles.omwaddon` - needs Tribunal and Bloodmoon.
    - `Katars&Knuckles_WorldPlacements.omwaddon` - puts the rare weapons, and a few others, in the world. Needs
      Tribunal and Bloodmoon.
-   - `Katars&Knuckles_TamrielRebuilt.omwaddon` - only with [Tamriel Rebuilt](https://www.nexusmods.com/morrowind/mods/42145), after it: puts the
-     weapons in Tamriel Rebuilt's levelled lists too. Needs [Tamriel Data](https://www.nexusmods.com/morrowind/mods/44537).
+   - `Katars&Knuckles_TamrielRebuilt.omwaddon` - only if you are using [Tamriel Rebuilt](https://www.nexusmods.com/morrowind/mods/42145), should be loaded after the Tamriel Rebuilt plugins: puts the
+     weapons in Tamriel Rebuilt's levelled lists too. Requires [Tamriel Data](https://www.nexusmods.com/morrowind/mods/44537).
    - `Katars&Knuckles.omwscripts`
-   - `Katars&Knuckles_Conjuration.omwscripts` - adds a corresponding conjuration spell and mechanics to some spell mentors.
+   - `Katars&Knuckles_Conjuration.omwscripts` - adds the matching conjuration spell, Bound Fist, to some spell merchants.
 
 4) OpenMW Launcher -> Settings -> Visuals -> Animations: "Use Additional Animation Sources" must be
 enabled.
 
-5) The weapons are added to the game's levelled lists - the ones merchants' stock, loot and enemies'
-weapons are rolled from. If you use other mods that edit those lists too, merge your lists once your
-load order is set, as you would for any such mods:
+5) The weapons are added to the game's levelled lists - "levelled lists" are a thing that determines enemy/chest loot and merchant stock. Unfortunately, when multiple mods edit the same lists, the changes don't automatically sum up - only the last change wins. There is a solution to that though. If you use other mods that edit those lists too, merge your lists once your
+load order is set using one of the following utilities:
    - Windows: [TES3Merge](https://github.com/NullCascade/TES3Merge) or
      [DeltaPlugin](https://gitlab.com/bmwinger/delta-plugin)
    - Linux: [DeltaPlugin](https://gitlab.com/bmwinger/delta-plugin)
 
 6) If you have the launcher's "Factor Strength into Hand-to-Hand Combat" option on (Settings -> Gameplay),
-set the mod's copy of it to match: Options -> Scripts -> Katars and Knuckledusters. The rest of the
-mod's settings are there too.
+this mod provides the identical setting in Options -> Scripts -> Katars & Knuckles. You should turn it ON if you want stamina damage to remain consistent between bare-fist H2H and H2H weapons.
 
 Optional:
 - [Unofficial Tamriel Rebuilt Spells](https://www.nexusmods.com/morrowind/mods/58693) - Bound Fist
-  then grows stronger with your Conjuration, following that mod's bound item settings (turn on its
-  "Scale bound items").
+  then grows stronger with your Conjuration, following that mod's bound item settings (if you have the
+  "Scale bound items" setting turned on in the Unofficial Tamriel Rebuilt Spells mod).
 - **PBR**: the weapons come with PBR maps (normal and specular), so metal and crystal catch the light
-  properly under [Wareya's PBR shaders](https://github.com/wareya/OpenMW-PBR/tree/0.51) - a small
-  replacement for OpenMW's own lighting shaders. Recommended together with
-  [Aesthetically Shiny Things](https://www.nexusmods.com/morrowind/mods/52114), which gives the rest
-  of the game the same treatment. OpenMW only picks the maps up with "Auto Use Object Normal Maps" and
-  "Auto Use Object Specular Maps" on (launcher: Settings -> Visuals -> Shaders). None of it is
-  required: without them the weapons look fine with OpenMW's default shaders.
+  properly under [Wareya's PBR shaders](https://github.com/wareya/OpenMW-PBR/tree/0.51). They will probably look off with [Rafael's Shader Pack](https://www.nexusmods.com/morrowind/mods/53667) PBR, but they should look fine without any PBR. PBR maps were made to match the overall vibes of
+  [Aesthetically Shiny Things](https://www.nexusmods.com/morrowind/mods/52114), which is also recommended. Launcher settings: "Auto Use Object Normal Maps" and
+  "Auto Use Object Specular Maps" should be ON (launcher: Settings -> Visuals -> Shaders).
 - [Glass Glowset](https://www.nexusmods.com/morrowind/mods/42762): tick "Glass Glowset Patch" in the
   installer (or add the `01 Glass Glowset Patch` folder after `00 Core`) and the glass katars fit its
   style - they glow like the rest of the glass set. Needs Glass Glowset installed.
@@ -236,14 +233,7 @@ Have fun!
 
 ## Mod compatibility
 
-- **Skeleton and body replacers**: compatible - no skeleton is replaced.
-- **[Tamriel Rebuilt](https://www.nexusmods.com/morrowind/mods/42145)**: its spell merchants teach Bound Fist too, and with
-  `Katars&Knuckles_TamrielRebuilt.omwaddon` its merchants, chests and NPCs deal the weapons as vanilla's do.
-- **[Oblivion-Style Spell Casting](https://www.nexusmods.com/morrowind/mods/58653)**: supported.
-- **Retextures**: vanilla textures are used as they are, so retexture packs carry over. [Glass Glowset](https://www.nexusmods.com/morrowind/mods/42762)
-  also puts its glow in the meshes; the optional patch above gives the glass katars theirs.
-- **Other animation mods**: fine, unless they also replace [ReAnimation](https://www.nexusmods.com/morrowind/mods/52596)'s one-handed attacks while a
-  katar or knuckleduster is in hand.
+Probably compatible with mostly everything. If your mod needs to know whether a weapon is actually an H2H weapon or not (instead of the official short blade/blunt, as the engine sees them), there's a Lua API that can provide this information - see the "For modders" section below.
 
 ## Credits
 
@@ -251,17 +241,13 @@ Have fun!
 - Textures: Bethesda (Morrowind, Tribunal, Bloodmoon)
 - Detail normal map in the baked metals: [Metal 061 B](https://ambientcg.com/view?id=Metal061B) from
   ambientCG, CC0
-- Glow maps of the Glass Glowset patch: Solidfire's [Glass Glowset](https://www.nexusmods.com/morrowind/mods/42762)
-  (not included - the patch uses them from that mod)
 - NIF library: [Greatness7](https://github.com/Greatness7/io_scene_mw)
 - ["Rose"](https://skfb.ly/oWDnS) by Lisa3Dart - Hespera_3d is licensed under
   [Creative Commons Attribution](http://creativecommons.org/licenses/by/4.0/).
 
 ## For modders
 
-Your own weapons can work the way katars and knuckledusters do - or be a different kind of hybrid: a
-mace that trains Blunt Weapon and Destruction, a spear only as good as the weaker of Spear and
-Conjuration. No scripting needed, one small definition file per weapon. All of it is documented in the
+Your own weapons can work the way katars and knuckledusters do - or be another kind of exotic weapon based on a mixture of any 2 skills. No scripting needed, one small definition file per weapon. All of it is documented in the
 [git repository](https://github.com/MaxYari/Katars-KnucklesOpenMW#for-modders), along with the
 mod's source and the tools that build it. If you are already reading this on git - just read below.
 

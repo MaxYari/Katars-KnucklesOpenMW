@@ -1,5 +1,8 @@
-page_name: "Katars and Knuckledusters"
+page_name: "Katars & Knuckles"
 page_description: "Hand-to-hand weapons: katars and knuckledusters, swung with the Hand to Hand skill."
+
+# The banner's group and its one row, both nameless: the picture is all there is to them.
+banner: ""
 
 settings_group: "Hand-to-Hand Weapons"
 settings_group_description: |-
@@ -15,16 +18,6 @@ strength_influences_description: |-
 off: "Off"
 on: "Affect Werewolves"
 onExceptWerewolves: "Do Not Affect Werewolves"
-
-show_off_hand_weapon: "Show the off-hand weapon"
-show_off_hand_weapon_description: |-
-  Put a second copy of the weapon in the left hand. It hangs off a bone this mod adds to the game's
-  skeletons, which needs "Use Additional Animation Sources" on in the launcher.
-
-silence_draw_sound: "Silence the draw and sheathe sound"
-silence_draw_sound_description: |-
-  These are officially short blades and blunt weapons, so the engine plays their draw and sheathe
-  sound. Bare hands make none, and neither should these - or any weapon whose definition says so.
 
 # The weapon type line names a hybrid weapon by its two skills: "Hand-to-hand (Short Blade)".
 tooltip_type: "%{primarySkill} (%{secondarySkill})"

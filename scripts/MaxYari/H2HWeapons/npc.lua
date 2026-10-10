@@ -33,12 +33,10 @@ local carriedLeft = require(mp .. "scripts/carriedleft")
 local hands = require(mp .. "scripts/hands")
 local roseState = require(mp .. "scripts/rose")
 local swingCopy = require(mp .. "scripts/swingcopy")
-local settings = require(mp .. "scripts/settings")
 local swing = require(mp .. "scripts/swing")
 local U = require(mp .. "scripts/uniques")
 local weapons = require(mp .. "scripts/weapons")
 
-local cfg = settings.values
 local CARRIED_RIGHT = types.Actor.EQUIPMENT_SLOT.CarriedRight
 local WEAPON_STANCE = types.Actor.STANCE.Weapon
 
@@ -79,7 +77,7 @@ local owner = string.lower(omwself.recordId) == U.ROSE_OWNER
 
 local function refresh()
     if not active then return end
-    local item = shown and cfg.showOffHandWeapon and weapon() or nil
+    local item = shown and weapon() or nil
     local hybrid = item and handToHand(item)
     local model = hybrid and hybrid.model or nil
     onBones.attach(OFF_HAND, model)
@@ -167,7 +165,7 @@ end
 local SILENCE_AT = { 0.01, 0.03, 0.06, 0.1, 0.15 }
 
 local function silence(hybrid)
-    if not (hybrid and hybrid.silentDraw and cfg.silenceDrawSound) then return end
+    if not (hybrid and hybrid.silentDraw) then return end
     local sounds = hybrid.drawSounds
     local function stop()
         core.sound.stopSound3d(sounds[1], omwself)

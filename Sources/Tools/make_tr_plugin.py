@@ -82,7 +82,7 @@ def build(morrowind, tamriel_data, katar):
     records = b"".join(mp.levi_record(lists[key], extra) for key, extra in sorted(additions.items()))
 
     author = b"Max Yari".ljust(32, b"\0")
-    description = b"Katars and Knuckledusters - in Tamriel Rebuilt's levelled lists.".ljust(256, b"\0")
+    description = b"Katars & Knuckles - in Tamriel Rebuilt's levelled lists.".ljust(256, b"\0")
     hedr = struct.pack("<fi", 1.3, 0) + author + description + struct.pack("<i", len(additions))
     header = sub("HEDR", hedr) + master_records([morrowind, tamriel_data, katar])
     return record("TES3", header) + records, additions

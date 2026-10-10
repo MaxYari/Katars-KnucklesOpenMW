@@ -695,7 +695,7 @@ def build(master_paths, meshes_dir):
     records += b"".join(rec for _key, _extra, rec in containers)
 
     author = b"Max Yari".ljust(32, b"\0")
-    description = b"Katars and Knuckledusters - hand-to-hand weapons.".ljust(256, b"\0")
+    description = b"Katars & Knuckles - hand-to-hand weapons.".ljust(256, b"\0")
     hedr = struct.pack("<fi", 1.3, 0) + author + description \
         + struct.pack("<i", len(items) + len(enchantments) + len(spells) + len(NOTES) + len(additions)
                       + len(containers))

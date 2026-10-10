@@ -1,6 +1,6 @@
 # Katars tools
 
-The scripts that build Katars and Knuckledusters' plugins, hybrid definitions, animations, off-hand
+The scripts that build Katars & Knuckles' plugins, hybrid definitions, animations, off-hand
 bone and effects. None of them ship with the mod. The Blender scripts that bake the textures and
 export the meshes, and the release tooling, are in [tools/](../../tools/README.md); how everything
 works is in the [technical notes](../DEVELOPMENT.md).

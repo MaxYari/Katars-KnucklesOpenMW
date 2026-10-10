@@ -45,7 +45,7 @@ if not core.contentFiles.has("ReAnimation_API.omwscripts") then
     if types.Player.objectIsInstance(omwself) then
         print("[H2HWeapons] ERROR: ReAnimation is missing. It is a hard dependency - without it these " ..
             "weapons have no animations of their own.")
-        require('openmw.ui').showMessage("Katars and Knuckledusters: ReAnimation is missing, please install it.")
+        require('openmw.ui').showMessage("Katars & Knuckles: ReAnimation is missing, please install it.")
     end
     return
 end

@@ -327,17 +327,6 @@ settle()
 check(st.vfxById["H2HWeapons_OffHand"] ~= nil and st.vfxById["H2HWeapons_Charge_R"] ~= nil,
       "a teleport re-attaches everything")
 
--- No off-hand weapon, no off-hand glow.
--- The same module instance the scripts use: they require it by its slash path.
-local cfg = require("scripts/MaxYari/H2HWeapons/scripts/settings").values
-cfg.showOffHandWeapon = false
-onUpdate(0.016)
-check(st.vfxById["H2HWeapons_OffHand"] == nil and st.vfxById["H2HWeapons_Charge_L"] == nil,
-      "with the off-hand weapon off, the left hand is empty")
-check(st.vfxById["H2HWeapons_Charge_R"] ~= nil, "and the right still glows")
-cfg.showOffHandWeapon = true
-onUpdate(0.016)
-
 -- Someone else's skeleton, without the off-hand bone: the right hand still works, nothing throws.
 st.bones["Weapon Bone.L"] = nil
 st.cameraMode = 1

@@ -9,3 +9,5 @@ PLAYER: scripts/MaxYari/H2HWeapons/player.lua
 NPC, CREATURE: scripts/MaxYari/H2HWeapons/npc.lua
 NPC, CREATURE, PLAYER: scripts/MaxYari/H2HWeapons/actor.lua
 NPC, CREATURE, PLAYER: scripts/MaxYari/H2HWeapons/animations.lua
+# The banner on the settings page: setting renderers can only be registered in the menu.
+MENU: scripts/MaxYari/H2HWeapons/menu.lua

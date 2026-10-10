@@ -105,14 +105,6 @@ st.vfxById = {}
 fire("H2HWeapons_Reattach", {})
 check(offHand() ~= nil, "after the player rests nearby it goes back on")
 
-local section = stubs.section("SettingsGlobalH2HWeapons")
-section:set("showOffHandWeapon", false)
-stubs.advance(0.6)
-check(offHand() == nil, "the setting to show it is followed")
-section:set("showOffHandWeapon", true)
-stubs.advance(0.6)
-check(offHand() ~= nil, "both ways")
-
 -- Out of the world, nothing is touched.
 E.onInactive()
 st.vfxById = {}

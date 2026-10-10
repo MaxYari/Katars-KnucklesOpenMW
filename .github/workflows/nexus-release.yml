@@ -56,8 +56,8 @@ env:
   NEXUS_PAGE: https://www.nexusmods.com/morrowind/mods/CHANGEME
   NEXUSMODS_FILE_ID: "CHANGEME"
   NEXUSMODS_MOD_ID: "CHANGEME"
-  FILE_DISPLAY_NAME: Katars and Knuckledusters - OpenMW
-  ZIP_NAME: KatarsAndKnuckledusters
+  FILE_DISPLAY_NAME: Katars & Knuckles - OpenMW
+  ZIP_NAME: KatarsAndKnuckles
   VERSION_SOURCE: scripts/MaxYari/H2HWeapons/player.lua
 
 jobs:

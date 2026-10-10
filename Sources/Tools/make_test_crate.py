@@ -170,7 +170,7 @@ def main():
     ids = item_ids()
 
     author = b"Max Yari".ljust(32, b"\0")
-    description = b"FOR TESTING ONLY: a crate of every Katars item by the Seyda Neen lighthouse.".ljust(256, b"\0")
+    description = b"FOR TESTING ONLY: a crate of every Katars & Knuckles item by the Seyda Neen lighthouse.".ljust(256, b"\0")
     hedr = struct.pack("<fi", 1.3, 0) + author + description + struct.pack("<i", 2)
     tes3 = sub("HEDR", hedr)
     for master in (args.master, args.plugin):
