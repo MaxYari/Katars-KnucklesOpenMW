@@ -14,14 +14,16 @@ and the equip ("katar", "kataralt") at "handtohand", everything else ("runforwar
 
 Re-run it after any first-person change (after export_katar_anims.py):
 
-    python3 Sources/Tools/make_fba_compat.py [--reanimation DIR] [--fba DIR]
+    python3 Sources/Tools/make_fba_compat.py [--reanimation DIR] [--fba DIR] [-o DIR]
 
 Needs FBA installed (found from openmw.cfg) and ReAnimation's source folder next to this mod.
 """
 import argparse
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.normpath(os.path.join(HERE, "..", ".."))
@@ -45,19 +47,34 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--reanimation", help="ReAnimation's folder (has Sources/Tools/FBACompat)")
     ap.add_argument("--fba", help="FBA's folder, if openmw.cfg does not list it")
+    ap.add_argument("-o", "--out", default=OUT,
+                    help="the folder to write to (default: 02 FBA Compatibility/Animations/xbase_anim.1st)")
     args = ap.parse_args()
     builder = os.path.join(find_reanimation(args.reanimation), "Sources", "Tools", "FBACompat", "build_compat.py")
-    # Only what the builder writes: a kf dropped from 00 Core must not linger here.
-    if os.path.isdir(OUT):
-        for name in os.listdir(OUT):
+    # Built aside and moved in only once the builder has succeeded, so a failed run leaves the patch
+    # as it was.
+    scratch = tempfile.mkdtemp(prefix="katars_fba_")
+    try:
+        cmd = [sys.executable, builder, "-y", "--anims", ANIMS, "--out", scratch]
+        for alias in ALIASES:
+            cmd += ["--alias", alias]
+        if args.fba:
+            cmd += ["--fba", args.fba]
+        code = subprocess.call(cmd)
+        built = sorted(n for n in os.listdir(scratch) if n.lower().endswith(".kf"))
+        if code or not built:
+            sys.exit("the FBA builder %s - %s left as it was"
+                     % ("failed" if code else "wrote nothing", args.out))
+        # Only what the builder writes: a kf dropped from 00 Core must not linger here.
+        os.makedirs(args.out, exist_ok=True)
+        for name in os.listdir(args.out):
             if name.lower().endswith(".kf"):
-                os.remove(os.path.join(OUT, name))
-    cmd = [sys.executable, builder, "-y", "--anims", ANIMS, "--out", OUT]
-    for alias in ALIASES:
-        cmd += ["--alias", alias]
-    if args.fba:
-        cmd += ["--fba", args.fba]
-    sys.exit(subprocess.call(cmd))
+                os.remove(os.path.join(args.out, name))
+        for name in built:
+            shutil.copyfile(os.path.join(scratch, name), os.path.join(args.out, name))
+        print("wrote %d file(s) to %s" % (len(built), args.out))
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
 
 
 if __name__ == "__main__":

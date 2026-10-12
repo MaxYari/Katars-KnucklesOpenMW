@@ -32,15 +32,41 @@ bake, moveset builder and export, Weapon Bone.L and the SoundGenRef footsteps st
 blend - and checks their step cycles, footsteps and loop lengths against the one-handed set's. The
 export changes the file in memory, so --save saves first.
 
+From Blender: set OPTIONS below, then Text Editor > Open this file, Run Script. Headless:
     blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/make_katar_1h_movement.py -- \\
         --save --export "00 Core/Animations/xbase_anim.1st"
 """
+import importlib
 import os
 import sys
 
 import bpy
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+# What a run from the Text Editor does. Run headless, the command line after "--" says instead.
+# Relative folders are the repository's.
+OPTIONS = {
+    "save": False,          # save the .blend once the two are made, before any export
+    "export": None,         # export them too, into this folder: "00 Core/Animations/xbase_anim.1st"
+    "reanimation": None,    # ReAnimation's repository, if it is not in a folder next to this one
+}
+
+
+def _tools_dir():
+    """Where this file is. Run from the Text Editor, __file__ is the .blend's path with the text's
+    name on the end, so beside the opened file and Sources/Tools next to the .blend are tried too."""
+    candidates = [os.path.dirname(os.path.abspath(__file__))]
+    text = bpy.data.texts.get(os.path.basename(__file__))
+    if text is not None and text.filepath:
+        candidates.append(os.path.dirname(os.path.abspath(bpy.path.abspath(text.filepath))))
+    if bpy.data.filepath:
+        candidates.append(os.path.join(os.path.dirname(bpy.data.filepath), "Sources", "Tools"))
+    for folder in candidates:
+        if os.path.isfile(os.path.join(folder, "make_katar_1h_movement.py")):
+            return folder
+    raise ImportError("Sources/Tools not found -- looked in " + ", ".join(candidates))
+
+
+HERE = _tools_dir()
 MOD = os.path.normpath(os.path.join(HERE, "..", ".."))
 
 # Frames are the source cycle's. `start` is the phase of the cycle the loop starts at, `lead_in` how
@@ -66,14 +92,29 @@ MAX_STEP_OFF = 0.02
 KEY_PROPERTIES = ("interpolation", "easing", "type", "amplitude", "back", "period")
 
 
+def script_argv():
+    """The command line after "--" when Blender was started with --python this file, else None: run
+    from the Text Editor, what Blender itself was started with is not this script's."""
+    argv = sys.argv
+    if "--" not in argv or not any(os.path.basename(a) == os.path.basename(__file__)
+                                   for a in argv[:argv.index("--")]):
+        return None
+    return argv[argv.index("--") + 1:]
+
+
 def args():
-    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    argv = script_argv()
+    if argv is None:
+        return {name: os.path.join(MOD, value) if value and isinstance(value, str) else value
+                for name, value in OPTIONS.items()}
     out = {"save": False, "export": None, "reanimation": None}
     i = 0
     while i < len(argv):
         if argv[i] == "--save":
             out["save"] = True
         elif argv[i] in ("--export", "--reanimation"):
+            if i + 1 == len(argv):
+                raise RuntimeError("%s needs a folder" % argv[i])
             out[argv[i][2:]] = os.path.abspath(argv[i + 1])
             i += 1
         i += 1
@@ -88,7 +129,8 @@ def find_reanimation(given):
         if name.lower().startswith("reanimation") and os.path.isfile(
                 os.path.join(mods, name, "Sources", "build_moveset_action.py")):
             return os.path.join(mods, name)
-    sys.exit("ReAnimation's source folder not found next to this mod - give it with --reanimation")
+    raise RuntimeError("ReAnimation's source folder not found next to this mod (in %s) - give it with "
+                       "--reanimation" % mods)
 
 
 def fcurves(action):
@@ -133,7 +175,7 @@ def cut(keys, frame):
         middle = dict(a, co=(frame, value), left=(frame, value), right=(frame, value))
         return keys[:i + 1] + [middle] + keys[i + 1:]
     if kind != "BEZIER":
-        sys.exit("no way to cut a %s segment" % kind)
+        raise RuntimeError("no way to cut a %s segment" % kind)
     p0, p1, p2, p3 = a["co"], a["right"], b["left"], b["co"]
     h1, h2 = p0[0] - p1[0], p3[0] - p2[0]
     span, reach = p3[0] - p0[0], abs(h1) + abs(h2)
@@ -231,7 +273,8 @@ def lay_out_markers(source, target, period, layout):
         if colon and group.strip().lower() == layout["group"].lower():
             key = text.strip().lower()
             if key not in at:
-                sys.exit("%r: no place for %r in the one-handed layout" % (source.name, marker.name))
+                raise RuntimeError("%r: no place for %r in the one-handed layout"
+                                   % (source.name, marker.name))
             target.pose_markers.new("%s: %s" % (layout["new_group"], text.strip())).frame = \
                 round(at[key] * scale)
         elif 0 < marker.frame <= period:
@@ -241,8 +284,8 @@ def lay_out_markers(source, target, period, layout):
                 if lead_in < frame <= end:
                     target.pose_markers.new(marker.name).frame = round(frame * scale)
         else:
-            sys.exit("%r: marker %r at frame %d is outside the cycle" % (source.name, marker.name,
-                                                                          marker.frame))
+            raise RuntimeError("%r: marker %r at frame %d is outside the cycle"
+                               % (source.name, marker.name, marker.frame))
 
 
 def check_curves(source, target, period, layout):
@@ -262,18 +305,18 @@ def check_curves(source, target, period, layout):
                 worst, where = err, "%s[%d] at frame %g" % (fc.data_path, fc.array_index, frame)
     print("the laid-out curves are the cycle's to within %.2g (worst: %s)" % (worst, where))
     if worst > TOLERANCE:
-        sys.exit("%r does not follow the cycle" % target.name)
+        raise RuntimeError("%r does not follow the cycle" % target.name)
 
 
 def make_action(layout):
     source = bpy.data.actions.get(layout["source"])
     if source is None:
-        sys.exit("no %r to lay out" % layout["source"])
+        raise RuntimeError("no %r to lay out" % layout["source"])
     spans = {(fc.keyframe_points[0].co[0], fc.keyframe_points[-1].co[0])
              for fc in fcurves(source) if is_cyclic(fc)}
     if len(spans) != 1 or next(iter(spans))[0] != 0:
-        sys.exit("%r: its cycling curves do not all run from frame 0 to one end - %s"
-                 % (source.name, spans))
+        raise RuntimeError("%r: its cycling curves do not all run from frame 0 to one end - %s"
+                           % (source.name, spans))
     period = int(next(iter(spans))[1])
 
     name = layout["target"]
@@ -303,8 +346,8 @@ def make_action(layout):
         else:
             laid = hold(keys, period, layout)
             if laid is None:
-                sys.exit("%s[%d] neither cycles nor holds still - no way to lay it out"
-                         % (fc.data_path, fc.array_index))
+                raise RuntimeError("%s[%d] neither cycles nor holds still - no way to lay it out"
+                                   % (fc.data_path, fc.array_index))
         write(fc, laid)
 
     lay_out_markers(source, target, period, layout)
@@ -321,13 +364,16 @@ def make_action(layout):
 def export(layouts, out_dir, reanimation):
     """Through export_katar_anims.py, which exports every katar action the same way and checks these
     two against the one-handed set's loops."""
-    sys.path.insert(0, HERE)
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
     import export_katar_anims
+    export_katar_anims = importlib.reload(export_katar_anims)
     export_katar_anims.export_actions([layout["target"] for layout in layouts], out_dir, reanimation)
 
 
 def loops(path):
     """{group: (start, loop start, loop stop, stop, [footstep times after start, up to stop])}"""
+    import es3_path  # noqa: F401  (puts the es3 library on the path)
     from es3.nif import NiStream, NiTextKeyExtraData
     stream = NiStream()
     stream.load(path)
@@ -370,7 +416,7 @@ def check_loops(ours_path, theirs_path):
         if abs(length_off) > MAX_LENGTH_OFF or step_off > MAX_STEP_OFF:
             off.append("%s: too far off %s" % (group, their_group))
     if off:
-        sys.exit("not laid out as %s:\n  %s" % (os.path.basename(theirs_path), "\n  ".join(off)))
+        raise RuntimeError("not laid out as %s:\n  %s" % (os.path.basename(theirs_path), "\n  ".join(off)))
     print("laid out as %s" % os.path.basename(theirs_path))
 
 
@@ -386,4 +432,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except RuntimeError as exc:
+        print("ERROR: %s" % exc)
+        if not bpy.app.background:
+            raise
+        raise SystemExit(1)

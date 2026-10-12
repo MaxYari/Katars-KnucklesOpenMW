@@ -2,8 +2,11 @@
 
 Three Blender scripts that make the weapons' textures and meshes, all safe to
 re-run, a file-manager helper, and the tools that make the release (below).
-`mw_paint_prep.py` is meant to be run from Blender's Text Editor as well as
-headless. The scripts for the plugins, animations and the off-hand bone are in
+The Blender scripts run headless as below, or from Blender's Text Editor in
+the file you have open: Open the script there and Run Script. Flags cannot be
+passed that way, so they go in `RUN_OPTIONS` at the top of the script; what
+happened shows in a popup, and in full in the system console. The scripts for
+the plugins, animations and the off-hand bone are in
 [Sources/Tools](../Sources/Tools/README.md). None of this ships with the mod.
 
 ```
@@ -18,7 +21,10 @@ BLENDER=<path to Blender 5.1>/blender
 
 Work on a **copy** of the source .blend. Blender's auto-running addons (Auto-Rig
 Pro, Anvil, BlenderKit) can write to whatever file they open, so never point
-these at the file you care about.
+these at the file you care about. Keep the copy in the repository root, as
+`Katars_bake_work.blend` is: the outputs, the detail normal map in `Sources/`
+and the Aesthetically Shiny Things lookup are all found from the .blend's
+folder.
 
 ## mw_bake.py
 
@@ -33,8 +39,12 @@ Picks up any mesh object with `[Bake]` in its name and:
    Cycles' `EMIT` bake copies it verbatim — no lighting, no colour shift.
 3. Writes `<name>_spec.dds`, the OpenMW-PBR map (**R = metalness, G = roughness,
    B = ambient occlusion**) — the same convention "Aesthetically Shiny Things"
-   uses. Values are read straight out of that mod when the source texture has a
-   counterpart there, otherwise from the keyword table in `CONFIG`.
+   uses. Values come from the material's tags (or its `mw_spec` property); an
+   untagged material is plain non-metal. With `untagged_mode` set to `"guess"`
+   in `CONFIG`, an untagged one instead takes its values from Aesthetically
+   Shiny Things, when the source texture has a counterpart there (the mod is
+   looked for in the folder beside the repository), and otherwise from the
+   keyword table in `CONFIG`.
 4. For objects also tagged `[NormGen]`, derives `<name>_n.dds` from the baked
    albedo (local luminance → sobel → normal). This is *not* a high-to-low bake.
    The luminance is high-passed island by island, from each island's own texels,
@@ -100,10 +110,13 @@ kept as `<name>_previous.png`. Image > Save (Alt+S) writes the painting.
 
 ## mw_export.py
 
-Each weapon is one root EMPTY with its parts parented under it. For each one the
-script moves the empty to the origin, exports the whole hierarchy through
-io_scene_mw, and puts the empty back. By default it only touches weapons that
-own a `[Bake]` object; `--all` does every root empty that has meshes.
+Each weapon is one EMPTY with its parts parented under it, and every empty
+sitting directly in the `Exports` collection is exported (`--collection NAME`
+for another one): drag an empty in or out of it to change what ships. For each
+one the script moves the empty to the origin, exports the whole hierarchy
+through io_scene_mw to `00 Core/meshes/<name>.nif`, and puts the empty back. The
+open file is left as it was. `--only NAME` limits it to empties whose name
+contains NAME, and `--list` shows what would be exported.
 
 Existing .nif files are skipped unless you pass `--overwrite`.
 
@@ -143,7 +156,7 @@ len(m.mw.texture_slots)     # 0      -> broken
 To fix the whole file:
 
 ```python
-import sys; sys.path.insert(0, "tools")
+import sys; sys.path.insert(0, bpy.path.abspath("//tools"))
 import mw_bake; mw_bake.repair_all_materials()
 ```
 
@@ -154,30 +167,35 @@ manager, which has no DDS plugin on SteamOS: it writes the thumbnails into
 `~/.cache/thumbnails` itself. Needs ImageMagick (`magick`).
 
 ```
-python3 tools/mw_thumbnails.py                  # textures/katars
+python3 tools/mw_thumbnails.py                  # "00 Core/textures/katars"
 python3 tools/mw_thumbnails.py DIR [DIR ...]
 python3 tools/mw_thumbnails.py --force DIR      # rebuild even if current
 ```
 
 ## The release
 
-`build_nexus_zip.sh` packs the Nexus archive: every file committed to git,
+`build_nexus_zip.sh` packs the Nexus archive: every file of the last commit,
 minus what `.nexusignore` matches - the docs, images, sources and every tool
-here and in `Sources/Tools`. It lays the archive out BAIN-style: the mod under
+here and in `Sources/Tools`. Uncommitted changes are not packed; a warning names
+the files they touch. It lays the archive out BAIN-style: the mod under
 `00 Core/`, and each top-level `NN Name` folder of the repository (an optional
 patch, such as `01 Glass Glowset Patch/`) and `fomod/` (the installer mod
 organisers show, which explains the patches) as they are.
 
 ```
 bash tools/build_nexus_zip.sh && unzip -l nexus-upload.zip
+bash tools/build_nexus_zip.sh /tmp/test.zip     # somewhere else
 ```
 
 `readme_to_nexus.py` turns `README.md` into the Nexus page's BBCode,
-`README.nexus.bbcode`, with image and link paths made into GitHub URLs. Text
-between `<!-- nexus-skip-start -->` and `<!-- nexus-skip-end -->` is left out,
-which is how the modders' section shrinks to a link on Nexus. The pre-commit
-hook in `.githooks` keeps the file in step (`git config core.hooksPath .githooks`
-once per clone):
+`README.nexus.bbcode`, with image and link paths made into GitHub URLs on
+`main` (`--ref` picks another branch, tag or commit). Text between
+`<!-- nexus-skip-start -->` and `<!-- nexus-skip-end -->` is left out, which is
+how the modders' section shrinks to a link on Nexus; a marker without its pair
+stops the script. A YouTube thumbnail linked to its video,
+`[![Demo](https://img.youtube.com/vi/<id>/maxresdefault.jpg)](https://www.youtube.com/watch?v=<id>)`,
+becomes the embedded video on Nexus. The pre-commit hook in `.githooks` keeps the file in step with
+the README as committed (`git config core.hooksPath .githooks` once per clone):
 
 ```
 python3 tools/readme_to_nexus.py -o README.nexus.bbcode

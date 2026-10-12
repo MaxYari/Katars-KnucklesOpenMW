@@ -11,10 +11,12 @@ about its blade, which only the track carries. Translations and their tangents a
 rotations are quaternions, where conjugating by a reflection maps the axis through it and negates
 the angle. Copying the track across unchanged buries the weapon in the forearm.
 
-Run it after every export; it replaces an existing Weapon Bone.L track rather than stacking another.
+The katar's own animations carry the track already - the blend keys Weapon Bone.L, and
+export_katar_anims.py exports it - so this is for anyone else's animations. It replaces an existing
+Weapon Bone.L track rather than stacking another.
 
     python3 mirror_weapon_track.py <file.kf or directory> ...
-    python3 mirror_weapon_track.py Animations/xbase_anim.1st
+    python3 mirror_weapon_track.py "<another mod>/Animations/xbase_anim.1st"
 
 A Morrowind .kf is a NiSequenceStreamHelper whose NiStringExtraData chain names the targets and
 whose NiKeyframeController chain animates them, paired in order - so a new track is one of each,
@@ -31,36 +33,15 @@ SOURCE_BONE = "Weapon Bone"
 BONE = "Weapon Bone.L"
 
 
-def find_lib():
-    """es3 ships inside Greatness7's Blender add-on; use it wherever it is installed."""
-    for root in (
-        os.environ.get("IO_SCENE_MW", ""),
-        os.path.expanduser("~/.config/blender"),
-        os.path.expanduser("~/Library/Application Support/Blender"),
-        os.path.expanduser("~/AppData/Roaming/Blender Foundation/Blender"),
-    ):
-        if not root:
-            continue
-        if os.path.isdir(os.path.join(root, "es3")):
-            return root
-        for dirpath, dirnames, _ in os.walk(root):
-            if os.path.basename(dirpath) == "lib" and "es3" in dirnames:
-                return dirpath
-    return None
-
-
-lib = find_lib()
-if lib and lib not in sys.path:
-    sys.path.append(lib)
-
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import es3_path  # noqa: E402  (puts the es3 library on the path)
 import mirror_bone  # noqa: E402  (needs the path set up above)
 
 try:
-    from es3.nif import NiKeyframeController, NiStringExtraData, NiStream
-except ImportError:
-    sys.exit("Could not find the es3 library. Install Greatness7's io_scene_mw Blender add-on, or "
-             "point IO_SCENE_MW at its 'lib' folder.")
+    from es3.nif import NiKeyframeController, NiStringExtraData, NiStream  # noqa: E402
+except ImportError as exc:
+    # Not sys.exit: Blender scripts import this, and an exit there is not theirs to take.
+    raise ImportError(es3_path.MISSING % exc) from exc
 
 
 def chain(obj, first):

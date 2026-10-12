@@ -8,7 +8,9 @@ WHAT IT EXPORTS
     collection in Blender.
 
     Each empty is moved to the world origin for the export and put back
-    afterwards, so the display layout in the blend does not matter.
+    afterwards, so the display layout in the blend does not matter. Whatever
+    else the export changes -- parenting, alpha settings, selection, hidden
+    objects, the mode -- is put back too, so the open file ends as it started.
 
 OUTPUT NAME
     <empty name> slugified, so "Daedric Knuckle Sharp" becomes
@@ -36,22 +38,60 @@ USAGE
     blender -b your.blend --python tools/mw_export.py
     blender -b your.blend --python tools/mw_export.py -- --overwrite
 
+    or from Blender's Text Editor: Open > tools/mw_export.py, Run Script.
+    Flags cannot be passed there: set RUN_OPTIONS below instead. mw_bake.py is
+    found beside the opened file or in tools/ next to the .blend.
+
     --overwrite       replace .nif files that already exist (default: skip them)
     --only NAME       only weapons whose empty name contains NAME
     --collection NAME use a different collection (default: Exports)
-    --outdir DIR      write somewhere other than <blend>/meshes
+    --outdir DIR      write somewhere other than "00 Core/meshes" next to the .blend
     --list            show what would be exported and stop
     --help            this text
 """
 
+import importlib
 import pathlib
 import re
 import sys
 
 import bpy
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+# What the flags would say, for a run from Blender's Text Editor.
+RUN_OPTIONS = {
+    "overwrite": False,   # --overwrite
+    "only": None,         # --only NAME
+    "collection": None,   # --collection NAME
+    "outdir": None,       # --outdir DIR
+    "list": False,        # --list
+}
+
+
+def _tools_dir():
+    """The folder holding mw_bake.py.
+
+    Run from the Text Editor, __file__ is the .blend's path with the text's
+    name on the end, so it is looked for beside the file the text was opened
+    from, then in tools/ next to the .blend.
+    """
+    here = pathlib.Path(__file__)
+    candidates = [here.resolve().parent]
+    text = bpy.data.texts.get(here.name)
+    if text is not None and text.filepath:
+        candidates.append(pathlib.Path(bpy.path.abspath(text.filepath)).resolve().parent)
+    if bpy.data.filepath:
+        candidates.append(pathlib.Path(bpy.data.filepath).resolve().parent / "tools")
+    for folder in candidates:
+        if (folder / "mw_bake.py").is_file():
+            return folder
+    raise ImportError("mw_bake.py not found -- looked in " + ", ".join(str(c) for c in candidates))
+
+
+if str(_tools_dir()) not in sys.path:
+    sys.path.insert(0, str(_tools_dir()))
 import mw_bake  # noqa: E402
+# A second run in the same Blender session would otherwise keep the first one's copy.
+mw_bake = importlib.reload(mw_bake)
 
 CONFIG = {
     # Case-insensitive; the first one that exists is used.
@@ -75,11 +115,21 @@ CONFIG = {
 }
 
 
+# What the popup at the end of a run from the Text Editor shows: the error, or
+# the summary.
+REPORT = []
+
+
+class Abort(Exception):
+    """Stops the run. Not SystemExit: from the Text Editor that can close Blender."""
+
+
 def log(msg=""):
     print(f"[mw_export] {msg}" if msg else "")
 
 
 def die(message, detail=None):
+    REPORT[:] = [f"ERROR: {message}", *(detail or [])]
     log("")
     log(f"ERROR: {message}")
     if detail:
@@ -87,7 +137,7 @@ def die(message, detail=None):
             log(f"  {line}")
     log("")
     log("Run with --help for the full description.")
-    raise SystemExit(1)
+    raise Abort(message)
 
 
 def nif_name(empty):
@@ -144,8 +194,12 @@ def collect_weapons(coll, only=None):
 
 
 def apply_alpha(objects):
-    """Turn on alpha blending where a material's name asks for it. Work copy only."""
-    done = []
+    """Turn on alpha blending where a material's name asks for it.
+
+    Returns what the materials had before, for restore_alpha() to put back
+    after the export.
+    """
+    done, saved = [], {}
     for obj in objects:
         for slot in obj.material_slots:
             mat = slot.material
@@ -158,6 +212,8 @@ def apply_alpha(objects):
             if not (blend or clip):
                 continue
             try:
+                if mat.name not in saved:
+                    saved[mat.name] = save_alpha(mat)
                 if clip:
                     mat.mw.use_alpha_clip = True
                 else:
@@ -171,6 +227,29 @@ def apply_alpha(objects):
                 log(f"  !! could not set alpha on {mat.name!r}: {exc}")
     for entry in sorted(set(done)):
         log(f"  alpha: {entry}")
+    return list(saved.values())
+
+
+# What io_scene_mw's use_alpha_blend / use_alpha_clip / alpha settings write
+# underneath: the material's blend mode, and the MW shader's inputs and flags.
+MATERIAL_ALPHA_STATE = ("blend_method", "surface_render_method")
+MW_ALPHA_STATE = ("alpha_flags", "alpha_factor", "alpha")
+
+
+def save_alpha(mat):
+    material = [(name, getattr(mat, name)) for name in MATERIAL_ALPHA_STATE if hasattr(mat, name)]
+    mw = [(name, getattr(mat.mw, name)) for name in MW_ALPHA_STATE]
+    return mat, material, mw
+
+
+def restore_alpha(saved):
+    for mat, material, mw in saved:
+        # The raw values, not the use_alpha_* switches: their setters write
+        # several of these at once.
+        for name, value in material:
+            setattr(mat, name, value)
+        for name, value in mw:
+            setattr(mat.mw, name, value)
 
 
 def flatten_mesh_parenting(empty):
@@ -182,8 +261,9 @@ def flatten_mesh_parenting(empty):
     does not appear in game.
 
     Parenting meshes under meshes is a perfectly reasonable way to organise a
-    blend, so rather than refuse it, the hierarchy is flattened here (work copy
-    only) with world transforms preserved.
+    blend, so rather than refuse it, the hierarchy is flattened here for the
+    export, with world transforms preserved. Returns what each moved object had
+    before, for restore_parenting() to put back afterwards.
     """
     moved = []
     for obj in list(empty.children_recursive):
@@ -195,16 +275,31 @@ def flatten_mesh_parenting(empty):
         if target is None:
             target = empty
         world = obj.matrix_world.copy()
-        old_parent = obj.parent.name
+        moved.append((obj, obj.parent, obj.matrix_parent_inverse.copy(),
+                      [(name, tuple(getattr(obj, name))) for name in TRANSFORM]))
         obj.parent = target
         obj.matrix_parent_inverse = target.matrix_world.inverted()
         obj.matrix_world = world
-        moved.append((obj.name, old_parent, target.name))
 
-    for name, was, now in moved:
-        log(f"  re-parented {name!r}: {was!r} -> {now!r} "
+    for obj, was, _inverse, _transform in moved:
+        log(f"  re-parented {obj.name!r}: {was.name!r} -> {obj.parent.name!r} for the export "
             f"(a NiTriShape cannot have children; it would have been dropped)")
     return moved
+
+
+# Setting matrix_world rewrites these; they are put back as they were rather
+# than from a matrix, which could come back as different but equal angles.
+TRANSFORM = ("location", "rotation_euler", "rotation_quaternion", "rotation_axis_angle", "scale")
+
+
+def restore_parenting(moved):
+    for obj, parent, inverse, transform in reversed(moved):
+        obj.parent = parent
+        obj.matrix_parent_inverse = inverse
+        for name, value in transform:
+            setattr(obj, name, value)
+    if moved:
+        bpy.context.view_layer.update()
 
 
 def _owner(obj):
@@ -312,9 +407,10 @@ def export_weapon(empty, family, meshes, out_dir, overwrite):
 
 
 def parse_args(argv):
-    args = {"only": None, "overwrite": False, "outdir": None,
-            "collection": None, "list": False}
-    argv = argv[argv.index("--") + 1:] if "--" in argv else []
+    args = dict(RUN_OPTIONS)
+    # The same rule as mw_bake.py's: flags only when Blender was started with
+    # this script, RUN_OPTIONS when it runs from the Text Editor.
+    _launched, argv = mw_bake.launch_flags(__file__, argv)
 
     takes_value = {"--only": "only", "--outdir": "outdir", "--collection": "collection"}
     i = 0
@@ -322,7 +418,7 @@ def parse_args(argv):
         a = argv[i]
         if a in ("--help", "-h"):
             print(__doc__)
-            raise SystemExit(0)
+            raise Abort("help")
         elif a == "--overwrite":
             args["overwrite"] = True
         elif a == "--list":
@@ -358,9 +454,6 @@ def main():
     log("Drag an empty in or out of that collection to change what ships.")
     log("=" * 68)
 
-    if bpy.context.object and bpy.context.object.mode != "OBJECT":
-        bpy.ops.object.mode_set(mode="OBJECT")
-
     coll = find_collection()
     weapons, skipped = collect_weapons(coll, args["only"])
 
@@ -385,37 +478,62 @@ def main():
 
     if args["list"]:
         log(f"would export {len(weapons)} weapon(s):")
+        REPORT.append(f"would export {len(weapons)} weapon(s):")
         for empty, family, meshes in weapons:
             log(f"  {empty.name!r} -> {nif_name(empty)}  "
                 f"[{len(meshes)} meshes, {len(family)} nodes]")
+            REPORT.append(f"  {empty.name} -> {nif_name(empty)}")
         return
 
     mw_bake.repair_all_materials()
 
-    for empty, _family, _meshes in weapons:
-        flatten_mesh_parenting(empty)
-    # the hierarchy just changed, so rebuild the families
-    weapons = [(empty, descendants(empty), [o for o in descendants(empty) if o.type == "MESH"])
-               for empty, _f, _m in weapons]
-
-    all_meshes = [o for _, family, _ in weapons for o in family if o.type == "MESH"]
-    apply_alpha(all_meshes)
-    check_mirrored_objects(all_meshes)
-    check_evaluated_materials(all_meshes)
-
-    log(f"exporting {len(weapons)} weapon(s)")
     written = []
-    for empty, family, meshes in sorted(weapons, key=lambda w: w[0].name.lower()):
-        path = export_weapon(empty, family, meshes, out_dir, args["overwrite"])
-        if path:
-            written.append(path)
+    with mw_bake.scene_state_kept():
+        if bpy.context.object and bpy.context.object.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        moved, alphas = [], []
+        try:
+            for empty, _family, _meshes in weapons:
+                moved += flatten_mesh_parenting(empty)
+            # the hierarchy just changed, so rebuild the families
+            weapons = [(empty, descendants(empty), [o for o in descendants(empty) if o.type == "MESH"])
+                       for empty, _f, _m in weapons]
+
+            all_meshes = [o for _, family, _ in weapons for o in family if o.type == "MESH"]
+            alphas = apply_alpha(all_meshes)
+            check_mirrored_objects(all_meshes)
+            check_evaluated_materials(all_meshes)
+
+            log(f"exporting {len(weapons)} weapon(s)")
+            for empty, family, meshes in sorted(weapons, key=lambda w: w[0].name.lower()):
+                path = export_weapon(empty, family, meshes, out_dir, args["overwrite"])
+                if path:
+                    written.append(path)
+        finally:
+            restore_alpha(alphas)
+            restore_parenting(moved)
 
     log()
     log("=" * 68)
     log(f"wrote {len(written)} file(s) to {out_dir}")
     for path in written:
         log(f"  {path.name:34s} {path.stat().st_size:>9,} bytes")
+    REPORT.append(f"wrote {len(written)} of {len(weapons)} .nif file(s) to {out_dir}")
+    if len(written) < len(weapons) and not args["overwrite"]:
+        REPORT.append("The others exist already: overwrite in RUN_OPTIONS replaces them.")
 
 
 if __name__ == "__main__":
-    main()
+    REPORT.clear()
+    try:
+        main()
+    except Abort as exc:
+        # Only a headless run started with this script exits; anywhere else
+        # SystemExit can take Blender down with it, so it stays an exception.
+        if bpy.app.background and mw_bake.launch_flags(__file__, sys.argv)[0]:
+            raise SystemExit(0 if str(exc) == "help" else 1)
+        if str(exc) != "help":
+            mw_bake.popup("mw_export: stopped", REPORT, failed=True)
+            raise
+    else:
+        mw_bake.popup("mw_export: done", REPORT)

@@ -9,13 +9,16 @@ Run everything from the repository root.
 
 ## What they need
 
-- **Python 3**, and **numpy** for the ones that do rig maths (`patch_skeleton.py`,
-  `mirror_weapon_track.py`, `mirror_bone.py`, `charge_fx.py`, `import_h2h_set.py`).
+- **Python 3**, and **numpy** for any script that reads or writes a `.nif` or `.kf` (the es3 library
+  below needs it) and for `mirror_bone.py`.
 - **The es3 NIF library** from [Greatness7's io_scene_mw](https://github.com/Greatness7/io_scene_mw),
   for any script that reads or writes a `.nif` or `.kf`. It is found in the installed Blender add-on;
   otherwise set `IO_SCENE_MW` to the add-on's `lib` folder.
 - **Blender 5.1** for the ones marked *Blender*. They work on the open `Reanimv  starts Katsr.blend`:
-  open the script in Blender's Text Editor and run it, or run it headless as shown.
+  open the script in Blender's Text Editor and run it, or run it headless as shown. From the Text
+  Editor, what the command line gives after `--` is set at the top of the script instead (`OPTIONS`,
+  or `ONLY` in `export_katar_anims.py`); where there is no such setting for `--save`, save the
+  `.blend` yourself.
 - **ReAnimation's repository**, in a folder next to this one whose name starts with "ReAnimation", for
   the animation tools: they use its moveset builder and its FBA merge. `--reanimation` points them
   somewhere else.
@@ -29,7 +32,7 @@ note, the vanilla levelled lists with the weapons added, and the two shop chests
 in load order:
 
 ```
-python3 Sources/Tools/make_plugin.py -o "Katars&Knuckles.omwaddon" --master "<Data Files>/Morrowind.esm" \
+python3 Sources/Tools/make_plugin.py --master "<Data Files>/Morrowind.esm" \
     --master "<Data Files>/Tribunal.esm" --master "<Data Files>/Bloodmoon.esm"
 ```
 
@@ -96,10 +99,10 @@ The first-person set lives in the blend. In order, after changing it:
        --save --export "00 Core/Animations/xbase_anim.1st"
    ```
 
-5. **`make_third_person_anims.py`** - the third-person sets, `Animations/xbase_anim` and
-   `Animations/xbase_animkna`, made from the first-person one. Re-run it after every first-person
-   export. It finds Morrowind.bsa from `openmw.cfg` (`--data-files` otherwise) and copies each
-   animation's blending rules (`<name>.yaml`) along. It uses `third_person_fingers.py`.
+5. **`make_third_person_anims.py`** - the third-person sets, `00 Core/Animations/xbase_anim` and
+   `00 Core/Animations/xbase_animkna`, made from the first-person one. Re-run it after every
+   first-person export. It finds Morrowind.bsa from `openmw.cfg` (`--data-files` otherwise) and copies
+   each animation's blending rules (`<name>.yaml`) along. It uses `third_person_fingers.py`.
 
    ```
    python3 Sources/Tools/make_third_person_anims.py
@@ -115,7 +118,7 @@ The first-person set lives in the blend. In order, after changing it:
    python3 Sources/Tools/make_fba_compat.py
    ```
 
-The blending rules in `Animations/xbase_anim.1st` are ReAnimation's own hand-to-hand ones,
+The blending rules in `00 Core/Animations/xbase_anim.1st` are ReAnimation's own hand-to-hand ones,
 `xh2hJump.yaml`, `xh2hSlash.yaml` and `xh2hThrust.yaml`, under the katar's names. There are only
 those three because ReAnimation has only those three.
 
@@ -129,8 +132,8 @@ Also:
       --source "<ReAnimation>/Sources/Reanimv3.blend" --save
   ```
 
-- **`footstep_refs.py`** - renames the `SoundGen` keys in `.kf` files to `SoundGenRef`, or back. The
-  blend's markers are `SoundGenRef` already.
+- **`footstep_refs.py`** - renames the `SoundGen` keys in `.kf` files to `SoundGenRef`, or back with
+  `--back`. The blend's markers are `SoundGenRef` already.
 
   ```
   python3 Sources/Tools/footstep_refs.py <.kf files, or folders of them>
@@ -138,13 +141,13 @@ Also:
 
 ## The off-hand bone
 
-**`patch_skeleton.py`** writes `Animations/<skeleton>/h2h_weapon_bone_l.nif`, which grafts
+**`patch_skeleton.py`** writes `00 Core/Animations/<skeleton>/h2h_weapon_bone_l.nif`, which grafts
 `Weapon Bone.L` onto that skeleton, for each skeleton it is given. A player whose skeleton replacer
 loads a skeleton under a new file name gets no off-hand weapon: run this on that skeleton, with
-`--bones-out` pointing at the mod's `Animations` folder.
+`--bones-out` pointing at the mod's `00 Core/Animations` folder.
 
 ```
-python3 Sources/Tools/patch_skeleton.py <skeleton .nif files, or a folder of them> --bones-out Animations
+python3 Sources/Tools/patch_skeleton.py <skeleton .nif files, or a folder of them> --bones-out "00 Core/Animations"
 ```
 
 `-o <meshes folder>` writes patched copies of the skeletons instead, which conflict with any other

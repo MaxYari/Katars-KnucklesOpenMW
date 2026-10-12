@@ -3,11 +3,11 @@
 katar or knuckledusters in hand - from the first-person ones.
 
 There are no third-person katar animations of their own. These are the first-person ones
-(Animations/xbase_anim.1st) with vanilla's third-person hand-to-hand legs under them, merged the way
-ReAnimation builds its Full Body Awareness compatibility (its Sources/Tools/FBACompat/fba_merge.py,
-which this runs): our upper body, their lower body - Bip01, pelvis, spine, legs - and their root
-motion, their time warped through the text keys both share so that ours are kept exactly. Our
-attack timings are the ones that count; the legs follow them.
+(00 Core/Animations/xbase_anim.1st) with vanilla's third-person hand-to-hand legs under them,
+merged the way ReAnimation builds its Full Body Awareness compatibility (its
+Sources/Tools/FBACompat/fba_merge.py, which this runs): our upper body, their lower body - Bip01,
+pelvis, spine, legs - and their root motion, their time warped through the text keys both share so
+that ours are kept exactly. Our attack timings are the ones that count; the legs follow them.
 
 Where this differs from that build:
   * Group names. Ours end in "katar" and take the legs of the hand-to-hand ("hh") group of the same

@@ -53,7 +53,8 @@ end
 M.JINKBLADE, M.ROSE = JINKBLADE, ROSE
 
 --- Registers the step with Mercy for this actor (openmw.self). Returns the hooks npc.lua calls, or nil
--- without Mercy.
+-- without Mercy. Called once, from onActive: before Mercy gets its startup data (which builds his trees
+-- from the extensions there are), and late enough to find Mercy's interface whatever the load order.
 function M.attach(actor)
     local mercy = I.MercyCAO
     if not (mercy and mercy.addExtension) then return nil end

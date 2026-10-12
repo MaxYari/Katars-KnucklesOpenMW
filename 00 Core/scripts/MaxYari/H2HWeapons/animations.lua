@@ -59,6 +59,19 @@ if RA == nil then
     end
     return
 end
+
+-- The oldest ReAnimation with everything used below. An older one has the interface but not all of it,
+-- and would fail partway through the registrations, on every actor.
+local REANIMATION_MIN = 3.3
+if (tonumber(RA.version) or 0) < REANIMATION_MIN then
+    if types.Player.objectIsInstance(omwself) then
+        print("[H2HWeapons] ERROR: ReAnimation " .. tostring(RA.version) .. " is too old, this mod needs " ..
+            REANIMATION_MIN .. " or newer. Until it is updated these weapons have no animations of their own.")
+        require('openmw.ui').showMessage("Katars & Knuckles: ReAnimation is out of date, please update it to " ..
+            REANIMATION_MIN .. " or newer.")
+    end
+    return
+end
 local gutils = RA.gutils
 local ANY_VIEW = RA.ARMATURE_TYPE.Any
 local BG = animation.BONE_GROUP

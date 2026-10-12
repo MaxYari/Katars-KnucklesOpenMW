@@ -767,6 +767,22 @@ function M.enableSharedTooltip()
         registerModifier = function(opts) M.sharedTooltipModifiers[opts.id] = opts.func end,
     }
 end
+-- UI Toolkit's tooltips, when a test asks for it. M.utkTooltipHandlers and M.utkBuilders are filled
+-- by the mod; the builders hold a paragraph, which is all the mod builds on.
+M.utkTooltipHandlers = {}
+M.utkBuilders = {}
+function M.enableUIToolkit()
+    M.utkBuilders.paragraph = function(item) return { name = "paragraph", props = { text = item.text } } end
+    I.UIToolkit = { getTheme = function() return { Colors = { DISABLED = "disabledColour" } } end }
+    I.UTKTooltips = {
+        version = 1,
+        TYPE = { Weapon = "Weapon", Armor = "Armor" },
+        CONTENT = { WeaponType = "WeaponType", Damage = "Damage", Header = "Header", Condition = "Condition" },
+        builders = M.utkBuilders,
+        registerBuilder = function(type, fn) M.utkBuilders[type] = fn end,
+        addPreCreateTooltipHandler = function(fn) table.insert(M.utkTooltipHandlers, fn) end,
+    }
+end
 packages['openmw.interfaces'] = I
 M.I = I
 

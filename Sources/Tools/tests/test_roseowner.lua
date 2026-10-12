@@ -44,7 +44,7 @@ st.enchantRecords["db_poison"] = { cost = 45, charge = 90 }
 st.skills.enchant = { base = 60, modifier = 0, damage = 0 } -- a cast costs him 45 - 22.5: 22
 
 local registered = {}
-stubs.I.MercyCAO = { addExtension = function(tree, combatState, stance, extension)
+local mercy = { addExtension = function(tree, combatState, stance, extension)
     table.insert(registered, { point = tree .. ":" .. combatState .. "_" .. stance, extension = extension })
 end }
 
@@ -61,9 +61,16 @@ local rose = item("katar_ebony_rose")
 local burstCopy = item("Generated:0x99")
 st.inventories[selfHandle] = { jinkblade, rose }
 
-require("scripts.MaxYari.H2HWeapons.npc")
+-- Mercy loaded after this mod: its interface is not there yet while npc.lua loads.
+local npc = require("scripts.MaxYari.H2HWeapons.npc")
+check(#registered == 0, "nothing goes into Mercy while npc.lua loads")
+stubs.I.MercyCAO = mercy
+npc.engineHandlers.onActive()
 check(#registered == 1 and registered[1].point == "Combat:FIGHT_Melee",
-      "the step goes into Mercy's melee fight", registered[1] and registered[1].point)
+      "the step goes into Mercy's melee fight once he is in the world, whatever the load order",
+      registered[1] and registered[1].point)
+npc.engineHandlers.onActive()
+check(#registered == 1, "and only once, however often he comes back", #registered)
 
 local enemy = stubs.object({ recordId = "player" })
 local finished

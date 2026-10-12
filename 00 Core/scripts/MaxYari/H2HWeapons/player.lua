@@ -554,13 +554,16 @@ I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options
 end)
 
 --- Tooltips ---------------------------------------------------------------------------------------
--- Two tooltip mods are dressed up, both optional: Inventory Extender's, in the inventory, and the
--- Shared Tooltip QuickLoot shows for what is under the crosshair. Their interfaces may not exist yet
--- when this script loads, so they are picked up on the first update instead. Both get the type line
--- naming the hybrid's two skills, and a fatigue damage line under the damage ones for one that deals
--- it; Inventory Extender's, which has the room for it, the definition's footnote on how the weapon
--- runs on its skills as well.
+-- Three tooltip mods are dressed up, all optional: Inventory Extender's, in the inventory, the
+-- Shared Tooltip QuickLoot shows for what is under the crosshair, and UI Toolkit's, in the windows
+-- other mods build with it. Their interfaces may not exist yet when this script loads, so they are
+-- picked up on the first update instead. All get the type line naming the hybrid's two skills, and a
+-- fatigue damage line under the damage ones for one that deals it; Inventory Extender's and UI
+-- Toolkit's, which have the room for it, the definition's footnote on how the weapon runs on its
+-- skills as well.
 local tooltipsTried = false
+-- The width the footnote wraps at.
+local FOOTNOTE_WIDTH = 320
 
 local function fatigueRange(hybrid)
     local factor = hybrid.fatigueDamage
@@ -651,7 +654,6 @@ local function registerInventoryExtender()
     local okConst, constants = pcall(require, "scripts.InventoryExtender.util.constants")
     local DIMMED = (okConst and constants and constants.Colors and constants.Colors.DISABLED)
         or util.color.rgb(0.6, 0.6, 0.6)
-    local FOOTNOTE_WIDTH = 320
 
     I.InventoryExtender.registerTooltipModifier("H2HWeapons", function(item, layout)
         local hybrid = weapons.hybridOfItem(item)
@@ -733,9 +735,60 @@ local function registerSharedTooltip()
     })
 end
 
+-- UI Toolkit's tooltips start as a recipe - the list of lines a tooltip will have - and a handler is
+-- given each one before it is built. Its weapon recipe names the type line "WeaponType" and all three
+-- damage lines "Damage". The footnote is a line type of our own: its paragraph, dimmed as Inventory
+-- Extender's is.
+local function registerUIToolkit()
+    local tips = I.UTKTooltips
+    if not (tips and tips.addPreCreateTooltipHandler and tips.registerBuilder) then return end
+
+    tips.registerBuilder("h2hFootnote", function(item)
+        local line = tips.builders.paragraph(item)
+        line.props.textColor = I.UIToolkit.getTheme().Colors.DISABLED
+        return line
+    end)
+
+    tips.addPreCreateTooltipHandler(function(recipe, tooltip)
+        if tooltip.type ~= tips.TYPE.Weapon then return end
+        -- A tooltip for a record rather than an object has its id as the key.
+        local hybrid = (tooltip.object and weapons.hybridOfItem(tooltip.object))
+            or (not tooltip.object and tooltip.key and weapons.hybridOfId(tooltip.key))
+        if not hybrid then return end
+
+        local lines = recipe.items
+        local values = tooltipValues(hybrid)
+        local after = nil
+        for i, line in ipairs(lines) do
+            if line.name == tips.CONTENT.WeaponType then
+                line.text = hybridType(line.text, values)
+                after = i
+            elseif line.name == tips.CONTENT.Damage then
+                after = i
+            end
+        end
+
+        if hybrid.fatigueDamage > 0 then
+            -- A line with no type is written "label: min - max", as the damage lines are.
+            local low, high = fatigueNumbers(hybrid)
+            table.insert(lines, (after or #lines) + 1,
+                { text = l10n("tooltip_fatigue"), min = low, max = high, name = "h2hFatigue" })
+        end
+
+        lines[#lines + 1] = {
+            type = "h2hFootnote",
+            name = "h2hExplanation",
+            text = footnote(hybrid, values),
+            width = FOOTNOTE_WIDTH,
+            align = recipe.arrange,
+        }
+    end)
+end
+
 local function registerTooltipModifiers()
     pcall(registerInventoryExtender)
     pcall(registerSharedTooltip)
+    pcall(registerUIToolkit)
 end
 
 --- Bound Fist, however it was cast -------------------------------------------------------------------

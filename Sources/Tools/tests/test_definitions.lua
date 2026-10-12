@@ -52,6 +52,14 @@ swingSounds:
     volume: 1
   - sound: own
 ]],
+    ["hybridweapondefinitions/fist_blade.yaml"] = [[
+primarySkill: handtohand
+secondarySkill: shortblade
+swingSounds:
+  - sound: HandToHand
+  - sound: ShortBlade
+    volume: 0.5
+]],
     -- And a definition for a weapon nothing loaded has.
     ["hybridweapondefinitions/missing_weapon.yaml"] = "primarySkill: handtohand\nsecondarySkill: axe\n",
 }
@@ -62,6 +70,7 @@ st.weaponRecords["hybrid_bow"] = { type = 9, model = "meshes/w/bow.nif" }
 st.weaponRecords["no_skill"] = { type = 0, model = "meshes/w/x.nif" }
 st.weaponRecords["broken"] = { type = 0, model = "meshes/w/y.nif" }
 st.weaponRecords["odd_whoosh"] = { type = 7, model = "meshes/w/axe.nif" }
+st.weaponRecords["fist_blade"] = { type = 0, model = "meshes/w/fist_blade.nif" }
 st.weaponRecords["katar_steel"] = { type = 0, model = "meshes/steel_katar.nif" }
 st.weaponRecords["knuckle_iron"] = { type = 3, model = "meshes/iron_knuckle.nif" }
 st.skills = {
@@ -215,7 +224,7 @@ stubs.I.CombatSoundsOO = {
     addOnPlayHandler = function(f) playHandlers[#playHandlers + 1] = f end,
     addSwingGroupsHandler = function(f) groupHandlers[#groupHandlers + 1] = f end,
 }
--- A fist's whoosh is the engine's own sound record, not a CSO swing
+-- A fist's whoosh is the engine's own swish, which CSO keeps: nothing here plays it again
 local fistSwishes = {}
 require("openmw.core").sound.playSound3d = function(id, object, options)
     fistSwishes[#fistSwishes + 1] = { id = id, volume = options.volume, pitch = options.pitch }
@@ -226,18 +235,21 @@ check(onPlay ~= nil and groupsOf ~= nil, "a play handler and a swing groups hand
 
 local info = { kind = "swing", weaponId = "katar_steel", volume = 0.8, pitch = 1.05, attackType = 2 }
 local stopped = onPlay(info) == false
-check(#fistSwishes == 1 and fistSwishes[1].id == "Weapon Swish" and math.abs(fistSwishes[1].volume - 0.8) < 1e-9
-      and fistSwishes[1].pitch == 1.05, "a katar's swing plays the vanilla fist whoosh, at its volume")
-check(#swings == 0, "not CSO's hand-to-hand swing")
-check(not stopped and math.abs(info.volume - 0.68) < 1e-9, "and its own at 85% of it", info.volume)
-local groups = groupsOf("katar_steel")
-check(groups and #groups == 1 and groups[1] == "sharpMetal", "drawn from the sharp metal whooshes")
+local groups, keepsSwish = groupsOf("katar_steel")
+check(groups and #groups == 1 and groups[1] == "sharpMetal" and keepsSwish == true,
+      "a katar keeps the engine's swish, a fist's, with sharp metal whooshes over it")
+check(#fistSwishes == 0 and #swings == 0, "nothing plays the swish again, nor CSO's hand-to-hand swing")
+check(not stopped and math.abs(info.volume - 0.68) < 1e-9, "and its own at 85%", info.volume)
 
-fistSwishes = {}
-info = { kind = "swing", weaponId = "knuckle_iron", volume = 1, pitch = 1 }
-check(onPlay(info) == false and #fistSwishes == 1 and fistSwishes[1].id == "Weapon Swish" and #swings == 0,
-      "knuckledusters whoosh as a fist alone: their own swing is stopped")
-check(groupsOf("knuckle_iron") == nil, "and pick no groups")
+groups, keepsSwish = groupsOf("knuckle_iron")
+check(type(groups) == "table" and #groups == 0, "knuckledusters keep the engine's swish alone, as a bare fist does")
+
+info = { kind = "swing", weaponId = "fist_blade", volume = 1, attackType = 1 }
+groups, keepsSwish = groupsOf("fist_blade")
+check(groups == nil and keepsSwish == true, "with another kind added and none of its own, the swish is kept")
+check(onPlay(info) == false and #swings == 1 and swings[1].weapon == "shortBlade" and swings[1].volume == 0.5
+      and #fistSwishes == 0, "the kind plays over it, and the swing CSO made for it is stopped")
+swings = {}
 
 fistSwishes = {}
 info = { kind = "swing", weaponId = "mace_of_fire", volume = 1 }

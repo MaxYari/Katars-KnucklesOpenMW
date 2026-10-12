@@ -1,28 +1,29 @@
 # Left out of the Nexus archive (gitignore syntax). Only files committed to git are packed in the
-# first place, so local junk never ends up in there.
+# first place, so local junk never ends up in there. A leading / ties a pattern to the repository
+# root; without it, it matches at any depth, "00 Core" included.
 # Preview what gets packed: bash tools/build_nexus_zip.sh && unzip -l nexus-upload.zip
 
 # git and tooling
 .git*
-.nexusignore
+/.nexusignore
 .claude/
-tools/
+/tools/
 __pycache__/
 
 # docs and images (the README lives on the Nexus page itself)
 /README.md
 /README.nexus.bbcode
-imgs/
+/imgs/
 
 # Blender and art sources, and the scripts that build the mod from them - all of it in the git
 # repository only (Sources/Tools/README.md and tools/README.md there say how to use them).
-Sources/
+/Sources/
 *.blend
 *.blend1
 *.rar
 
 # Baking inputs for the weapon textures - build-time only.
-bake_source/
+/bake_source/
 
 # A crate of every item by the Seyda Neen lighthouse (Sources/Tools/make_test_crate.py): for testing only.
 Katars&Knuckles_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon

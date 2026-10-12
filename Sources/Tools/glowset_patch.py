@@ -17,14 +17,15 @@ The glow maps are Glowset's and are not shipped: the patch needs Glowset install
 
 Run it after every export of the glass katar:
 
-    python3 glowset_patch.py                  (00 Core/meshes/glass_katar.nif)
-    python3 glowset_patch.py meshes/a.nif ...
+    python3 Sources/Tools/glowset_patch.py                  (00 Core/meshes/glass_katar.nif)
+    python3 Sources/Tools/glowset_patch.py "00 Core/meshes/a.nif" ... [-o <meshes folder>]
 """
+import argparse
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import mirror_weapon_track  # noqa: E402,F401  (puts the es3 library on the path)
+import es3_path  # noqa: E402,F401  (puts the es3 library on the path)
 from es3.nif import NiSourceTexture, NiStream, NiTexturingProperty, NiTexturingPropertyMap  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -44,7 +45,7 @@ def stem(filename):
     return os.path.splitext(filename.replace("\\", "/").rsplit("/", 1)[-1])[0].lower()
 
 
-def patch(path):
+def patch(path, out_dir=os.path.join(PATCH_DIR, "meshes")):
     stream = NiStream()
     stream.load(path)
 
@@ -68,7 +69,7 @@ def patch(path):
     if not glowing:
         sys.exit("%s: no shape has a texture Glowset gives a glow to - nothing to patch" % path)
 
-    out = os.path.join(PATCH_DIR, "meshes", os.path.basename(path))
+    out = os.path.join(out_dir, os.path.basename(path))
     os.makedirs(os.path.dirname(out), exist_ok=True)
     stream.save(out)
     print(os.path.relpath(out, ROOT))
@@ -78,8 +79,14 @@ def patch(path):
 
 
 def main():
-    for path in sys.argv[1:] or DEFAULT_MESHES:
-        patch(path)
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("meshes", nargs="*", default=DEFAULT_MESHES,
+                    help="the meshes to patch (default: 00 Core/meshes/glass_katar.nif)")
+    ap.add_argument("-o", "--out", default=os.path.join(PATCH_DIR, "meshes"),
+                    help="the meshes folder to write to (default: the patch's)")
+    args = ap.parse_args()
+    for path in args.meshes:
+        patch(path, args.out)
 
 
 if __name__ == "__main__":

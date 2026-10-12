@@ -37,7 +37,7 @@ Only one file per folder may carry the bone - every marked copy is grafted, so t
 
 Usage:
     python3 patch_skeleton.py <input dir or .nif> ... -o <output meshes dir>
-    python3 patch_skeleton.py <input dir or .nif> ... --bones-out Animations
+    python3 patch_skeleton.py <input dir or .nif> ... --bones-out "00 Core/Animations"
 
 Input files are the vanilla meshes/base_anim*.nif, extracted from Morrowind.bsa (or taken from
 whichever skeleton replacer you use - patch that one instead and this mod will follow it).

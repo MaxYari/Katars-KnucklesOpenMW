@@ -3,14 +3,20 @@
 
     python3 tools/readme_to_nexus.py                      # prints BBCode to stdout
     python3 tools/readme_to_nexus.py -o description.bbcode --ref v1.34
+    git show :README.md | python3 tools/readme_to_nexus.py - -o README.nexus.bbcode
 
 - Relative image/file paths become absolute GitHub URLs pinned to --ref (branch, tag or
-  commit sha; default: the current branch). Pinning to a tag/sha keeps the Nexus page intact
-  even if files are later moved or deleted on the branch.
+  commit sha; default: main, the branch releases are made from, so a commit on another branch
+  doesn't put that branch's name in README.nexus.bbcode). Pinning to a tag/sha keeps the Nexus
+  page intact even if files are later moved or deleted on the branch.
 - <details><summary>Title</summary> ... </details> becomes a bold title and a [spoiler].
+- A YouTube thumbnail linking to its video - all GitHub can show of one - becomes the video
+  itself, [youtube]<id>[/youtube]:
+  [![Demo](https://img.youtube.com/vi/<id>/maxresdefault.jpg)](https://www.youtube.com/watch?v=<id>)
 - Nexus BBCode has no image widths, so if <dir>/nexus/<name> exists for a referenced image,
   that pre-scaled variant is used instead (e.g. imgs/nexus/banner_right.png).
-- Anything between <!-- nexus-skip-start --> and <!-- nexus-skip-end --> is left out.
+- Anything between <!-- nexus-skip-start --> and <!-- nexus-skip-end --> is left out. A
+  start with no end, or an end with no start, is an error.
 - <!-- nexus-skip-section --> on the line above a heading leaves out that whole section,
   subsections included, up to the next heading of the same or higher level.
 
@@ -28,6 +34,7 @@ from html.parser import HTMLParser
 from urllib.parse import quote
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PUBLISHED_BRANCH = "main"
 
 SKIP_START = "<!-- nexus-skip-start -->"
 SKIP_END = "<!-- nexus-skip-end -->"
@@ -41,6 +48,11 @@ HTML_BLOCK_RE = re.compile(r"^</?[a-zA-Z][a-zA-Z0-9]*[\s/>]")
 DETAILS_RE = re.compile(r"^<details[^>]*>\s*(?:<summary>(.*?)</summary>)?\s*$", re.I)
 SUMMARY_RE = re.compile(r"^<summary>(.*?)</summary>$", re.I)
 LINK_TARGET = r"\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)"
+YOUTUBE_RE = re.compile(r"\[!\[[^\]]*\]\(\s*https?://(?:img|i)\.youtube\.com/vi/([\w-]+)/[^)\s]*\s*\)\]"
+                        r"\(\s*https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)\1(?:[&?#][^)\s]*)?\s*\)")
+# Markdown only reads an entity with its semicolon; html.unescape() alone would also turn a
+# bare "&copy" or "&not" in the text into a symbol.
+ENTITY_RE = re.compile(r"&(?:#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);")
 
 VOID_TAGS = {"img", "br", "hr", "input", "meta", "link", "source", "wbr"}
 
@@ -57,6 +69,10 @@ def detect_repo():
     url = (git("remote", "get-url", "origin") or "").strip()
     m = re.search(r"github\.com[:/](.+?)(?:\.git)?/?$", url)
     return m.group(1) if m else None
+
+
+class ConvertError(Exception):
+    pass
 
 
 def heading(level, text):
@@ -125,13 +141,14 @@ class Converter:
         text = re.sub(r"\\([\\`*_{}\[\]()#+\-.!|~<>])", lambda m: stash(m.group(1)), text)
         text = re.sub(r"<br\s*/?>", "\n", text, flags=re.I)
         text = re.sub(r"<(https?://[^>\s]+)>", lambda m: stash(f"[url]{m.group(1)}[/url]"), text)
+        text = YOUTUBE_RE.sub(lambda m: stash(f"[youtube]{m.group(1)}[/youtube]"), text)
         text = re.sub(r"!\[[^\]]*\]" + LINK_TARGET, lambda m: stash(self.img(m.group(1))), text)
         text = re.sub(r"\[([^\]]+)\]" + LINK_TARGET, link, text)
         text = re.sub(r"(\*\*|__)(?=\S)(.+?)(?<=\S)\1", r"[b]\2[/b]", text)
         text = re.sub(r"(?<![\w*])\*(?=\S)(.+?)(?<=\S)\*(?![\w*])", r"[i]\1[/i]", text)
         text = re.sub(r"(?<!\w)_(?=\S)(.+?)(?<=\S)_(?!\w)", r"[i]\1[/i]", text)
         text = re.sub(r"~~(?=\S)(.+?)(?<=\S)~~", r"[s]\1[/s]", text)
-        text = html.unescape(text)
+        text = ENTITY_RE.sub(lambda m: html.unescape(m.group(0)), text)
         while "\x00" in text:
             text = re.sub(r"\x00(\d+)\x00", lambda m: slots[int(m.group(1))], text)
         return text
@@ -175,7 +192,13 @@ class Converter:
         parser.out.extend(close for _, close in reversed(parser.stack))
         return re.sub(r" *\n *", "\n", "".join(parser.out)).strip()
 
-    def convert(self, md):
+    @staticmethod
+    def starts_block(s):
+        """Whether a (stripped) line starts a block of its own instead of going on with a paragraph."""
+        return (any(r.match(s) for r in (HEADING_RE, FENCE_RE, HR_RE, DETAILS_RE))
+                or s.startswith((">", "|", "<!--")) or re.match(r"^</details\s*>$", s, re.I))
+
+    def convert(self, md, first_line=1):
         lines = md.replace("\r\n", "\n").split("\n")
         blocks, para = [], []
         n, i = len(lines), 0
@@ -191,10 +214,17 @@ class Converter:
 
             if s == SKIP_START:
                 flush()
+                start = i
                 while i < n and lines[i].strip() != SKIP_END:
                     i += 1
+                if i == n:
+                    raise ConvertError(f"line {first_line + start}: {SKIP_START} has no {SKIP_END} "
+                                       f"after it, so everything below would be left out")
                 i += 1
                 continue
+
+            if s == SKIP_END:
+                raise ConvertError(f"line {first_line + i}: {SKIP_END} has no {SKIP_START} before it")
 
             if s == SKIP_SECTION:
                 flush()
@@ -276,11 +306,11 @@ class Converter:
 
             if s.startswith(">"):
                 flush()
-                body = []
+                body, start = [], i
                 while i < n and lines[i].strip().startswith(">"):
                     body.append(re.sub(r"^\s*> ?", "", lines[i]))
                     i += 1
-                blocks.append("[quote]" + self.convert("\n".join(body)) + "[/quote]")
+                blocks.append("[quote]" + self.convert("\n".join(body), first_line + start) + "[/quote]")
                 continue
 
             if LIST_RE.match(line):
@@ -289,6 +319,10 @@ class Converter:
                 while i < n:
                     cur = lines[i]
                     if LIST_RE.match(cur) or (cur.strip() and cur[:1].isspace()):
+                        body.append(cur)
+                    elif cur.strip() and lines[i - 1].strip() and not self.starts_block(cur.strip()):
+                        # Lazy continuation: a line straight after an item's text goes on with it
+                        # even unindented, as GitHub renders it.
                         body.append(cur)
                     elif not cur.strip():
                         nxt = next((l for l in lines[i + 1:] if l.strip()), "")
@@ -392,23 +426,31 @@ class _HtmlToBBCode(HTMLParser):
 
 def main():
     ap = argparse.ArgumentParser(description="Convert README.md to Nexus Mods BBCode.")
-    ap.add_argument("input", nargs="?", default=os.path.join(ROOT, "README.md"))
+    ap.add_argument("input", nargs="?", default=os.path.join(ROOT, "README.md"),
+                    help="the markdown file (default: README.md), or - to read it from stdin, "
+                         "with its links relative to the repository root")
     ap.add_argument("-o", "--output", help="write to this file instead of stdout")
-    ap.add_argument("--ref", help="branch, tag or commit sha that URLs point at (default: the current branch)")
+    ap.add_argument("--ref", default=PUBLISHED_BRANCH,
+                    help=f"branch, tag or commit sha that URLs point at (default: {PUBLISHED_BRANCH})")
     ap.add_argument("--repo", help="GitHub owner/name (default: from the origin remote)")
     args = ap.parse_args()
 
     repo = args.repo or detect_repo()
     if not repo:
         sys.exit("Could not work out the GitHub repo from the origin remote, pass --repo owner/name")
-    ref = args.ref or (git("rev-parse", "--abbrev-ref", "HEAD") or "").strip()
-    if not ref or ref == "HEAD":
-        ref = "main"
 
-    base_dir = os.path.relpath(os.path.dirname(os.path.abspath(args.input)), ROOT).replace(os.sep, "/")
-    conv = Converter(repo, ref, "" if base_dir == "." else base_dir)
-    with open(args.input, encoding="utf-8") as f:
-        result = conv.convert(f.read())
+    if args.input == "-":
+        base_dir = "."
+        md = sys.stdin.buffer.read().decode("utf-8")
+    else:
+        base_dir = os.path.relpath(os.path.dirname(os.path.abspath(args.input)), ROOT).replace(os.sep, "/")
+        with open(args.input, encoding="utf-8") as f:
+            md = f.read()
+    conv = Converter(repo, args.ref, "" if base_dir == "." else base_dir)
+    try:
+        result = conv.convert(md)
+    except ConvertError as exc:
+        sys.exit(f"{'stdin' if args.input == '-' else args.input}: {exc}")
 
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:

@@ -21,7 +21,8 @@ play over the one-handed groups the engine uses for these weapons. Three things 
 Run it again after ReAnimation's animations change; it overwrites what it wrote before, and the seat
 it reads from is one it wrote itself, so the result does not drift.
 
-    python3 import_h2h_set.py "<ReAnimation>/Animations/xbase_anim.1st" Animations/xbase_anim.1st
+    python3 import_h2h_set.py "<ReAnimation>/00 Core/Animations/xbase_anim.1st" \
+        "00 Core/Animations/xbase_anim.1st"
 """
 import argparse
 import copy
@@ -154,8 +155,8 @@ def seat(stream, seat_pose):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("source", help="ReAnimation's Animations/xbase_anim.1st")
-    ap.add_argument("dest", help="this mod's Animations/xbase_anim.1st")
+    ap.add_argument("source", help="ReAnimation's 00 Core/Animations/xbase_anim.1st")
+    ap.add_argument("dest", help="this mod's 00 Core/Animations/xbase_anim.1st")
     ap.add_argument("--seat-from", default=None,
                     help="katar animation to take Weapon Bone's seat from (default: dest/xKatarIdle.kf)")
     ap.add_argument("--signs", default="1,1,-1", help="the rig's mirror convention, as for mirror_weapon_track.py")

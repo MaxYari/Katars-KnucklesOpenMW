@@ -690,10 +690,7 @@ def parse_args(argv):
     args = {"save": False, **RUN_OPTIONS}
     # Flags are only this script's when Blender was started with it (--python);
     # run as a text block, whatever followed a "--" was meant for something else.
-    head = argv[:argv.index("--")] if "--" in argv else argv
-    if not any(pathlib.Path(a).name == pathlib.Path(__file__).name for a in head) or "--" not in argv:
-        return args
-    argv = argv[argv.index("--") + 1:]
+    _launched, argv = mw_bake.launch_flags(__file__, argv)
     flags = {"--save": "save", "--check": "check", "--relayout": "relayout", "--overwrite": "overwrite"}
     i = 0
     while i < len(argv):
@@ -757,30 +754,19 @@ def main():
              "or select them and run this from Blender's Text Editor."])
     log(f"{len(targets)} mesh(es) {how}" + (" -- checking only" if args["check"] else ""))
 
-    if bpy.context.object and bpy.context.object.mode != "OBJECT":
-        bpy.ops.object.mode_set(mode="OBJECT")
-    selected = [o for o in bpy.context.selected_objects]
-    active = bpy.context.view_layer.objects.active
-
     out_dir = mw_bake.blend_dir() / CONFIG["out_dir"]
     written = []
-    for obj in targets:
-        # Edit Mode refuses a hidden object, and packing needs it.
-        hidden = obj.hide_viewport, obj.hide_render, obj.hide_get()
-        obj.hide_viewport = obj.hide_render = False
-        obj.hide_set(False)
-        try:
+    # Mode, selection, active object and hide flags all come back as they were.
+    with mw_bake.scene_state_kept():
+        if bpy.context.object and bpy.context.object.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        for obj in targets:
+            # Edit Mode refuses a hidden object, and packing needs it.
+            obj.hide_viewport = obj.hide_render = False
+            obj.hide_set(False)
             path = process(obj, args, out_dir)
-        finally:
-            obj.hide_viewport, obj.hide_render = hidden[:2]
-            obj.hide_set(hidden[2])
-        if path:
-            written.append((obj.name, path))
-
-    bpy.ops.object.select_all(action="DESELECT")
-    for obj in selected:
-        obj.select_set(True)
-    bpy.context.view_layer.objects.active = active
+            if path:
+                written.append((obj.name, path))
 
     if written:
         log("=" * 60)
@@ -810,9 +796,14 @@ if __name__ == "__main__":
     try:
         main()
     except Abort as exc:
-        if bpy.app.background:
+        # Only a headless run started with this script exits; anywhere else
+        # SystemExit can take Blender down with it, so it stays an exception.
+        if bpy.app.background and mw_bake.launch_flags(__file__, sys.argv)[0]:
             raise SystemExit(0 if str(exc) == "help" else 1)
-        show_in_blender(True)
+        if str(exc) != "help":
+            if not bpy.app.background:
+                show_in_blender(True)
+            raise
     else:
         if not bpy.app.background:
             show_in_blender(False)

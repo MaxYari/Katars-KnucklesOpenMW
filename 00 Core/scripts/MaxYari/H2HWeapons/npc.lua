@@ -10,9 +10,9 @@
 --
 -- This runs on every NPC, and on every creature that can hold these (weapons.canWield) - a dremora
 -- or a skeleton is looked after exactly as an NPC is. So it has no per-frame handler. It hangs off
--- the NPC's own animation events, and only while a one-handed weapon is out does it look again, twice
--- a second, for what comes with no animation: a swap to another weapon of the same type, one taken
--- off a corpse, a stance a script set.
+-- the NPC's own animation events, and only while a weapon is out, and the NPC alive, does it look
+-- again, twice a second, for what comes with no animation: a swap to another weapon of the same type,
+-- one taken off a corpse, a stance a script set.
 local mp = "scripts/MaxYari/H2HWeapons/"
 
 local async = require('openmw.async')
@@ -71,9 +71,13 @@ local checkLeftHand        -- the left hand's (below)
 local rose = roseState.new()
 -- The copy of Ebony Rose its bursting swing is made with (swingcopy.lua).
 local copy = swingCopy.new(omwself)
--- Ebony Rose's owner fights with both his blades, when Mercy runs his fights (roseowner.lua).
-local owner = string.lower(omwself.recordId) == U.ROSE_OWNER
-    and require(mp .. "scripts/roseowner").attach(omwself) or nil
+-- Ebony Rose's owner fights with both his blades, when Mercy runs his fights (roseowner.lua). Attached
+-- once he is in the world (onActive), not as this loads: Mercy's interface is only there by then if
+-- Mercy loads first, while by onActive every script on him is, whatever the load order - and Mercy
+-- only builds his fight from its extensions later still, when its global's reply comes.
+local isOwner = string.lower(omwself.recordId) == U.ROSE_OWNER
+local owner = nil
+local ownerAttached = false
 
 local function refresh()
     if not active then return end
@@ -94,6 +98,13 @@ end
 look = function()
     looking = false
     if not active then return end
+    -- A corpse keeps its weapon stance, so it would be looked at for good: a copy in hand goes back,
+    -- what came off the left hand stays in the inventory, and that is the last look.
+    if types.Actor.isDead(omwself) then
+        copy.finish()
+        checkLeftHand()
+        return
+    end
     local stance = types.Actor.getStance(omwself)
     copy.check(stance)
     if shown and stance ~= WEAPON_STANCE then
@@ -226,6 +237,10 @@ return {
     engineHandlers = {
         onActive = function()
             active = true
+            if isOwner and not ownerAttached then
+                ownerAttached = true
+                owner = require(mp .. "scripts/roseowner").attach(omwself)
+            end
             settle()
         end,
         onInactive = function()

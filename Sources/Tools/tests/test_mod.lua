@@ -114,6 +114,7 @@ st.stance = 1 -- weapon drawn
 st.equipped = { recordId = "katar_steel" }
 stubs.enableInventoryExtender()
 stubs.enableSharedTooltip()
+stubs.enableUIToolkit()
 local player = require("scripts.MaxYari.H2HWeapons.player")
 local onUpdate = player.engineHandlers.onUpdate
 -- The first update, like a view switch, waits a couple of frames for the model before attaching.
@@ -512,6 +513,57 @@ local armorCtx, armorContent = fakeShared({ recordId = "katar_steel" }, "Short B
 armorCtx.itemType = stTypes.Armor
 shared(armorCtx)
 check(armorContent.h2hFatigue == nil, "and so is anything that is not a weapon")
+
+--- UI Toolkit's tooltips --------------------------------------------------------------------------------
+-- A stand-in for UI Toolkit's weapon recipe: the lines it will build, by the names it gives them.
+local function fakeRecipe(typeText)
+    return { arrange = "center", items = {
+        { type = "header", title = "Steel Katar", name = "Header" },
+        { text = "Type " .. typeText, name = "WeaponType" },
+        { text = "Chop", min = 5, max = 11, name = "Damage" },
+        { text = "Slash", min = 5, max = 11, name = "Damage" },
+        { text = "Thrust", min = 6, max = 11, name = "Damage" },
+        { type = "progressBar", current = 600, max = 600, name = "Condition" },
+        { text = "Weight", value = "3", name = "Weight" },
+    } }
+end
+local function byName(items, name)
+    for i, item in ipairs(items) do if item.name == name then return item, i end end
+end
+
+local utkHandler = stubs.utkTooltipHandlers[1]
+check(utkHandler ~= nil and #stubs.utkTooltipHandlers == 1, "a UI Toolkit tooltip handler is added")
+local recipe = fakeRecipe("Short Blade, One Handed")
+check(utkHandler(recipe, { type = "Weapon", object = { recordId = "katar_steel" } }) ~= false,
+      "and never stops the handlers after it")
+local typeLine = byName(recipe.items, "WeaponType")
+check(typeLine.text == "Type Hand-to-hand (Short Blade), One Handed", "UI Toolkit's type line names hand-to-hand",
+      typeLine.text)
+local fatigueLine, fatigueAt = byName(recipe.items, "h2hFatigue")
+check(fatigueLine and fatigueLine.text == "Fatigue Damage" and fatigueLine.min == 3 and fatigueLine.max == 13,
+      "a fatigue line in the recipe's own label and range form", fatigueLine and fatigueLine.min)
+check(fatigueAt == 6 and recipe.items[7].name == "Condition", "right under the damage lines", fatigueAt)
+local note, noteAt = byName(recipe.items, "h2hExplanation")
+check(note and noteAt == #recipe.items and note.type == "h2hFootnote", "the footnote at the bottom, as our own line type")
+check(note and note.text:find("(+3)", 1, true) and note.text:find("%%{") == nil,
+      "filled in with the player's numbers", note and note.text)
+check(note and note.width == 320 and note.align == "center", "wrapped, and aligned as the rest of the tooltip")
+local built = stubs.utkBuilders.h2hFootnote and stubs.utkBuilders.h2hFootnote(note)
+check(built and built.props.text == note.text and built.props.textColor == "disabledColour",
+      "built as UI Toolkit's paragraph, dimmed in its theme's colour")
+
+local keyRecipe = fakeRecipe("Blunt Weapon, One Handed")
+utkHandler(keyRecipe, { type = "Weapon", key = "knuckle_iron" })
+check(byName(keyRecipe.items, "WeaponType").text == "Type Hand-to-hand (Blunt Weapon), One Handed"
+      and byName(keyRecipe.items, "h2hFatigue") ~= nil, "a tooltip for a record id gets it too")
+
+local plainRecipe = fakeRecipe("Short Blade, One Handed")
+utkHandler(plainRecipe, { type = "Weapon", object = { recordId = "steel dagger" } })
+check(#plainRecipe.items == 7 and plainRecipe.items[2].text == "Type Short Blade, One Handed",
+      "an ordinary weapon is left alone")
+local armorRecipe = fakeRecipe("Short Blade, One Handed")
+utkHandler(armorRecipe, { type = "Armor", object = { recordId = "katar_steel" } })
+check(#armorRecipe.items == 7, "and so is anything that is not a weapon")
 
 --- the actor script ------------------------------------------------------------------------------------
 local actorScript = require("scripts.MaxYari.H2HWeapons.actor")

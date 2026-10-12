@@ -19,10 +19,12 @@ so the rig, not only the export, carries the katar moveset:
 An existing action this would overwrite is kept, renamed "<name> (old)". Run it again and it replaces
 only what it made itself (tagged h2h_import), so nothing drifts and nothing of yours is lost.
 
+From Blender: set OPTIONS below, then Text Editor > Open this file, Run Script. Headless:
     blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/import_h2h_actions.py -- \\
         --source "<ReAnimation>/Sources/Reanimv3.blend" --save
 """
 import math
+import os
 import re
 import sys
 
@@ -68,20 +70,43 @@ BIPED_AXES = axis_conversion('-X', 'Z', 'Y', 'Z').to_4x4()
 OTHER_AXES = axis_conversion('Y', 'Z', '-Z', '-Y').to_4x4()
 KATAR_TURN = Matrix.Diagonal((1.0, -1.0, -1.0, 1.0))  # about the blade, X - mirror_bone.SPIN_AXIS
 
+# What a run from the Text Editor does. Run headless, the command line after "--" says instead.
+OPTIONS = {
+    "source": None,     # ReAnimation's Sources/Reanimv3.blend; relative to this .blend's folder
+    "save": False,      # save the .blend afterwards
+}
+
+
+def script_argv():
+    """The command line after "--" when Blender was started with --python this file, else None: run
+    from the Text Editor, what Blender itself was started with is not this script's."""
+    argv = sys.argv
+    if "--" not in argv or not any(os.path.basename(a) == os.path.basename(__file__)
+                                   for a in argv[:argv.index("--")]):
+        return None
+    return argv[argv.index("--") + 1:]
+
 
 def args():
-    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    out = {"source": None, "save": False}
-    i = 0
-    while i < len(argv):
-        if argv[i] == "--source":
-            out["source"] = argv[i + 1]
+    argv = script_argv()
+    if argv is None:
+        out = dict(OPTIONS)
+        if out["source"]:
+            out["source"] = os.path.join(bpy.path.abspath("//"), bpy.path.abspath(out["source"]))
+    else:
+        out = {"source": None, "save": False}
+        i = 0
+        while i < len(argv):
+            if argv[i] == "--source":
+                if i + 1 == len(argv):
+                    raise RuntimeError("--source needs a path")
+                out["source"] = argv[i + 1]
+                i += 1
+            elif argv[i] == "--save":
+                out["save"] = True
             i += 1
-        elif argv[i] == "--save":
-            out["save"] = True
-        i += 1
     if not out["source"]:
-        sys.exit("give --source <ReAnimation's Reanimv3.blend>")
+        raise RuntimeError("give --source <ReAnimation's Reanimv3.blend> (from the Text Editor: OPTIONS)")
     return out
 
 
@@ -120,7 +145,7 @@ def rename_group(group):
     m = MOVE_GROUP.match(group.strip())
     if m:
         return m.group(1) + "katar"
-    sys.exit("marker group %r has no katar name - add it to GROUPS" % group)
+    raise RuntimeError("marker group %r has no katar name - add it to GROUPS" % group)
 
 
 def rename_markers(action):
@@ -143,8 +168,8 @@ def read_seat(action):
         prop = fc.data_path.split("].", 1)[1]
         values = [k.co[1] for k in fc.keyframe_points]
         if values and max(values) - min(values) > 1e-4:
-            sys.exit("%s moves %s.%s[%d] - the seat has to be a single pose"
-                     % (action.name, RIGHT, prop, fc.array_index))
+            raise RuntimeError("%s moves %s.%s[%d] - the seat has to be a single pose"
+                               % (action.name, RIGHT, prop, fc.array_index))
         if values:
             seat[(prop, fc.array_index)] = values[0]
     return seat
@@ -209,6 +234,23 @@ def show_rig(rig, bip):
     return hidden
 
 
+def object_mode():
+    """Leaves Edit or Pose Mode for the work. Returns what restore_mode() needs to go back."""
+    obj = bpy.context.object
+    mode = obj.mode if obj else "OBJECT"
+    if mode != "OBJECT":
+        bpy.ops.object.mode_set(mode="OBJECT")
+    return obj, mode
+
+
+def restore_mode(was):
+    """Back to the mode object_mode() left, while the rig is still shown."""
+    obj, mode = was
+    if mode != "OBJECT":
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.mode_set(mode=mode)
+
+
 def rig_slot(rig):
     """The slot identifier the rig plays its actions through."""
     return (rig.animation_data.action_slot.identifier
@@ -260,30 +302,43 @@ def key_left(rig, bip, action, slot_id, mirror):
 
 def restore_action(rig, previous, slot_id):
     """Back to the action that was open - or, if it was one replaced and kept as "(old)", its
-    replacement."""
+    replacement - or to none, if none was. The frame is the caller's to put back."""
     if previous is None:
+        if rig.animation_data is not None:
+            rig.animation_data.action = None
         return
     name = previous.name[:-len(" (old)")] if previous.name.endswith(" (old)") else previous.name
     rig.animation_data.action = bpy.data.actions.get(name) or previous
     action = rig.animation_data.action
     rig.animation_data.action_slot = next(
         (s for s in action.slots if s.identifier == slot_id), None) or action.slots[0]
-    bpy.context.scene.frame_set(int(action.frame_range[0]))
 
 
 def main():
     opts = args()
     rig = bpy.data.objects["rig"]
     bip = bpy.data.objects["Bip01"]
+    scene = bpy.context.scene
+    frame_was = scene.frame_current
+    # By name: it may be one of those replaced below.
+    previous = rig.animation_data.action.name if rig.animation_data and rig.animation_data.action else None
+    slot_id = rig_slot(rig)
 
     # The seat comes from the katar idle this blend already has, before anything is renamed or
     # replaced: the current one, which carries any reseating (reseat_weapon_bones.py), then the
     # original kept as "(old)".
     seat_action = bpy.data.actions.get(SEAT_FROM) or bpy.data.actions.get(SEAT_FROM + " (old)")
     if seat_action is None:
-        sys.exit("no %r to take the weapon bone's seat from" % SEAT_FROM)
+        raise RuntimeError("no %r to take the weapon bone's seat from" % SEAT_FROM)
     seat = read_seat(seat_action)
     print("seat from %r: %s" % (seat_action.name, {k: round(v, 4) for k, v in sorted(seat.items())}))
+
+    # Loaded before anything is renamed, so a source without them leaves this blend as it was.
+    with bpy.data.libraries.load(opts["source"], link=False) as (src, dst):
+        missing = [name for name in ACTIONS if name not in src.actions]
+        if missing:
+            raise RuntimeError("not in the source blend: %s" % missing)
+        dst.actions = list(ACTIONS)
 
     # Make room: what this script made before goes; anything else under a wanted name is kept, as old.
     for target in ACTIONS.values():
@@ -297,35 +352,29 @@ def main():
             existing.use_fake_user = True
             print("kept %r as %r" % (target, existing.name))
 
-    with bpy.data.libraries.load(opts["source"], link=False) as (src, dst):
-        missing = [name for name in ACTIONS if name not in src.actions]
-        if missing:
-            sys.exit("not in the source blend: %s" % missing)
-        dst.actions = list(ACTIONS)
-
     mirror = weapon_mirror(bip)
     hidden = show_rig(rig, bip)
-    previous = rig.animation_data.action if rig.animation_data else None
-    slot_id = rig_slot(rig)
-
-    for loaded in dst.actions:
-        source_name = next(k for k in ACTIONS if loaded.name == k or loaded.name.startswith(k + "."))
-        target = ACTIONS[source_name]
-        loaded.name = target
-        loaded[TAG] = True
-        loaded.use_fake_user = True
-        renamed = rename_markers(loaded)
-        apply_seat(loaded, seat)
-        # Any left weapon bone keys the source had would hold the fist's rest; key_left replaces them.
-        err = key_left(rig, bip, loaded, slot_id, mirror)
-        print("%-26s -> %-28s %2d markers renamed, seat held, %s keyed (off by %.5f)"
-              % (source_name, target, renamed, LEFT, err))
-        if err > 1e-3:
-            sys.exit("the left weapon bone did not land where it should in %s" % target)
-
-    restore_action(rig, previous, slot_id)
-    for collection in hidden:
-        collection.hide_viewport = True
+    try:
+        for loaded in dst.actions:
+            source_name = next(k for k in ACTIONS if loaded.name == k or loaded.name.startswith(k + "."))
+            target = ACTIONS[source_name]
+            loaded.name = target
+            loaded[TAG] = True
+            loaded.use_fake_user = True
+            renamed = rename_markers(loaded)
+            apply_seat(loaded, seat)
+            # Any left weapon bone keys the source had would hold the fist's rest; key_left replaces them.
+            err = key_left(rig, bip, loaded, slot_id, mirror)
+            print("%-26s -> %-28s %2d markers renamed, seat held, %s keyed (off by %.5f)"
+                  % (source_name, target, renamed, LEFT, err))
+            if err > 1e-3:
+                raise RuntimeError("the left weapon bone did not land where it should in %s" % target)
+    finally:
+        was = previous and (bpy.data.actions.get(previous) or bpy.data.actions.get(previous + " (old)"))
+        restore_action(rig, was or None, slot_id)
+        scene.frame_set(frame_was)
+        for collection in hidden:
+            collection.hide_viewport = True
 
     if opts["save"]:
         bpy.ops.wm.save_mainfile()
@@ -333,4 +382,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except RuntimeError as exc:
+        print("ERROR: %s" % exc)
+        if not bpy.app.background:
+            raise
+        raise SystemExit(1)

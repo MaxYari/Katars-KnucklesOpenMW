@@ -91,6 +91,13 @@ function M.new(actor)
         end
     end
 
+    -- The wielder died: no swing is under way any more, and a copy in hand goes back - a corpse keeps
+    -- its weapon stance, so check() would leave it there to be looted.
+    function copy.finish()
+        state.swinging = false
+        endSwap()
+    end
+
     function copy.isSwapped() return state.swap ~= nil end
 
     -- The copy in the hand for this swing, and the original it stands in for; nil while there is none.

@@ -179,8 +179,6 @@ def launched_with_save():
 def main():
     rig = bpy.data.objects["rig"]
     bip = bpy.data.objects["Bip01"]
-    if bpy.context.object and bpy.context.object.mode != "OBJECT":
-        bpy.ops.object.mode_set(mode="OBJECT")
 
     idle = bpy.data.actions.get(h2h.SEAT_FROM)
     if idle is None:
@@ -193,6 +191,7 @@ def main():
 
     scene = bpy.context.scene
     frame_was = scene.frame_current
+    mode_was = h2h.object_mode()
     hidden = h2h.show_rig(rig, bip)
     previous = rig.animation_data.action if rig.animation_data else None
     slot_id = h2h.rig_slot(rig)
@@ -222,6 +221,7 @@ def main():
     finally:
         h2h.restore_action(rig, previous, slot_id)
         scene.frame_set(frame_was)
+        h2h.restore_mode(mode_was)
         for collection in hidden:
             collection.hide_viewport = True
 

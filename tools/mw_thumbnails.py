@@ -18,7 +18,7 @@ each carrying the Thumb::URI and Thumb::MTime tEXt chunks the spec requires, so
 a file manager knows when the thumbnail has gone stale.
 
 Usage:
-    python3 tools/mw_thumbnails.py                  # defaults to textures/katars
+    python3 tools/mw_thumbnails.py                  # defaults to "00 Core/textures/katars"
     python3 tools/mw_thumbnails.py DIR [DIR ...]
     python3 tools/mw_thumbnails.py --force DIR      # rebuild even if current
 
@@ -46,8 +46,11 @@ def thumb_path(uri, kind):
 
 
 def file_uri(path):
-    # Matches what Blender/KDE produce: percent-encoded, path separators intact.
-    return "file://" + urllib.parse.quote(str(path), safe="/")
+    # The thumbnail is found by the md5 of this URI, so it has to be spelled the
+    # way the file manager spells it: GLib's g_filename_to_uri(), which Dolphin
+    # agrees with, keeps !$&'()*+,:=@ (and -._~) as they are and percent-encodes
+    # every other byte of the path.
+    return "file://" + urllib.parse.quote(os.fsencode(path), safe="/!$&'()*+,:=@")
 
 
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"

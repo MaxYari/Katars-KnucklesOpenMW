@@ -70,6 +70,10 @@ st.weaponRecords["generated:0x12"] = { type = 3, model = "meshes/daedric_katar.n
 check(skillOf("Generated:0x10") == "shortblade", "a scaled copy is known by its mesh")
 check(skillOf("Generated:0x11") == "bluntweapon", "whatever the case and slashes of its path")
 check(weapons.hybridOfId("Generated:0x12") == false, "but only if its weapon type agrees")
+-- Another mod asking with the id lowercased, which the engine itself would not find, first.
+st.weaponRecords["generated:0x13"] = { type = 0, model = "meshes/daedric_katar.nif" }
+check(skillOf("generated:0x13") == "shortblade", "a generated id asked for lowercased is found all the same")
+check(skillOf("Generated:0x13") == "shortblade", "and asking that way first does not spoil the answer for the real id")
 
 --- the load-time records -------------------------------------------------------------------------------
 local content = {

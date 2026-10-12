@@ -164,8 +164,8 @@ end
 --- swingSounds: the whooshes a swing makes with Combat Sounds Overhaul Overhauled, each one sound
 -- played on every swing - { sound = , volume = , groups = }. `sound` is "own", the weapon's own swing
 -- (drawn from CSO's swing `groups` when given, otherwise from what its type uses), or the name of one
--- of CSO's WEAPON kinds, whose swing is played as well. Without an "own" one the weapon's own swing is
--- silent. Becomes { own = { volume, groups } or nil, extra = { { sound, volume }, ... } }; the CSO
+-- of CSO's WEAPON kinds, whose swing is played as well - HandToHand being the engine's own swish, kept
+-- rather than played again (actor.lua). Without an "own" one the weapon's own swing is silent. Becomes { own = { volume, groups } or nil, extra = { { sound, volume }, ... } }; the CSO
 -- names are only checked where CSO is (actor.lua).
 function M.parseSwingSounds(raw, problems)
     if type(raw) ~= "table" then

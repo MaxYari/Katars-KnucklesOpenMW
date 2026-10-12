@@ -11,8 +11,8 @@ mirror in the left hand, plus the katar's half turn (import_h2h_actions.py). Mov
 The "(old)" actions import_h2h_actions.py keeps are left as they were. Running it twice changes
 nothing the second time.
 
-This is the blend only. The game's .kf files take their seat from
-Animations/xbase_anim.1st/xKatarIdle.kf (import_h2h_set.py).
+This is the blend only: export the actions afterwards (export_katar_anims.py) for the game's .kf
+files to take the new seat.
 
 From Blender: Text Editor > Open this file, Run Script, then save the .blend. Headless:
     blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/reseat_weapon_bones.py -- --save
@@ -92,8 +92,6 @@ def launched_with_save():
 def main():
     rig = bpy.data.objects["rig"]
     bip = bpy.data.objects["Bip01"]
-    if bpy.context.object and bpy.context.object.mode != "OBJECT":
-        bpy.ops.object.mode_set(mode="OBJECT")
 
     idle = bpy.data.actions.get(h2h.SEAT_FROM)
     if idle is None:
@@ -127,11 +125,14 @@ def main():
         else:
             log("  left alone: %r holds a seat of its own, %s" % (action.name, shown(seat, keys)))
 
-    mirror = h2h.weapon_mirror(bip)
+    scene = bpy.context.scene
+    frame_was = scene.frame_current
+    mode_was = h2h.object_mode()
     hidden = h2h.show_rig(rig, bip)
     previous = rig.animation_data.action if rig.animation_data else None
     slot_id = h2h.rig_slot(rig)
     try:
+        mirror = h2h.weapon_mirror(bip)
         for action in targets:
             moved = not same(held_seat(action), new, keys)
             h2h.apply_seat(action, new)
@@ -143,6 +144,8 @@ def main():
                                    % action.name)
     finally:
         h2h.restore_action(rig, previous, slot_id)
+        scene.frame_set(frame_was)
+        h2h.restore_mode(mode_was)
         for collection in hidden:
             collection.hide_viewport = True
 

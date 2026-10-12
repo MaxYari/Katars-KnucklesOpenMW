@@ -38,8 +38,8 @@ answers. From `apps/openmw/mwrender/animation.cpp` and `components/nifosg/nifloa
 
 ## Done
 
-`python3 Sources/Tools/patch_skeleton.py <vanilla skeletons> --bones-out Animations` writes
-`Animations/<skeleton>/h2h_weapon_bone_l.nif` for every skeleton the engine can load, plain and `x`
+`python3 Sources/Tools/patch_skeleton.py <vanilla skeletons> --bones-out "00 Core/Animations"` writes
+`00 Core/Animations/<skeleton>/h2h_weapon_bone_l.nif` for every skeleton the engine can load, plain and `x`
 alike - ten folders; only the one actually loaded is read, so none adds twice: `Bip01 L Hand` with
 `Weapon Bone.L` under it, marked `BONE`, at the plain conjugation of `Weapon Bone` - no half turn,
 which is the katar's and lives in its animation tracks (see the last section). All pass `niftest`; the plain and `x` rigs give identical transforms, and

@@ -72,6 +72,17 @@ local function modelKey(record)
     return model .. "|" .. tostring(record.type)
 end
 
+-- The engine reads such an id back only with that capital G (the hex digits it takes in either case):
+-- "generated:0x1a2", as a script that lowercases ids would ask, finds no record. The answer is cached
+-- under the lowercased id, so it has to be the same however the id was spelled.
+local GENERATED = "Generated:"
+local function recordIdOf(recordId)
+    if string.lower(string.sub(recordId, 1, #GENERATED)) == "generated:" then
+        return GENERATED .. string.sub(recordId, #GENERATED + 1)
+    end
+    return recordId
+end
+
 local definedByModel = nil -- [modelKey] = lowercased id of a defined weapon; built on first need
 
 local function definedLike(record)
@@ -134,7 +145,7 @@ end
 
 local function classify(recordId)
     local id = string.lower(recordId)
-    local record = types.Weapon.record(recordId)
+    local record = types.Weapon.record(recordIdOf(recordId))
     if record == nil then
         specialById[id] = false
         return false

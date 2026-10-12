@@ -10,12 +10,18 @@ Requires: Blender 4.x/5.x, the io_scene_mw addon, and ImageMagick ("magick").
 Run headless:
     blender -b your.blend --python tools/mw_bake.py -- --save
 
+or from Blender's Text Editor: Open > tools/mw_bake.py, Run Script. Flags
+cannot be passed there: set RUN_OPTIONS below instead. The open file is baked
+and left unsaved, and a popup says what happened.
+
 Flags (after the "--"):
     --save            save the .blend when finished
     --only NAME       only process objects whose name contains NAME
     --no-spec         skip _spec.dds generation
     --no-norm         skip _n.dds generation
     --res N           force every bake to N x N
+    --list            show what would be baked and stop
+    --help            this text
 
 ------------------------------------------------------------------------------
 SETTING MATERIAL PROPERTIES FROM INSIDE BLENDER
@@ -60,7 +66,9 @@ CUSTOM PROPERTIES (per material, or per object as a fallback)
     mw_max_res         256                clamp this object's baked texture
 
 Resolution order: material custom property > object custom property >
-"Aesthetically Shiny Things" lookup > keyword fallback > default.
+material name tag > plain non-metal. With CONFIG["untagged_mode"] = "guess",
+that last step is the old keyword table and "Aesthetically Shiny Things" lookup
+instead.
 
 Object name tags still work too: "[Bake]" marks it for baking, and "[NormGen]"
 switches its normal map from the supplied tiling metal grain to albedo-derived
@@ -68,6 +76,7 @@ relief. It is one or the other, never both.
 """
 
 import binascii
+import contextlib
 import hashlib
 import math
 import pathlib
@@ -80,6 +89,15 @@ import bmesh
 import bpy
 import mathutils
 import numpy as np
+
+# What the flags would say, for a run from Blender's Text Editor.
+RUN_OPTIONS = {
+    "list": False,        # --list
+    "only": None,         # --only NAME
+    "spec": True,         # False = --no-spec
+    "norm": True,         # False = --no-norm
+    "res": None,          # --res N
+}
 
 # --------------------------------------------------------------------------
 # PBR presets  (R = metalness, G = roughness, B = ambient occlusion, 0-255)
@@ -241,7 +259,8 @@ CONFIG = {
     "make_spec": True,
     "spec_mode": "baked",         # "baked" = per-material; "flat" = one colour
     "spec_size_divisor": 2,
-    "shiny_dir": None,            # None = auto-detect
+    "shiny_dir": None,            # None = auto-detect, by shiny_name
+    "shiny_name": "shiny things", # in the mod's folder name, lowercase
     "spec_default": (0, 128, 132),
     # What a material with no metal tag gets. R=0 is "not metal at all", which
     # is what vanilla Morrowind effectively is. G/B still have to be written
@@ -541,6 +560,12 @@ def repair_all_materials():
 # --------------------------------------------------------------------------
 
 def find_shiny_dir():
+    """The textures folder of Aesthetically Shiny Things, in the mods folder beside this repo.
+
+    Matched by name: other "Shiny" mods sit there too, and "Aesthetically Shiny
+    Metals PBR for extra content" sorts first. Of its two variants, "00 - PBR"
+    (the plain one, as installed) sorts before "01 - PBR Inverted".
+    """
     if CONFIG["shiny_dir"]:
         p = pathlib.Path(CONFIG["shiny_dir"])
         return p if p.is_dir() else None
@@ -548,8 +573,8 @@ def find_shiny_dir():
     if not mods.is_dir():
         return None
     for entry in sorted(mods.iterdir()):
-        if entry.is_dir() and "shiny" in entry.name.lower():
-            for candidate in entry.rglob("textures"):
+        if entry.is_dir() and CONFIG["shiny_name"] in entry.name.lower():
+            for candidate in sorted(entry.rglob("textures")):
                 if any(candidate.glob("*_spec.dds")):
                     return candidate
     return None
@@ -1419,12 +1444,14 @@ def normal_index():
         roots = [pathlib.Path(d) for d in dirs]
     else:
         roots = [d / "textures" for d in openmw_data_dirs()]
-        # fall back to the mods folder beside this .blend
         mods = blend_dir().parent
-        if mods.is_dir():
+        if not roots and mods.is_dir():
+            # No openmw.cfg: fall back to the mods beside this one. Not this
+            # one itself, whose maps are its own bakes; its loose vanilla
+            # textures/ are added below either way.
             for entry in sorted(mods.iterdir()):
-                if entry.is_dir():
-                    roots.extend(entry.rglob("textures"))
+                if entry.is_dir() and entry.resolve() != blend_dir().resolve():
+                    roots.extend(sorted(entry.rglob("textures")))
         roots.append(blend_dir() / "textures")
 
     _NORMAL_INDEX = {}
@@ -2002,27 +2029,107 @@ def log_banner():
     log("=" * 68)
 
 
+class Abort(Exception):
+    """Stops the run. Not SystemExit: from the Text Editor that can close Blender."""
+
+
+# What the popup at the end of a run from the Text Editor shows: the error, or
+# the summary.
+REPORT = []
+
+
 def die(message, detail=None):
+    REPORT[:] = [f"ERROR: {message}", *(detail or [])]
     log("")
     log(f"ERROR: {message}")
     for line in detail or []:
         log(f"  {line}")
     log("")
     log("Run with --help for the full description.")
-    raise SystemExit(1)
+    raise Abort(message)
+
+
+def launch_flags(script, argv):
+    """(whether Blender was started with this script, the flags after "--").
+
+    Flags are only a script's when Blender was started with it (--python). Run
+    from the Text Editor -- __file__ is then the .blend's path with the text's
+    name on the end -- whatever followed a "--" was meant for something else,
+    and the script reads its RUN_OPTIONS instead. mw_export.py and
+    mw_paint_prep.py go by the same rule.
+    """
+    head = argv[:argv.index("--")] if "--" in argv else argv
+    launched = any(pathlib.Path(a).name == pathlib.Path(script).name for a in head[1:])
+    return launched, (argv[len(head) + 1:] if launched else [])
+
+
+@contextlib.contextmanager
+def scene_state_kept():
+    """Put back the mode, selection, active object, hide flags and frame, however the run ends.
+
+    The scripts run in the very file being worked on when started from the Text
+    Editor, and they select, unhide and switch modes as they go.
+    """
+    scene, view_layer = bpy.context.scene, bpy.context.view_layer
+    active = view_layer.objects.active
+    mode = active.mode if active else "OBJECT"
+    selected = {o.as_pointer() for o in view_layer.objects if o.select_get()}
+    hidden = [(o, o.hide_viewport, o.hide_render,
+               o.hide_get() if o.name in view_layer.objects else None) for o in scene.objects]
+    frame = scene.frame_current, scene.frame_subframe
+    try:
+        yield
+    finally:
+        current = view_layer.objects.active
+        if current is not None and current.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        for obj, viewport, render, layer in hidden:
+            try:
+                obj.hide_viewport, obj.hide_render = viewport, render
+                if layer is not None:
+                    obj.hide_set(layer)
+            except (ReferenceError, RuntimeError):
+                pass  # deleted, or no longer in the view layer
+        for obj in view_layer.objects:
+            obj.select_set(obj.as_pointer() in selected)
+        try:
+            view_layer.objects.active = active
+        except ReferenceError:
+            active = None
+        if active is not None and mode != "OBJECT":
+            try:
+                bpy.ops.object.mode_set(mode=mode)
+            except RuntimeError as exc:
+                log(f"could not put {active.name!r} back in {mode} mode: {exc}")
+        if (scene.frame_current, scene.frame_subframe) != frame:
+            scene.frame_set(frame[0], subframe=frame[1])
+
+
+def popup(title, lines, failed=False):
+    """The lines in a popup, for a run from the Text Editor -- the console is easy to miss."""
+    if bpy.app.background or not lines:
+        return
+
+    def draw(self, _context):
+        for line in lines:
+            self.layout.label(text=line)
+
+    bpy.context.window_manager.popup_menu(draw, title=title, icon="ERROR" if failed else "INFO")
 
 
 def parse_args(argv):
-    args = {"save": False, "only": None, "spec": CONFIG["make_spec"],
-            "norm": CONFIG["make_norm"], "res": CONFIG["forced_size"], "list": False}
-    argv = argv[argv.index("--") + 1:] if "--" in argv else []
+    args = {"save": False, **RUN_OPTIONS}
+    args["spec"] = args["spec"] and CONFIG["make_spec"]
+    args["norm"] = args["norm"] and CONFIG["make_norm"]
+    args["res"] = args["res"] or CONFIG["forced_size"]
+    _launched, argv = launch_flags(__file__, argv)
 
     i = 0
     while i < len(argv):
         a = argv[i]
         if a in ("--help", "-h"):
             print(__doc__)
-            raise SystemExit(0)
+            raise Abort("help")
         elif a == "--save":
             args["save"] = True
         elif a == "--list":
@@ -2045,13 +2152,13 @@ def parse_args(argv):
                 args["res"] = int(argv[i])
             except ValueError:
                 die(f"--res wants a whole number, got {argv[i]!r}", ["e.g. --res 256"])
-            if args["res"] < 8 or args["res"] > 4096:
-                die(f"--res {args['res']} is out of range", ["Use something between 8 and 4096."])
         else:
             die(f"unknown option {a!r}",
                 ["Valid options: --save --only NAME --res N --no-spec --no-norm "
                  "--list --help"])
         i += 1
+    if args["res"] and not 8 <= args["res"] <= 4096:
+        die(f"--res {args['res']} is out of range", ["Use something between 8 and 4096."])
     return args
 
 
@@ -2098,6 +2205,7 @@ def main():
 
     if args["list"]:
         log(f"would bake {len(groups)} texture(s) from {len(targets)} object(s):")
+        REPORT.append(f"would bake {len(groups)} texture(s) from {len(targets)} object(s):")
         for rep, followers in groups:
             mats = ", ".join(sorted({sl.material.name + ("" if material_is_baked(sl.material)
                                                          else " (kept as it is)")
@@ -2106,28 +2214,34 @@ def main():
             log(f"      materials: {mats}")
             for f in followers:
                 log(f"      clone: {f.name!r}")
+            REPORT.append(f"  {rep.name} -> {slugify(rep.name)}"
+                          + (f" (+{len(followers)} clone(s))" if followers else ""))
         return
 
-    shiny = find_shiny_dir()
-    log(f"Aesthetically Shiny Things: {shiny}")
+    shiny = None
+    if CONFIG["untagged_mode"] == "guess":  # the only one that reads Aesthetically Shiny Things
+        shiny = find_shiny_dir()
+        log(f"Aesthetically Shiny Things: {shiny}")
     log(f"detail normal: {blend_dir() / CONFIG['detail_normal']}")
     log(f"baking {len(targets)} object(s)")
 
-    if bpy.context.object and bpy.context.object.mode != "OBJECT":
-        bpy.ops.object.mode_set(mode="OBJECT")
-
     results = {}
-    for rep, followers in groups:
-        for obj in (rep, *followers):
-            obj.hide_viewport = False
-            obj.hide_render = False
-        written = process_object(rep, shiny, args["spec"], args["norm"])
-        if written is None:
-            continue
-        results[rep.name] = written
-        for follower in followers:
-            share_bake(rep, follower)
-            results[rep.name].setdefault("clones", []).append(follower.name)
+    with scene_state_kept():
+        if bpy.context.object and bpy.context.object.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+
+        for rep, followers in groups:
+            # Hidden any of these ways, it is left out of the bake.
+            for obj in (rep, *followers):
+                obj.hide_viewport = obj.hide_render = False
+                obj.hide_set(False)
+            written = process_object(rep, shiny, args["spec"], args["norm"])
+            if written is None:
+                continue
+            results[rep.name] = written
+            for follower in followers:
+                share_bake(rep, follower)
+                results[rep.name].setdefault("clones", []).append(follower.name)
 
     log("=" * 60)
     for name, files in results.items():
@@ -2137,10 +2251,15 @@ def main():
                 log(f"    {'clones':7s} {', '.join(path)}")
             else:
                 log(f"    {kind:7s} {path.name}")
+    REPORT.append(f"baked {len(results)} texture(s) into {CONFIG['out_dir']}:")
+    REPORT.extend(f"  {name}: {', '.join(k for k in files if k != 'clones')}"
+                  for name, files in results.items())
 
     if args["save"]:
         bpy.ops.wm.save_mainfile()
         log(f"saved {bpy.data.filepath}")
+    elif results and not bpy.app.background:
+        REPORT.append("Not saved yet: File > Save keeps it.")
 
 
 _plain_slugify = slugify
@@ -2154,4 +2273,16 @@ def slugify(name):  # noqa: F811
 
 
 if __name__ == "__main__":
-    main()
+    REPORT.clear()
+    try:
+        main()
+    except Abort as exc:
+        # Only a headless run started with this script exits; anywhere else
+        # SystemExit can take Blender down with it, so it stays an exception.
+        if bpy.app.background and launch_flags(__file__, sys.argv)[0]:
+            raise SystemExit(0 if str(exc) == "help" else 1)
+        if str(exc) != "help":
+            popup("mw_bake: stopped", REPORT, failed=True)
+            raise
+    else:
+        popup("mw_bake: done", REPORT)

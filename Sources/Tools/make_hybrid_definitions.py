@@ -7,8 +7,9 @@ weapon that trains Hand to Hand first and its weapon skill second. The scripts r
 Re-run after adding a weapon to make_plugin.py. Files for weapons that are gone are left for you to
 delete.
 
-    python3 Sources/Tools/make_hybrid_definitions.py
+    python3 Sources/Tools/make_hybrid_definitions.py [-o <folder>]
 """
+import argparse
 import os
 import sys
 
@@ -85,13 +86,17 @@ def definition(name, kind):
 
 
 def main():
-    os.makedirs(OUT, exist_ok=True)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("-o", "--out", default=OUT,
+                    help="the folder to write to (default: 00 Core/HybridWeaponDefinitions)")
+    args = ap.parse_args()
+    os.makedirs(args.out, exist_ok=True)
     count = 0
     for record_id, name, kind in weapons():
-        with open(os.path.join(OUT, record_id.lower() + ".yaml"), "w", newline="\n") as fh:
+        with open(os.path.join(args.out, record_id.lower() + ".yaml"), "w", newline="\n") as fh:
             fh.write(definition(name, kind))
         count += 1
-    print(f"wrote {count} definitions to {os.path.normpath(OUT)}")
+    print(f"wrote {count} definitions to {os.path.normpath(args.out)}")
 
 
 if __name__ == "__main__":

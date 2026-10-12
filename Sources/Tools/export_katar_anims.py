@@ -22,11 +22,12 @@ The .kf files - only those, not the .nif the exporter writes beside each - land 
 ReAnimation's builder names a movement set from its marker group, so "[Raw] Katar Walk" comes out
 as xkatarMovement. Then run make_third_person_anims.py for the third-person sets.
 
-From Blender: Text Editor > Open this file, Run Script. Headless:
+From Blender: Text Editor > Open this file, Run Script (ONLY below picks the actions). Headless:
     blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/export_katar_anims.py
     ... -- --only Idle            only actions whose name contains it
 """
 import contextlib
+import importlib
 import os
 import pathlib
 import shutil
@@ -34,6 +35,10 @@ import sys
 import tempfile
 
 import bpy
+
+# A run from the Text Editor exports only the actions whose name contains this; None exports all.
+# Run headless, "-- --only <text>" says instead.
+ONLY = None
 
 PREFIX = "[Raw] Katar "
 ADDON = "BizarreMorrowindAnimatonUtilities"
@@ -56,7 +61,7 @@ def log(msg):
 def _tools_dir():
     """Run from the Text Editor, __file__ is the .blend's path with the text's name on the end."""
     here = pathlib.Path(__file__)
-    candidates = [here.resolve().parent]
+    candidates = [here.absolute().parent]
     text = bpy.data.texts.get(here.name)
     if text is not None and text.filepath:
         candidates.append(pathlib.Path(bpy.path.abspath(text.filepath)).resolve().parent)
@@ -74,6 +79,7 @@ OUT = MOD / "00 Core" / "Animations" / "xbase_anim.1st"
 if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 import make_katar_1h_movement as one_handed  # noqa: E402
+one_handed = importlib.reload(one_handed)
 
 
 def reanimation_helpers(reanimation):
@@ -93,6 +99,33 @@ def reanimation_helpers(reanimation):
     helpers = {"__file__": path, "__name__": "build_and_export_moveset_helpers"}
     exec(compile(source[:source.index(HELPERS_END)], path, "exec"), helpers)
     return helpers
+
+
+@contextlib.contextmanager
+def scene_kept():
+    """The frame and frame range, the active object and its mode, and the selection, put back
+    afterwards: Bizarre's bake and export set the frame range to each action's, and each step
+    selects the one rig it works on, in Object Mode."""
+    scene, view_layer = bpy.context.scene, bpy.context.view_layer
+    frames = scene.frame_current, scene.frame_start, scene.frame_end
+    active = view_layer.objects.active
+    mode = active.mode if active else "OBJECT"
+    selected = {o.name for o in view_layer.objects if o.select_get()}
+    if mode != "OBJECT":
+        bpy.ops.object.mode_set(mode="OBJECT")
+    try:
+        yield
+    finally:
+        scene.frame_start, scene.frame_end = frames[1:]
+        scene.frame_set(frames[0])
+        if bpy.context.object and bpy.context.object.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        for obj in view_layer.objects:
+            if obj.select_get() != (obj.name in selected):
+                obj.select_set(obj.name in selected)
+        view_layer.objects.active = active
+        if mode != "OBJECT":
+            bpy.ops.object.mode_set(mode=mode)
 
 
 @contextlib.contextmanager
@@ -151,7 +184,7 @@ def export_one(h, exporter, rig, bip, raw):
 
 def live_footsteps(path):
     """SoundGen keys a file carries - each one would sound a step twice in game."""
-    import mirror_weapon_track  # noqa: F401  (puts the es3 library on the path)
+    import es3_path  # noqa: F401  (puts the es3 library on the path)
     from es3.nif import NiStream, NiTextKeyExtraData
     stream = NiStream()
     stream.load(path)
@@ -180,69 +213,79 @@ def export_actions(names, out_dir=OUT, reanimation=None):
     reanimation = one_handed.find_reanimation(reanimation)
     h = reanimation_helpers(reanimation)
     exporter = h["addon_exporter"]()
+    scratch = tempfile.mkdtemp()
+    try:
+        exported = export_into(h, exporter, names, scratch)
+        # Checked before anything is copied: a failed check leaves out_dir as it was.
+        problems = []
+        for raw_name, kf in exported:
+            path = os.path.join(scratch, kf)
+            steps = live_footsteps(path)
+            if steps:
+                problems.append("%s carries %d SoundGen key(s): name its footstep markers SoundGenRef"
+                                % (raw_name, steps))
+            stem = kf[:-3]
+            if stem.lower() in {k.lower() for k in ONE_HANDED}:
+                theirs = ONE_HANDED[next(k for k in ONE_HANDED if k.lower() == stem.lower())]
+                try:
+                    one_handed.check_loops(path, os.path.join(reanimation_data(reanimation), "Animations",
+                                                              "xbase_anim.1st", theirs))
+                except RuntimeError as exc:
+                    problems.append(str(exc))
+        if problems:
+            raise RuntimeError("; ".join(problems) + " - nothing copied to %s" % out_dir)
+
+        os.makedirs(out_dir, exist_ok=True)
+        written = []
+        for raw_name, kf in exported:
+            # Only the .kf: the exporter's .nif beside it is never read. The engine plays the .kf against
+            # the actor's own skeleton (Animation::addSingleAnimSource), and takes nothing from a .nif in
+            # the folder but nodes marked BONE (injectCustomBones), which these have none of.
+            target = destination(kf[:-3] + ".kf", out_dir)
+            shutil.copyfile(os.path.join(scratch, kf), target)
+            written.append(target)
+            log("  %-30s -> %s" % (raw_name, os.path.relpath(target, MOD)))
+        return written
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+
+
+def export_into(h, exporter, names, scratch):
+    """Bake, build and export each action into scratch. Returns (action name, .kf file name) for
+    each, and leaves the blend as it was but for those files."""
     rig = bpy.data.objects["rig"]
     bip = exporter.find_morrowind_rig_controlled_by(rig)
-    if bpy.context.object and bpy.context.object.mode != "OBJECT":
-        bpy.ops.object.mode_set(mode="OBJECT")
     previous = rig.animation_data.action if rig.animation_data else None
     previous_slot = rig.animation_data.action_slot if rig.animation_data else None
     bip_previous = bip.animation_data.action if bip.animation_data else None
+    bip_previous_slot = bip.animation_data.action_slot if bip.animation_data else None
 
-    scratch = tempfile.mkdtemp()
     actions_before = {a.session_uid for a in bpy.data.actions}
     visibility = h["reveal"](rig) + h["reveal"](bip)
     bpy.context.view_layer.update()
     exported = []
     try:
-        with export_settings(exporter, scratch):
+        with scene_kept(), export_settings(exporter, scratch):
             for name in names:
                 before = set(os.listdir(scratch))
-                made = export_one(h, exporter, rig, bip, bpy.data.actions[name])
+                export_one(h, exporter, rig, bip, bpy.data.actions[name])
                 new = sorted(set(os.listdir(scratch)) - before)
                 kf = [n for n in new if n.lower().endswith(".kf")]
                 if len(kf) != 1:
                     raise RuntimeError("%s exported %s, not one .kf" % (name, new))
-                exported.append((name, made.name, kf[0]))
+                exported.append((name, kf[0]))
     finally:
         h["restore_visibility"](visibility)
-        if previous is not None:
-            rig.animation_data.action = previous
-            if previous_slot is not None:
-                rig.animation_data.action_slot = previous_slot
-        if bip.animation_data is not None:
-            bip.animation_data.action = bip_previous
+        for obj, action, slot in ((rig, previous, previous_slot), (bip, bip_previous, bip_previous_slot)):
+            if obj.animation_data is not None:
+                obj.animation_data.action = action
+                if slot is not None:
+                    obj.animation_data.action_slot = slot
         # The bakes and built movesets are only the way to the file; the blend keeps its [Raw] ones.
         for action in [a for a in bpy.data.actions if a.session_uid not in actions_before]:
             if action.users <= (1 if action.use_fake_user else 0):
                 bpy.data.actions.remove(action)
-
-    os.makedirs(out_dir, exist_ok=True)
-    written, problems = [], []
-    for raw_name, made_name, kf in exported:
-        path = os.path.join(scratch, kf)
-        steps = live_footsteps(path)
-        if steps:
-            problems.append("%s carries %d SoundGen key(s): name its footstep markers SoundGenRef"
-                            % (raw_name, steps))
-        stem = kf[:-3]
-        if stem.lower() in {k.lower() for k in ONE_HANDED}:
-            theirs = ONE_HANDED[next(k for k in ONE_HANDED if k.lower() == stem.lower())]
-            try:
-                one_handed.check_loops(path, os.path.join(reanimation_data(reanimation), "Animations",
-                                                          "xbase_anim.1st", theirs))
-            except SystemExit as exc:          # it exits on a mismatch; a Text Editor run must not
-                problems.append(str(exc))
-        # Only the .kf: the exporter's .nif beside it is never read. The engine plays the .kf against
-        # the actor's own skeleton (Animation::addSingleAnimSource), and takes nothing from a .nif in
-        # the folder but nodes marked BONE (injectCustomBones), which these have none of.
-        target = destination(stem + ".kf", out_dir)
-        shutil.copyfile(path, target)
-        written.append(target)
-        log("  %-30s -> %s" % (raw_name, os.path.relpath(target, MOD)))
-    shutil.rmtree(scratch)
-    if problems:
-        raise RuntimeError("; ".join(problems))
-    return written
+    return exported
 
 
 def main(only=None):
@@ -276,7 +319,7 @@ def show_in_blender(failed):
 if __name__ == "__main__":
     LOG.clear()
     try:
-        main(only_arg())
+        main(only_arg() or ONLY)
     except RuntimeError as exc:
         log("ERROR: %s" % exc)
         if bpy.app.background:

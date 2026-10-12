@@ -41,6 +41,18 @@ api.interface.addAltAttackAnimations({
     armatureType = 1,
 })
 
+-- A ReAnimation from before 3.3 has the interface but not all of it: nothing is registered, and the
+-- player is told to update it.
+stubs.I.ReAnimation = { version = 2.9 }
+st.messages = {}
+local loadedOld, returned = pcall(require, "scripts.MaxYari.H2HWeapons.animations")
+check(loadedOld and returned == true, "with ReAnimation 2.9 animations.lua stops before registering anything",
+      tostring(returned))
+check(st.messages[1] and st.messages[1]:find("update", 1, true), "and the player is told to update it",
+      st.messages[1])
+package.loaded["scripts.MaxYari.H2HWeapons.animations"] = nil
+stubs.I.ReAnimation = api.interface
+
 -- the mod's own animation registrations must load without error
 local overrides = require("scripts.MaxYari.H2HWeapons.animations")
 check(true, "animations.lua loaded")

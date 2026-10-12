@@ -198,7 +198,11 @@ Drawing a short blade or a blunt weapon plays a sound. Bare hands do not, and ne
 ### Swing sounds
 
 With [Combat Sounds Overhaul Overhauled](https://www.nexusmods.com/morrowind/mods/60361), a katar swings with a fist's whoosh and its own sharp one,
-softer, under it; knuckledusters with a fist's alone (`swingSounds` in their definitions).
+softer, under it; knuckledusters with a fist's alone (`swingSounds` in their definitions). The fist's
+is the engine's own swish - every melee swing plays the same one - which CSO 1.4 keeps when asked
+(`actor.lua`'s swing groups handler): CSO's whoosh then goes on top instead of in its place, and
+knuckledusters, with nothing of their own, get no CSO whoosh at all, exactly as a bare fist. An older
+CSO replaces the swish for katars too, so they swing with the sharp one alone.
 
 ### NPCs
 
@@ -271,6 +275,9 @@ only what the engine keys to its built-in effects and so cannot give a new one.
   He fights with it and with his own Adamantium Jinkblade of Wounds - Paralyze and 10 points of
   Poison on every strike - turn about (`scripts/roseowner.lua`, a step of Mercy's melee fight; Mercy
   switches the engine's combat AI off while it fights, and with it the engine's own choice of weapon).
+  The step is registered from `npc.lua`'s `onActive`, not as the script loads, so it works whichever
+  of the two mods loads first; Mercy builds his fight from its extensions only later, when its global
+  answers him.
   He opens with the Jinkblade and turns to the Rose once the enemy is paralysed, once the Jinkblade
   has too little charge for another strike's paralysis, or after 8 swings with it; he keeps the Rose
   at least 10 seconds, then goes back to the Jinkblade if it has the charge and the enemy is not
@@ -362,7 +369,8 @@ Two more run on every NPC and creature, for those who wield these. On a creature
 (`weapons.canWield`: anything but a two-legged one that fights with weapons) both return in their
 first lines, before loading anything, and leave no handler behind - ReAnimation's API does the same -
 so a rat costs nothing. `npc.lua` has no per-frame handler either: it hangs off the actor's own
-animation events, and looks at the hand twice a second only while a one-handed weapon is out.
+animation events, and looks at the hand twice a second only while a weapon is out and the actor is
+alive (a corpse keeps its weapon stance; the first look that finds it dead is the last).
 `animations.lua` registers the moveset with ReAnimation, whose own per-frame check only runs while
 the actor has a weapon drawn.
 
@@ -373,7 +381,7 @@ Yari's Script Services reads for this mod and ReAnimation both, at most ten time
 
 **Skeletons.** The off-hand weapon hangs off a `Weapon Bone.L` that vanilla skeletons do not have.
 This mod adds it the way that cannot conflict: a small file per skeleton,
-`Animations/<skeleton>/h2h_weapon_bone_l.nif`, whose bone OpenMW grafts onto that skeleton when it
+`00 Core/Animations/<skeleton>/h2h_weapon_bone_l.nif`, whose bone OpenMW grafts onto that skeleton when it
 loads it (it takes any node marked `BONE` from the `.nif` files in `animations/<skeleton name>/`;
 "use additional animation sources" has to be on, which ReAnimation needs anyway). The skeleton name is
 the file actually loaded, which is the `x` twin (`xbase_anim.nif`) whenever an `x…kf` exists, so there
@@ -392,7 +400,7 @@ name here; the off-hand weapon then quietly does not appear, and everything else
 it one with:
 
 ```
-python3 Sources/Tools/patch_skeleton.py <its skeleton .nif> --bones-out Animations
+python3 Sources/Tools/patch_skeleton.py <its skeleton .nif> --bones-out "00 Core/Animations"
 ```
 
 It needs [Greatness7's io_scene_mw](https://github.com/Greatness7/io_scene_mw) Blender add-on
@@ -515,12 +523,15 @@ follow it too; and a glass one, which the glass katar follows. Its adamantium li
 adamantium shortsword, and the adamantium katar with it. It needs Tamriel Data and
 `Katars&Knuckles.omwaddon` as masters, and goes after both.
 
-**Tooltips.** Two tooltip mods are given the weapons' real workings, both optional
-(`player.lua`): Inventory Extender's, through `I.InventoryExtender.registerTooltipModifier`, and the
+**Tooltips.** Three tooltip mods are given the weapons' real workings, all optional
+(`player.lua`): Inventory Extender's, through `I.InventoryExtender.registerTooltipModifier`, the
 Shared Tooltip that QuickLoot - and any other mod bundling that library - shows, through
-`I.SharedTooltip.registerModifier`. Both get the type line rewritten to "Hand to Hand (Short Blade)" or
-"(Blunt Weapon)" and a fatigue damage line under the damage ones; Inventory Extender's a footnote on
-the skills as well, which a loot tooltip has no room for. Lines are put in place without
+`I.SharedTooltip.registerModifier`, and UI Toolkit's, through `I.UTKTooltips.addPreCreateTooltipHandler`.
+All get the type line rewritten to "Hand to Hand (Short Blade)" or "(Blunt Weapon)" and a fatigue damage
+line under the damage ones; Inventory Extender's and UI Toolkit's a footnote on the skills as well,
+which a loot tooltip has no room for. UI Toolkit's are changed before they are built, as its recipe -
+the list of lines, found by the names it gives them (`WeaponType`, `Damage`) - and the footnote is a
+line type registered with `registerBuilder`, its paragraph dimmed. Lines are put in place without
 `content:insert`: in 0.51 it records the lines it moves under the lines themselves rather than their
 names (`components/lua_ui/content.lua`), and every lookup by name below it then finds the wrong one.
 
@@ -550,11 +561,11 @@ built by a script, so a rebuild is reproducible. What each script does, and how 
 None of it ships: the release is the game's files alone (`.nexusignore`).
 
 The repository is laid out as the release is: `00 Core/` is the mod - point a data path at it -
-`01 Glass Glowset Patch/` the optional patch, and `fomod/` the installer; everything else is for
-building it. The `textures/` folder beside them (not the one in `00 Core`) is loose vanilla textures
-for the Blender files to preview against, git-ignored and never shipped, and outside the data folder
-so the game never loads them; extract them from Morrowind.bsa, Tribunal.bsa and Bloodmoon.bsa if you
-want them back.
+`01 Glass Glowset Patch/` and `02 FBA Compatibility/` the optional patches, and `fomod/` the
+installer; everything else is for building it. The `textures/` folder beside them (not the one in
+`00 Core`) is loose vanilla textures for the Blender files to preview against, git-ignored and never
+shipped, and outside the data folder so the game never loads them; extract them from Morrowind.bsa,
+Tribunal.bsa and Bloodmoon.bsa if you want them back.
 
 ### The third-person animations
 

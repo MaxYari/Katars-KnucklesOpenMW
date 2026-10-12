@@ -715,7 +715,7 @@ def build(master_paths, meshes_dir):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("-o", "--out", default=os.path.join(DATA, "Katars&Knuckles.omwaddon"))
-    ap.add_argument("--master", action="append", default=[],
+    ap.add_argument("--master", action="append", required=True,
                     help="a master to read from and record, in load order: Morrowind.esm, then Tribunal.esm")
     ap.add_argument("--meshes", default=os.path.join(DATA, "meshes"),
                     help="where the meshes live; an item whose mesh is missing is left out")

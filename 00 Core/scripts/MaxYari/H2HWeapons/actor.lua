@@ -504,10 +504,19 @@ local function swingSoundsOf(recordId)
     return hybrid and hybrid.swingSounds or nil
 end
 
--- The one sound the engine swings a bare fist with (CharacterController::playSwishSound). CSO leaves it
--- be on a fist, so a definition's HandToHand plays it too - not CSO's HandToHand swing, which draws
--- from all four vanilla swishes.
-local FIST_SWISH = "Weapon Swish"
+-- A definition's HandToHand is the engine's own swish: it swings every melee weapon with the one sound
+-- a bare fist has (CharacterController::playSwishSound), and CSO leaves it be on a fist. The groups
+-- handler keeps it, CSO's whoosh going on top (CSO 1.4; an older one replaces it as for any weapon).
+local function isFist(extra) return string.lower(extra.sound) == "handtohand" end
+
+-- Whether a definition keeps the engine's swish, and how many CSO kinds it adds to it.
+local function swishAndKinds(sounds)
+    local keepsSwish, kinds = false, 0
+    for i = 1, #sounds.extra do
+        if isFist(sounds.extra[i]) then keepsSwish = true else kinds = kinds + 1 end
+    end
+    return keepsSwish, kinds
+end
 
 if cso and cso.addOnPlayHandler then
     cso.addOnPlayHandler(function(info)
@@ -516,9 +525,7 @@ if cso and cso.addOnPlayHandler then
         if not sounds then return end
         for i = 1, #sounds.extra do
             local extra = sounds.extra[i]
-            if string.lower(extra.sound) == "handtohand" then
-                core.sound.playSound3d(FIST_SWISH, omwself, { volume = info.volume * extra.volume, pitch = info.pitch })
-            else
+            if not isFist(extra) then
                 local weapon = csoWeapon(extra.sound)
                 -- playSwing has no weaponId, so this doesn't come back here
                 if weapon then cso.playSwing(weapon, info.volume * extra.volume, info.attackType) end
@@ -531,7 +538,13 @@ end
 if cso and cso.addSwingGroupsHandler then
     cso.addSwingGroupsHandler(function(recordId)
         local sounds = swingSoundsOf(recordId)
-        return sounds and sounds.own and sounds.own.groups or nil
+        if not sounds then return nil end
+        local keepsSwish, kinds = swishAndKinds(sounds)
+        if sounds.own then return sounds.own.groups, keepsSwish end
+        -- Nothing of its own and nothing to add: the engine's swish alone, as on a bare fist - or silence.
+        if kinds == 0 and keepsSwish then return {} end
+        -- Otherwise the swing CSO makes is only the cue for the kinds it adds: the play handler stops it.
+        return nil, keepsSwish
     end)
 end
 

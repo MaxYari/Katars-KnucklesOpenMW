@@ -24,8 +24,9 @@ Two jobs, because they are two halves of one look:
    one in the gap between them - Mage Fury's, whose light sits between its two crystals. Re-run it
    after every export and the effect follows the crystals wherever they have moved to.
 
-    python3 charge_fx.py --alpha meshes/mage_fury.nif --shape Crystal
-    python3 charge_fx.py --effect meshes/mage_fury_charged.nif --from-mesh meshes/mage_fury.nif --between
+    python3 charge_fx.py --alpha "00 Core/meshes/mage_fury.nif" --shape Crystal
+    python3 charge_fx.py --effect "00 Core/meshes/mage_fury_charged.nif" \
+        --from-mesh "00 Core/meshes/mage_fury.nif" --between
     python3 charge_fx.py --effect out.nif --centre 3.88,0,0 --extent 0.7,2.2,0.7
 """
 import argparse

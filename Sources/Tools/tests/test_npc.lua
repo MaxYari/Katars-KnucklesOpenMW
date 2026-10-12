@@ -258,6 +258,21 @@ check(st.equipped == rose, "an NPC who sheathes mid-swing gets the Rose back")
 st.stance = 1
 key("equip attach")
 
+-- Killed mid-swing: a corpse keeps its weapon stance, and no key will come.
+for _ = 1, 2 do
+    stubs.advance(1)
+    fire("H2HWeapons_VenomStrike", { victim = enemy })
+end
+play("chop start")
+fire("H2HWeapons_CopyStaged", { original = rose, copy = copy })
+check(st.equipped == copy, "copy in hand")
+selfHandle.dead = true
+stubs.advance(0.6)
+check(st.equipped == rose, "an NPC killed mid-swing gets the Rose back, not his corpse the copy")
+check(#st.timers == 0, "and a corpse with its weapon out is not looked at any longer", #st.timers)
+selfHandle.dead = nil
+key("equip attach")
+
 -- A save taken with the copy in hand.
 for _ = 1, 2 do
     stubs.advance(1)

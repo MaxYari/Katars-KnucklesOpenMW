@@ -1,5 +1,7 @@
 # Katars & Knuckles
 
+[![Katars & Knuckles demo video](https://img.youtube.com/vi/E8iXQvFb4CM/maxresdefault.jpg)](https://www.youtube.com/watch?v=E8iXQvFb4CM)
+
 ![Katars & Knuckles](imgs/banner.png)
 
 Fully integrated class of Hand-to-hand weapons for OpenMW. Katars & Knuckles. They mostly use a **Hand to Hand** skill but also receive a small bonus from blunt/blade skill. Same goes for skill leveling.
@@ -21,9 +23,10 @@ Developed for OpenMW. **Requires OpenMW 0.51+**.
 - Properly animated in 1st and 3rd person.
 - Dual-wielding!
 - NPCs can use them too!
-- "Officially" Katars are shortblades and knuckledusters are blunt weapons, that's what you will see on a tooltip in the world. Note that tooltips should be correct in your inventory or inside containers if you are using [Inventory Extender](https://www.nexusmods.com/morrowind/mods/59205) and/or [QuickLoot](https://www.nexusmods.com/morrowind/mods/54950).
+- "Officially" Katars are shortblades and knuckledusters are blunt weapons, that's what you will see on a tooltip in the world. Note that tooltips should be correct in your inventory or inside containers if you are using [Inventory Extender](https://www.nexusmods.com/morrowind/mods/59205) and/or [QuickLoot](https://www.nexusmods.com/morrowind/mods/54950), and in any mod's windows built with [UI Toolkit](https://www.nexusmods.com/morrowind/mods/60303).
 
-If you want to know more details and know what to expect, look under the spoiler below, otherwise just play the game :)
+### If you want to see the screenshots, know more details and know what to expect, look under the spoiler below, otherwise just play the game :)
+
 It's safe to open: everything inside is organised into smaller spoilers - every material has its own, and so does every unique's location - so you only see what you click on.
 
 <details>
@@ -201,7 +204,7 @@ beside the fire, in the little corner where Dandras is found.
 1) Install the dependencies: [ReAnimation](https://www.nexusmods.com/morrowind/mods/52596) (3.3 or
 newer) and [Max Yari's Script Services (MSS)](https://www.nexusmods.com/morrowind/mods/60256).
 
-2) Install this mod **with a mod organiser**: download the archive and drag and drop it into your mod
+2) Install this mod **with a mod organiser**: download the archive [from Nexus](https://www.nexusmods.com/morrowind/mods/60553?tab=files) and drag and drop it into your mod
 organiser of choice (e.g. [Mod Organizer 2](https://github.com/ModOrganizer2/modorganizer/releases)
 on Windows or [Nerevarine Organizer](https://github.com/grazelandsnomad/nerevarine_organizer/releases/tag/v0.70)
 on Linux).
@@ -325,8 +328,8 @@ and on every hit its experience is handed out by the shares below.
 - `swingSounds` (default: the weapon's own) - swing whooshes, with
   [Combat Sounds Overhaul Overhauled](https://www.nexusmods.com/morrowind/mods/60361), a replacement script for [Combat Sounds Overhaul](https://www.nexusmods.com/morrowind/mods/53859)
   (below).
-- `tooltip` (default: one for its scaling) - the footnote in Inventory Extender's tooltip
-  (placeholders below).
+- `tooltip` (default: one for its scaling) - the footnote in Inventory Extender's and UI Toolkit's
+  tooltips (placeholders below).
 
 A skill that isn't the weapon's own gets its share as one use of that skill - for a magic school,
 one successful cast. The weapon's own skill, if it's neither of the two, gets nothing.
@@ -339,7 +342,8 @@ is), `%{primaryExperience}` and `%{secondaryExperience}` (as `70%`).
 **Swing sounds** are a list, one whoosh per entry, all played on every swing. `sound` is `own` - the
 weapon's own whoosh, from [Combat Sounds Overhaul Overhauled](https://www.nexusmods.com/morrowind/mods/60361)'s swing `groups` if you give some - or one
 of that mod's weapon kinds (`HandToHand`, `ShortBlade`, `Blunt`, `Axe`...). `HandToHand` is the
-vanilla whoosh a bare fist swings with. Leave `own` out and the weapon's own whoosh is silent.
+vanilla whoosh a bare fist swings with - the engine's own, kept under the rest (Combat Sounds Overhaul
+Overhauled 1.4 or newer), so its `volume` does not apply. Leave `own` out and the weapon's own whoosh is silent.
 [Combat Sounds Overhaul](https://www.nexusmods.com/morrowind/mods/53859) has to load above `Katars&Knuckles.omwscripts`. A katar's:
 
 ```yaml
