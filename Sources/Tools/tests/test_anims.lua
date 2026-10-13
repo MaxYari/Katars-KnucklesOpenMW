@@ -226,10 +226,35 @@ groups = swing()
 check(groups["katar"] or groups["kataralt"], "in third person a katar swings with the katar animation too")
 check(groups["weapononehand1"] ~= true, "where ReAnimation has no set of its own")
 follow("slash")
+-- Standing still, the swing's own legs show: its lower body goes over the katar idle's, which outranks
+-- the engine's idle by two there. The engine hands an attack its priorities bone group by bone group.
+local function swingLegs()
+    st.played = {}
+    local LB = require("openmw.animation").BONE_GROUP
+    local o = { startKey = "slash start", startkey = "slash start", stopKey = "slash max attack",
+                stopkey = "slash max attack", speed = 2, blendMask = 15,
+                priority = { [LB.LowerBody] = 1, [LB.Torso] = 7, [LB.LeftArm] = 7, [LB.RightArm] = 7 } }
+    stubs.I.AnimationController.playBlendedAnimation("weapononehand", o)
+    local lower
+    for _, p in ipairs(st.played) do
+        if p.group == "katar" or p.group == "kataralt" then lower = p.options.priority[LB.LowerBody] end
+    end
+    follow("slash")
+    return lower, o.priority[LB.LowerBody]
+end
+local legs, parentLegs = swingLegs()
+check(legs == 3, "in third person a katar swing's legs go over the katar idle's", legs)
+check(parentLegs ~= 3, "the hidden parent's are left as they were", parentLegs)
+st.cameraMode = 0
+api.engineHandlers.onUpdate(0.016)
+legs = swingLegs()
+check(legs == 1, "in first person the swing's lower body is left at the engine's", legs)
+st.cameraMode = 1
+api.engineHandlers.onUpdate(0.016)
 over1h = walk1h()
 check(over1h["walkforwardkatar"] and not over1h["walkforwardkatar1h"],
       "third person has no one-handed layout of the walk, and plays the plain one")
-check(walkMask() == 14, "on the upper body only, over the one-handed walk's legs", walkMask())
+check(walkMask() == 15, "and the whole of it: it is made on the one-handed walk's own legs", walkMask())
 
 -- Third person has a sneaking idle of its own, played whatever is in hand; with a katar, ours goes over it.
 st.groups.idlesneak = true
@@ -247,22 +272,34 @@ sneakIdle = false
 for _, p in ipairs(st.played) do if p.group == "idlekatarsneak" then sneakIdle = true end end
 check(not sneakIdle, "and a dagger's is left alone")
 
--- Turning on the spot in third person: with a katar the turn keeps only the legs, and the katar's idle,
--- playing on underneath, shows above them.
-local function turnMask(group)
+-- Turning on the spot in third person: with a katar, ours goes over the turn as a walk does - the katar
+-- idle's upper body made on the one-handed turn's legs.
+st.groups.turnleft1h = true
+st.groups.turnright1s = true
+st.groups.turnleftkatar = true
+st.groups.turnrightkatar = true
+local function turned(group)
+    st.played = {}
     local o = { startKey = "start", startkey = "start", speed = 1, priority = 5, blendMask = 15, loops = 999 }
     stubs.I.AnimationController.playBlendedAnimation(group, o)
-    return o.blendMask
+    local ours
+    for _, p in ipairs(st.played) do if p.group:find("katar", 1, true) then ours = p end end
+    return ours, o
 end
 st.equipped = { recordId = "katar_steel" }
-check(turnMask("turnleft1h") == 1, "turning in third person with a katar: only the legs turn", turnMask("turnleft1h"))
-check(turnMask("turnright1s") == 1, "either way, on the short blade's turn too", turnMask("turnright1s"))
+local turn, parent = turned("turnleft1h")
+check(turn and turn.group == "turnleftkatar", "turning in third person with a katar plays the katar turn", turn and turn.group)
+check(turn and (turn.options.blendMask or turn.options.blendmask) == 15, "whole",
+      turn and (turn.options.blendMask or turn.options.blendmask))
+check(parent.blendMask == 15, "over the engine's turn, left as it is", parent.blendMask)
+turn = turned("turnright1s")
+check(turn and turn.group == "turnrightkatar", "either way, over the short blade's turn too", turn and turn.group)
 st.equipped = { recordId = "steel dagger" }
-check(turnMask("turnleft1h") == 15, "a dagger's turn is left whole", turnMask("turnleft1h"))
+check(turned("turnleft1h") == nil, "a dagger's turn is left alone")
 st.equipped = { recordId = "katar_steel" }
 st.cameraMode = 0
 api.engineHandlers.onUpdate(0.016)
-check(turnMask("turnleft1h") == 15, "and in first person nothing is done to the turn", turnMask("turnleft1h"))
+check(turned("turnleft1h") == nil, "and first person keeps the engine's turn")
 
 --- the idle -------------------------------------------------------------------------------------------
 -- The engine plays a weapon idle for one to four loops and then plays it again. Ours loops on its own -

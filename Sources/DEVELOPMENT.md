@@ -214,11 +214,13 @@ draw, the bruising on whoever they hit, and Ebony Rose's burst. They never chann
 Fury, and its strikes cost them nothing.
 
 In third person - an NPC, or you with the camera pulled back - the moveset is the first-person one
-with vanilla's third-person hand-to-hand legs under it (see *Building from source*): the arms keep
-their first-person guard, fists up, the head keeps looking ahead through every swing, and the hips,
-legs and footwork are the game's own. Walking, running and sneaking, only the upper body is ours:
+with Animation Compilation's third-person hand-to-hand legs under it (see *Building from source*): the
+arms keep their first-person guard, fists up, the head keeps looking ahead through every swing, the
+idle breathes, and the hips, legs and footwork are a fist fighter's. Walking, running and sneaking,
 the legs are the one-handed walk's, so the pace and the footsteps are exactly what they are with any
-one-handed weapon. It plays for male, female and beast bodies, beasts with their own legs.
+one-handed weapon, and over them the katar guard - the idle's, or the sneaking idle's - with the torso
+moving as a walker's or a runner's does. It plays for male, female and beast bodies, beasts with
+their own legs.
 
 ### Creatures
 
@@ -427,9 +429,11 @@ both its loops within 2% of the one-handed sneak's and every footstep within abo
 - ReAnimation's moveset builder scales the directions by fixed factors, and the one-handed sneak was
 not built with them. Third person plays the plain ones: every one-handed loop there is one cycle too.
 
-In third person they play on the upper body only, over the one-handed walk's legs, hips and spine.
-The engine moves an actor by the root of whatever animation plays its lower body, so ours - the
-fist's legs, on a loop of another length - walked it slower than the footsteps it heard.
+In third person they are not the fist's walks at all: they are made from the katar idles on the
+one-handed walk's own legs, hips and root (see *The third-person animations*), and play whole. The
+engine moves an actor by the root of whatever animation plays its lower body, so those - the
+one-handed walk's - walk it at that walk's pace, in step with its footsteps; the fist's legs, on a
+loop of another length, once walked it slower than the footsteps it heard.
 
 A loop of the same steps can still be longer or shorter than the one it plays over - the katar walk
 is 21% longer than the third-person one-handed walk, and a few percent off the short blade walk and
@@ -443,8 +447,8 @@ for them - so the fist's footsteps in ours sounded every step twice. They are ke
 keys, which nothing listens for: a record of where our steps fall, which the third-person build
 matches its legs by.
 
-The third-person set is the same animations under the same names, with vanilla's hand-to-hand legs
-merged in (`Sources/Tools/make_third_person_anims.py`), in the folders of the third-person skeletons:
+The third-person set is the same animations under the same names, with Animation Compilation's
+hand-to-hand legs merged in (`Sources/Tools/make_third_person_anims.py`), in the folders of the third-person skeletons:
 `Animations/xbase_anim` for everyone, and `Animations/xbase_animkna` over it for beasts, with their
 own legs. So one set of registrations covers both views and every NPC - whichever the engine has
 loaded is what plays.
@@ -570,28 +574,61 @@ Tribunal.bsa and Bloodmoon.bsa if you want them back.
 ### The third-person animations
 
 There are none of their own: `Sources/Tools/make_third_person_anims.py` makes them from the
-first-person ones, with ReAnimation's FBA merge
-(`Sources/Tools/FBACompat/fba_merge.py` in its repository, found beside this mod): our upper body
-over the legs, hips and root motion of vanilla's third-person hand-to-hand, their time warped
-through the text keys both share so ours are kept exactly - the attack timings are ours - and
-footsteps matched to footsteps. No chest lean, the whole hip lunge. Morrowind's skeletons hang the
-thighs (and a beast's tail) off `Bip01 Spine`, so when the merge turns the spine to keep our upper
-body upright, they are turned back. The walk, run and sneak are different: in game they play from
-the chest up only, over the one-handed walk's legs and spine, so their chest (`Bip01 Spine1`, where
-the engine's upper body starts) is keyed to sit on the vanilla one-handed walk's spine as it is on
-average, taking that walk's sway and lean with it. The upper body's bone offsets are moved from the
-first-person skeleton's to the third-person one's, except the weapon bones': both views' hand meshes
-put the palm in the same place on the hand bone, so the katar keeps its first-person seat. The
-third-person hand has two-joint fingers, the last three as one, so the fingers are fitted rather
-than copied (`third_person_fingers.py`): the first-person hand mesh is posed with the animation and
-the third-person finger rotations that put the same vertices in the same places are solved for.
-Through every swing and draw the head keeps looking ahead as it does in the idle: in first person
-the head turns into a punch with the rest of the upper body, up to 95 degrees, which the camera
-never shows. The engine's head tracking still turns it toward whoever an NPC fights. Reads the
-vanilla animations out of Morrowind.bsa. Re-run it after every export of the first-person set. There
-are no katar turns: in third person `animations.lua` narrows the one-handed turn to the lower body
-while a katar or knuckleduster is in hand, and the katar idle, which the engine keeps playing
-through a turn, shows above it.
+first-person ones exactly as ReAnimation makes its own hand-to-hand set's, with its first-person to
+third-person tool (`Sources/Tools/FirstToThird/first_to_third.py` in its repository, found beside this
+mod; its README has every setting). The katar set is the fist's, changed a little, so it is built as
+hand-to-hand (`--alias katar=hh`) on Animation Compilation's third-person hand-to-hand (found beside
+this mod; `--third` for another, `--third vanilla` for vanilla's): katar and kataralt over
+`handtohand`, idlekatar over `idlehh`, jumpkatar over `jumphh`. Our upper body turned the way the
+first person turns it, on their legs, hips and root motion; attacks at our timing, their legs warped
+through the text keys both share, held in place (their lunge on the pelvis) and ending on the idle's
+first frame; the head looking straight ahead through every swing and draw (in first person it turns
+into a punch with the rest of the upper body, up to 95 degrees, which the camera never shows; the
+engine's head tracking still turns it toward whoever an NPC fights); the idles breathing.
+
+The walks, runs and sneaks are not converted - the fist's walk cycles swing the arms in ways made for
+first person. They are made from the idles (`--idle-moves hh`, `--idle-sneak hh`) on the one-handed
+walk's legs, which is what they play over in game (`--legs-from walkforwardkatar=walkforward1h` and
+so on): the katar idle's upper body over the walks and runs, the katar sneaking idle's over the
+sneaks, the arms springing a little with the steps, the torso nodding, swinging and leaning over the
+legs as people's do, leaning as that walk leans against its own idle and at least 3 degrees forward
+walking, 8 running. They play whole (`animations.lua`), so the pace, the footsteps and the root motion
+are the one-handed walk's. The torso motion is all from the chest up, on a lower spine held steady
+against the hips' tilt and twist - the thighs, which hang off it, turned back under it, so the legs
+and the hips' swing are the one-handed walk's to within a twentieth of a unit - so a swing held while
+running holds still over the legs, bobbing with them.
+
+On top of the tool's build, for this mod: the footsteps (SoundGenRef in our files) are handed to it as
+SoundGen and written back as references; the weapon bones keep the first-person seat, where the tool
+moves every bone's offset to the third-person skeleton's - both views' hand meshes put the palm in the
+same place on the hand bone, and the skeletons' own weapon bones differ by about a finger's width; and
+the fingers are fitted rather than copied (`third_person_fingers.py`): the third-person hand has
+two-joint fingers, the last three as one, so the first-person hand mesh is posed with the animation
+and the third-person finger rotations that put the same vertices in the same places are solved for.
+Reads the vanilla skeletons and hands out of Morrowind.bsa. Re-run it after every export of the
+first-person set. The turns are made the same way, from the katar idle on the one-handed turn's legs,
+and in third person `animations.lua` plays them over the one-handed turn as it plays the walks. (It
+used to narrow the turn to the legs and let the katar idle show above them, but the idle's chest, made
+for the hand-to-hand idle's spine, tipped some 9 degrees to the side on the turn's.) First person keeps
+the engine's turn.
+
+Where a swing turns the shoulders far against the hips - the first-person spear and fist swings turn
+the whole upper body far further than third-person hips ever follow - the tool turns the hips after
+them by a share that grows smoothly past 45 degrees, smoothed in time, the legs bending to keep the
+feet where they were (`--max-twist`). The fist's three follow-throughs, which in first person share
+one recovery and cut the weaker ones short, each get the whole recovery played at their own length,
+as the game's own strikes have them (`--split-follows`): a quick strike ends on the idle instead of
+mid-recovery, and every strike starts on it too (`--start-from-idle`), so strikes chain without a jump.
+Walks and runs start and stop straight: their lead-ins and tails move the actor only the way the loop
+goes (`--straight-starts`).
+
+Standing still, the legs under a swing or a draw are the swing's. The engine plays an attack's lower
+body at `WeaponLowerBody`, one over its idle's, and ReAnimation's variants copy that; but the katar idle
+outranks the one-handed idle by two on the lower body, so in third person `animations.lua` raises the
+katar attacks' and draws' lower body by two as well - over the katar idle, under its sneaking idle, the
+jump and a walk. Before that the idle's legs showed under every swing, and the swing's chest, made to
+turn on its own hips, turned on the idle's and swung off to the side. First person keeps the engine's:
+there the lower body carries the spine the camera hangs from.
 
 Only the bones the third-person skeletons have are written: the first-person rig has fingers theirs
 does not, and a human has no toes, and every track for a bone a skeleton lacks is a warning in

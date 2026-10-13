@@ -75,7 +75,6 @@ end
 local gutils = RA.gutils
 local ANY_VIEW = RA.ARMATURE_TYPE.Any
 local BG = animation.BONE_GROUP
-local BLEND_MASK = animation.BLEND_MASK
 local controls = omwself.controls
 
 --- Is a weapon swung with the hand-to-hand moveset in hand? -----------------------------------------
@@ -304,15 +303,9 @@ local function moveOptions(self, pOptions)
     -- Worked out on every start: the parent, and the file it plays from, change with the view.
     self.lengthRatio = lengthRatio(self, opts)
     opts.speed = (opts.speed or 1) * self.lengthRatio
-    -- Third person plays only the upper body. The legs, hips and spine stay the one-handed walk's,
-    -- and with them the footsteps and the pace: the engine moves an actor by the root of whatever
-    -- plays its lower body, and ours, a loop of another length, walked it slower than the steps.
-    -- Ours is keyed from the chest to sit on that spine (make_third_person_anims.py).
-    if gutils.getArmatureType() == RA.ARMATURE_TYPE.ThirdPerson then
-        local mask = opts.blendMask or opts.blendmask or BLEND_MASK.All
-        mask = mask - mask % 2 -- the parent's, less the lower body (BLEND_MASK.LowerBody = 1)
-        opts.blendMask, opts.blendmask = mask, mask
-    end
+    -- Whole, in either view. In third person ours are made on the one-handed walk's own legs, hips and
+    -- root (make_third_person_anims.py), so the pace and the steps are that walk's - the engine moves
+    -- an actor by the root of whatever plays its lower body - and the torso moves over them.
     return opts
 end
 
@@ -368,20 +361,45 @@ end
 
 --- Turning --------------------------------------------------------------------------------------------
 -- Turning on the spot plays the weapon's turn - turnleft1s, or the one-handed one it falls back to
--- (CharacterController::refreshMovementAnims) - on the whole body, over the idle, and so over ours.
--- The idle plays on underneath: the engine keeps a biped's idle going through its movement
--- (refreshIdleAnims). So in third person, with one of ours in hand, the turn keeps only the legs, hips
--- and spine, and the idle above them - the katar's, standing or sneaking - shows through. Not an
--- override: nothing of ours needs playing, only the turn narrowing.
-local TURNS = {}
+-- (CharacterController::refreshMovementAnims) - on the whole body, over the idle, and so over ours. In
+-- third person ours goes over it as a walk does: the katar idle's upper body on the one-handed turn's
+-- own legs (make_third_person_anims.py), kept in step with it. Only the turn's legs under the katar
+-- idle, as it was, tipped the idle's chest some 9 degrees to the side: it is made to sit on the
+-- hand-to-hand idle's spine, which leans otherwise than the one-handed turn's. First person keeps the
+-- engine's turn.
 for _, base in ipairs({ "turnleft", "turnright" }) do
-    for _, group in ipairs(oneHanded(base)) do TURNS[group] = true end
+    RA.addAnimationOverride({
+        id = "H2HWeaponTurn_" .. base,
+        parent = oneHanded(base),
+        groupname = base .. "katar",
+        armatureType = RA.ARMATURE_TYPE.ThirdPerson,
+        overridePriority = 1,
+        condition = moveCondition,
+        stopCondition = function(self) return not isHandToHandWeapon() end,
+        options = moveOptions,
+        onUpdate = syncMove,
+        startOnAnimEvent = true,
+        startOnUpdate = true,
+    })
 end
 
+-- Attacking or drawing standing still in third person, the legs are the swing's: the engine plays an
+-- attack's lower body at WeaponLowerBody, over its idle (Default), but ours outranks the one-handed
+-- idle by two there, so the katar idle's legs showed under every swing - and the swing's chest, made
+-- to turn on its own hips, turned on the idle's, swinging off to the side. Third person only: in first
+-- person the lower body carries the spine the arms and the camera hang from, and the idle's holds it.
+-- Still below the katar's sneaking idle (two over the engine's, SneakIdleLowerBody), the jump and a walk.
+local ATTACK_GROUPS = { katar = true, kataralt = true }
+local ATTACK_LOWER_BODY = animation.PRIORITY.WeaponLowerBody + 2
+
 I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options)
-    if TURNS[groupname] and isHandToHandWeapon()
+    -- Ours, played by ReAnimation with a copy of the parent's priorities.
+    if ATTACK_GROUPS[groupname] and type(options.priority) == "table"
             and gutils.getArmatureType() == RA.ARMATURE_TYPE.ThirdPerson then
-        options.blendMask, options.blendmask = BLEND_MASK.LowerBody, BLEND_MASK.LowerBody
+        local lower = options.priority[BG.LowerBody]
+        if lower and lower < ATTACK_LOWER_BODY then
+            options.priority[BG.LowerBody] = ATTACK_LOWER_BODY
+        end
     end
 end)
 
