@@ -28,8 +28,9 @@ Run everything from the repository root.
 
 **`make_plugin.py`** writes `Katars&Knuckles.omwaddon`: every weapon and its shop-enchanted versions, the
 uniques' enchantments (stand-ins that `content.lua` replaces in game), Bound Fist and its weapons, the
-note, the vanilla levelled lists with the weapons added, and the two shop chests. Give it the masters
-in load order:
+note, the vanilla levelled lists with the weapons added, and the weapon merchants' stock: their chests
+with ours added, and hidden chests for the ones with no chest of their own (`merchant_stock.py` decides
+who gets what). Give it the masters in load order:
 
 ```
 python3 Sources/Tools/make_plugin.py --master "<Data Files>/Morrowind.esm" \
@@ -39,11 +40,12 @@ python3 Sources/Tools/make_plugin.py --master "<Data Files>/Morrowind.esm" \
 After it, re-run the three below: they read its tables or record its size.
 
 **`make_tr_plugin.py`** writes `Katars&Knuckles_TamrielRebuilt.omwaddon`, Tamriel Data's Morrowind lists
-extended the same way:
+extended the same way and Tamriel Rebuilt's weapon merchants stocked the same way. It reads Tribunal and
+Bloodmoon from Morrowind.esm's folder. Re-run it for each Tamriel Rebuilt release:
 
 ```
 python3 Sources/Tools/make_tr_plugin.py --master "<Data Files>/Morrowind.esm" \
-    --tamriel-data "<path>/Tamriel_Data.esm"
+    --tamriel-data "<path>/Tamriel_Data.esm" --tr-mainland "<path>/TR_Mainland.esm"
 ```
 
 **`make_hybrid_definitions.py`** writes `HybridWeaponDefinitions/<id>.yaml` for every weapon

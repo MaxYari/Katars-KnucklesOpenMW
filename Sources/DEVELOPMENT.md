@@ -501,13 +501,11 @@ below. The Nordic silver knuckles follow Bloodmoon's nordic silver shortsword, w
 Solstheim alone - the Nord hunters', nordic silver and smugglers' lists. The shop-enchanted versions go where vanilla deals its own weak enchanted weapons -
 `l_m_wpn_melee_short blade`, `l_m_wpn_melee_blunt` and `random_loot_special` - each only where its
 material is already on offer at least twice, at the middle of those weapons' levels
-(`ENCHANTED_LEVELLED` in `make_plugin.py`). Two shops are stocked by hand (`CONTAINER_ADDITIONS`):
-Kjeld, the smuggler in Druscashti, keeps Ebony Katars beside the Ebony Shortsword in the chest he
-sells from, and Bols Indalen, the smith in Mournhold's Craftsmen's Hall, restocks Adamantium Katars
-with the rest of his adamantium weapons. Each is that chest's record, read from Morrowind.esm or
-Tribunal.esm with the katar added - which is why `Katars&Knuckles.omwaddon` needs Tribunal, as it needs
-Bloodmoon for the Nordic silver lists. The uniques and the
-bound weapons are in no list.
+(`ENCHANTED_LEVELLED` in `make_plugin.py`). The uniques and the bound weapons are in no list.
+
+**Shops.** Weapon merchants also sell them beside their own weapons of the same material
+(`merchant_stock.py`), plus a few stocked by hand (`CONTAINER_ADDITIONS`, `SHOP_ADDITIONS`). They go
+in the merchant's own chest, or in a hidden chest under their shop; no NPC record is touched.
 
 A shop is stocked once: the engine rolls a merchant's levelled entries when they first come into the
 world, and a chest's when it is first opened, and from then on restocks what it rolled. Shops met
@@ -516,7 +514,7 @@ before the mod was installed keep what they had.
 A plugin can only replace a levelled list, not add to it, so a mod loaded later that edits one of the
 same lists wins it; with such a mod, run a merged-lists tool
 ([DeltaPlugin](https://gitlab.com/bmwinger/delta-plugin), OMWLLF) as you would for any mod that adds
-loot. Tamriel Data, Tamriel Rebuilt and OAAB leave these lists alone. The two chests are whole records
+loot. Tamriel Data, Tamriel Rebuilt and OAAB leave these lists alone. The shop chests are whole records
 in the same way; DeltaPlugin and TES3Merge merge containers too, OMWLLF only lists.
 
 **Tamriel Rebuilt** deals its weapons from Tamriel Data's lists, and
@@ -524,8 +522,9 @@ in the same way; DeltaPlugin and TES3Merge merge containers too, OMWLLF only lis
 - leaving out guards', Dwemer centurions' and Dwemer ruins' lists, and two-handed ones
 (`make_tr_plugin.py`). Tamriel Data has an orcish shortsword of its own, and the orcish knuckles
 follow it too; and a glass one, which the glass katar follows. Its adamantium lists deal Tribunal's
-adamantium shortsword, and the adamantium katar with it. It needs Tamriel Data and
-`Katars&Knuckles.omwaddon` as masters, and goes after both.
+adamantium shortsword, and the adamantium katar with it. Tamriel Rebuilt's merchants are stocked
+the same way. It needs Tamriel Data, `TR_Mainland.esm` and `Katars&Knuckles.omwaddon` as masters,
+and goes after them.
 
 **Tooltips.** Three tooltip mods are given the weapons' real workings, all optional
 (`player.lua`): Inventory Extender's, through `I.InventoryExtender.registerTooltipModifier`, the

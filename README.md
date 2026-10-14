@@ -18,7 +18,7 @@ Developed for OpenMW. **Requires OpenMW 0.51+**.
 
 - Katars and Knuckles are hybrid type weapons that primarily work off of your Hand to Hand skill, but receive a small bonus from your blade/blunt skill. They damage the victim's stamina akin to regular H2H.
 - Yet contrary to regular H2H they also deal damage, albeit small. In general knuckledusters deal lower physical damage but higher stamina damage and Katars are the opposite. For the sake of gameplay balance damage numbers are fairly moderate and stamina damage is lower than that of bare-fist H2H (since bare fists don't have the advantage of also doing regular physical damage).
-- Added to loot and merchant lists and hand-placed in the world. Uniques can only be found in the world. All hand-placed items, including uniques, can be found on Vvardenfell - except for one unique, which is in Mournhold. In Tamriel Rebuilt or the official add-ons, Katars and Knuckles can still be found in merchant stock and loot.
+- Added to loot and merchant lists and hand-placed in the world. Uniques can only be found in the world. All hand-placed items, including uniques, can be found on Vvardenfell and Solstheim - except for one unique, which is in Mournhold. In Tamriel Rebuilt or the official add-ons, Katars and Knuckles can still be found in merchant stock and loot.
 - Conjured fist weapons change their looks based on your conjuration skill.
 - Properly animated in 1st and 3rd person.
 - Dual-wielding!
@@ -221,6 +221,7 @@ want after it.
      Tribunal and Bloodmoon.
    - `Katars&Knuckles_TamrielRebuilt.omwaddon` - only if you are using [Tamriel Rebuilt](https://www.nexusmods.com/morrowind/mods/42145), should be loaded after the Tamriel Rebuilt plugins: puts the
      weapons in Tamriel Rebuilt's levelled lists too. Requires [Tamriel Data](https://www.nexusmods.com/morrowind/mods/44537).
+   - Load these before mods that rework interiors, like [Morrowind Interiors Project](https://www.nexusmods.com/morrowind/mods/52237).
    - `Katars&Knuckles.omwscripts`
    - `Katars&Knuckles_Conjuration.omwscripts` - adds the matching conjuration spell, Bound Fist, to some spell merchants.
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Writes Katars&Knuckles.omwaddon: the WEAP records for every katar and knuckleduster and their
 shop-enchanted versions (see ENCHANTED_VERSIONS), stand-ins for the two uniques' enchantments (see ENCHANTMENTS),
-Bound Fist's spell and weapons, the notes (see NOTES), and the vanilla levelled lists extended with
-the weapons (see LEVELLED_STAND_INS and ENCHANTED_LEVELLED - this needs --master, to read them from).
-Tamriel Data's lists are make_tr_plugin.py's.
+Bound Fist's spell and weapons, the notes (see NOTES), the vanilla levelled lists extended with
+the weapons (see LEVELLED_STAND_INS and ENCHANTED_LEVELLED), and vanilla's weapon merchants stocked
+with them (merchant_stock.py, with CONTAINER_ADDITIONS and SHOP_ADDITIONS by hand) - those two need
+--master, to read from. Tamriel Data's lists and Tamriel Rebuilt's shops are make_tr_plugin.py's.
 
 Damage is derived, not hand-picked: each weapon takes the vanilla shortsword of its own material and
 scales it - katars to 80%, knuckledusters to 50% (DAMAGE_FACTOR), rounded to the nearest - which is
@@ -537,35 +538,20 @@ CONTAINER_ADDITIONS = {
     # Bols Indalen, the smith in Mournhold's Craftsmen's Hall (Tribunal), restocks every adamantium
     # weapon from this chest of his, the shortsword among them.
     "com_chest_02_v_indalen": [("katar_adamantium", -1)],
+    # Gladroon, the Aundae clan's smith in Ashmelech, keeps his weapons in this chest, a Wild
+    # Sparkblade among them - one of the few glass weapons any shop has.
+    "chest_tomb_gladroon": [("katar_glass", 1)],
 }
 
-
-def read_records(master_paths, tag, ids):
-    """{lowercased id: (record flags, raw body)} for the records of one type with these ids, each as the
-    last of the masters to have it leaves it."""
-    found = {}
-    for path in master_paths:
-        found.update(_read_records(path, tag, ids))
-    return found
-
-
-def _read_records(master_path, tag, ids):
-    wanted = {i.lower() for i in ids}
-    with open(master_path, "rb") as fh:
-        data = fh.read()
-    found, pos = {}, 0
-    while pos + 16 <= len(data):
-        rtag = data[pos:pos + 4]
-        size, _unused, flags = struct.unpack_from("<III", data, pos + 4)
-        body = data[pos + 16:pos + 16 + size]
-        pos += 16 + size
-        if rtag != tag:
-            continue
-        name_size = struct.unpack_from("<I", body, 4)[0]
-        rid = body[8:8 + name_size].rstrip(b"\0").decode("latin-1").lower()
-        if rid in wanted:
-            found[rid] = (flags, body)
-    return found
+# The same for merchants who have no chest of their own to add to - their stock is in their own record,
+# or in a chest other shops have too - so these go in a hidden chest of theirs (merchant_stock.py).
+SHOP_ADDITIONS = {
+    # Snedbrir the Smith, in Skaal Village, is the one merchant with a nordic silver blunt weapon or short
+    # blade - a mace - and the knuckles' only shop: restocking, so there is always a pair.
+    "snedbrir the smith": [("knuckle_nordic_silver", -1)],
+    # Ababael Timsar-Dadisun, the Zainab trader, sells a Glass Netch Dagger among his one-off finds.
+    "ababael timsar-dadisun": [("katar_glass_flame", 1)],
+}
 
 
 def container_record(flags, body, extra):
@@ -676,17 +662,13 @@ def build(master_paths, meshes_dir):
     spells = [(rid, spec) for rid, spec in SPELLS.items()
               if all(b[0] in present for b in BOUND_WEAPONS)]
 
-    additions, levelled, containers = {}, {}, []
+    additions, levelled, containers, hidden, shop_records = {}, {}, [], [], []
     if master_paths:
         for path in master_paths:
             levelled.update(read_levelled_lists(path))
         additions = add_enchanted(levelled_additions(levelled, present), levelled, present,
                                   ENCHANTED_LEVELLED)
-        chests = read_records(master_paths, b"CONT", CONTAINER_ADDITIONS)
-        for key, extra in sorted(CONTAINER_ADDITIONS.items()):
-            extra = [(rid, count) for rid, count in extra if rid in present]
-            if key in chests and extra:
-                containers.append((key, extra, container_record(*chests[key], extra)))
+        shop_records, containers, hidden = shop_stock(master_paths, present)
     else:
         print("  no master given - the weapons go into no levelled list")
 
@@ -695,13 +677,13 @@ def build(master_paths, meshes_dir):
     records += b"".join(weap_record(i) for i in items)
     records += b"".join(book_record(rid, spec) for rid, spec in NOTES.items())
     records += b"".join(levi_record(levelled[key], extra) for key, extra in sorted(additions.items()))
-    records += b"".join(rec for _key, _extra, rec in containers)
+    records += b"".join(shop_records)
 
     author = b"Max Yari".ljust(32, b"\0")
     description = b"Katars & Knuckles - hand-to-hand weapons.".ljust(256, b"\0")
     hedr = struct.pack("<fi", 1.3, 0) + author + description \
         + struct.pack("<i", len(items) + len(enchantments) + len(spells) + len(NOTES) + len(additions)
-                      + len(containers))
+                      + len(shop_records))
     assert len(hedr) == 300, len(hedr)
 
     header = sub("HEDR", hedr)
@@ -709,7 +691,42 @@ def build(master_paths, meshes_dir):
         header += sub("MAST", zstr(os.path.basename(path)))
         header += sub("DATA", struct.pack("<Q", os.path.getsize(path)))
 
-    return record("TES3", header) + records, items, enchantments, spells, additions, containers
+    return record("TES3", header) + records, items, enchantments, spells, additions, containers, hidden
+
+
+def shop_stock(master_paths, present, merchant_origins=None, extra_chests=None, extra_shops=None):
+    """The shop stock records (merchant_stock.py) for the merchants in these masters - only those first
+    defined in merchant_origins, if given - with the hand-stocked chests and shops: (records, [(chest
+    id, items)], hidden chests)."""
+    import merchant_stock  # it uses this module's record writers
+
+    extra_chests = CONTAINER_ADDITIONS if extra_chests is None else extra_chests
+    extra_shops = SHOP_ADDITIONS if extra_shops is None else extra_shops
+    world = merchant_stock.World(master_paths)
+    owner = {chest: mid for mid, chests in world.owned.items() for chest in chests}
+    extra_chests = {chest: [(rid, n) for rid, n in extra if rid in present]
+                    for chest, extra in extra_chests.items() if chest in world.containers}
+    shops = {mid: [(rid, n) for rid, n in extra if rid in present]
+             for mid, extra in extra_shops.items() if mid in world.npcs}
+    hand = [(owner[chest], rid) for chest, extra in extra_chests.items() if chest in owner for rid, _n in extra]
+    hand += [(mid, rid) for mid, extra in shops.items() for rid, _n in extra]
+    dealt, _pools, _targets = merchant_stock.stock(
+        world, merchant_stock.weapon_merchants(world, merchant_origins), hand)
+    for mid, items in shops.items():
+        dealt[mid] = items + dealt.get(mid, [])
+    dealt = {mid: [(rid, n) for rid, n in items if rid in present] for mid, items in dealt.items()}
+    return merchant_stock.build(world, master_paths, dealt, extra_chests)
+
+
+def print_shops(containers, hidden):
+    """What each shop got."""
+    print("\nshop chests:")
+    for key, extra in containers:
+        print("  %-30s + %s" % (key, ", ".join("%s x%d" % pair for pair in extra)))
+    print("\nhidden shop chests:")
+    for mid, _chest, cell, pos, extra in hidden:
+        print("  %-26s %-44s z %7.0f + %s" % (mid, cell if isinstance(cell, str) else "exterior %d,%d" % cell,
+                                            pos[2], ", ".join("%s x%d" % pair for pair in extra)))
 
 
 def main():
@@ -724,7 +741,7 @@ def main():
         if not os.path.exists(path):
             ap.error("no such master: %s" % path)
 
-    data, items, enchantments, spells, additions, containers = build(args.master, args.meshes)
+    data, items, enchantments, spells, additions, containers, hidden = build(args.master, args.meshes)
     with open(args.out, "wb") as fh:
         fh.write(data)
 
@@ -744,12 +761,11 @@ def main():
     print("\nlevelled lists:")
     for key, extra in sorted(additions.items()):
         print("  %-30s + %s" % (key, ", ".join("%s (%d)" % pair for pair in extra)))
-    print("\ncontainers:")
-    for key, extra, _rec in containers:
-        print("  %-30s + %s" % (key, ", ".join("%s x%d" % pair for pair in extra)))
+    print_shops(containers, hidden)
     print("\nwrote %s (%d bytes, %d weapons, %d enchantments, %d spells, %d notes, %d levelled lists, "
-          "%d containers)" % (args.out, len(data), len(items), len(enchantments), len(spells), len(NOTES),
-                              len(additions), len(containers)))
+          "%d shop chests, %d hidden shop chests)" % (
+              args.out, len(data), len(items), len(enchantments), len(spells), len(NOTES),
+              len(additions), len(containers), len(hidden)))
 
 
 if __name__ == "__main__":

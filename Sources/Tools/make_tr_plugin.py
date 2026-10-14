@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Writes Katars&Knuckles_TamrielRebuilt.omwaddon: Tamriel Data's Morrowind levelled lists - the ones
 Tamriel Rebuilt's merchants, chests and NPCs roll - extended with the weapons, the way
-Katars&Knuckles.omwaddon extends vanilla's. Nothing else: the weapons themselves are
+Katars&Knuckles.omwaddon extends vanilla's, and Tamriel Rebuilt's weapon merchants stocked the way
+vanilla's are (merchant_stock.py), which makes TR_Mainland.esm a master. The weapons themselves are
 Katars&Knuckles.omwaddon's, which is a master of this one.
 
 Plain weapons go where their material's shortsword is (TR_STAND_INS), as in vanilla, and the
@@ -10,7 +11,8 @@ Morrowind ones; Tamriel Data's lists for Cyrodiil, Skyrim, Hammerfell and the re
 projects' - and no list Tamriel Rebuilt does not use for weapons a katar belongs among (TR_SKIP).
 
     python3 Sources/Tools/make_tr_plugin.py \\
-        --master "<Morrowind>/Data Files/Morrowind.esm" --tamriel-data "<path>/Tamriel_Data.esm"
+        --master "<Morrowind>/Data Files/Morrowind.esm" --tamriel-data "<path>/Tamriel_Data.esm" \\
+        --tr-mainland "<path>/TR_Mainland.esm"
 """
 import argparse
 import os
@@ -74,7 +76,7 @@ def master_records(paths):
     return out
 
 
-def build(morrowind, tamriel_data, katar):
+def build(morrowind, tamriel_data, tr_mainland, katar):
     lists = mp.read_levelled_lists(tamriel_data)
     lists = {key: rec for key, rec in lists.items() if key.startswith(TR_PREFIXES)}
     present = {item[0] for item in mp.ITEMS} | {row[0] for row in mp.ENCHANTED_VERSIONS}
@@ -83,11 +85,21 @@ def build(morrowind, tamriel_data, katar):
     mp.add_enchanted(additions, lists, present, TR_ENCHANTED_LEVELLED)
     records = b"".join(mp.levi_record(lists[key], extra) for key, extra in sorted(additions.items()))
 
+    # Tamriel Rebuilt's own weapon merchants get shop stock as vanilla's do (merchant_stock.py), read
+    # from everything TR_Mainland.esm stands on - Tribunal and Bloodmoon from Morrowind.esm's folder.
+    # Nothing is stocked by hand here.
+    data_files = os.path.dirname(morrowind)
+    world_paths = [morrowind] + [os.path.join(data_files, name) for name in ("Tribunal.esm", "Bloodmoon.esm")] \
+        + [tamriel_data, tr_mainland]
+    shop_records, containers, hidden = mp.shop_stock(world_paths, present, {tr_mainland}, {}, {})
+    records += b"".join(shop_records)
+
     author = b"Max Yari".ljust(32, b"\0")
-    description = b"Katars & Knuckles - in Tamriel Rebuilt's levelled lists.".ljust(256, b"\0")
-    hedr = struct.pack("<fi", 1.3, 0) + author + description + struct.pack("<i", len(additions))
-    header = sub("HEDR", hedr) + master_records([morrowind, tamriel_data, katar])
-    return record("TES3", header) + records, additions
+    description = b"Katars & Knuckles - in Tamriel Rebuilt's levelled lists and shops.".ljust(256, b"\0")
+    hedr = struct.pack("<fi", 1.3, 0) + author + description \
+        + struct.pack("<i", len(additions) + len(shop_records))
+    header = sub("HEDR", hedr) + master_records([morrowind, tamriel_data, tr_mainland, katar])
+    return record("TES3", header) + records, additions, containers, hidden
 
 
 def main():
@@ -95,17 +107,20 @@ def main():
     ap.add_argument("-o", "--out", default=os.path.join(DATA, "Katars&Knuckles_TamrielRebuilt.omwaddon"))
     ap.add_argument("--master", required=True, help="path to Morrowind.esm")
     ap.add_argument("--tamriel-data", required=True, help="path to Tamriel_Data.esm")
+    ap.add_argument("--tr-mainland", required=True, help="path to TR_Mainland.esm")
     ap.add_argument("--plugin", default=PLUGIN,
                     help="path to Katars&Knuckles.omwaddon, recorded as a master")
     args = ap.parse_args()
 
-    data, additions = build(args.master, args.tamriel_data, args.plugin)
+    data, additions, containers, hidden = build(args.master, args.tamriel_data, args.tr_mainland, args.plugin)
     with open(args.out, "wb") as fh:
         fh.write(data)
     print("levelled lists:")
     for key, extra in sorted(additions.items()):
         print("  %-34s + %s" % (key, ", ".join("%s (%d)" % pair for pair in extra)))
-    print("\nwrote %s (%d bytes, %d levelled lists)" % (args.out, len(data), len(additions)))
+    mp.print_shops(containers, hidden)
+    print("\nwrote %s (%d bytes, %d levelled lists, %d shop chests, %d hidden shop chests)" % (
+        args.out, len(data), len(additions), len(containers), len(hidden)))
 
 
 if __name__ == "__main__":
