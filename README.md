@@ -221,7 +221,7 @@ want after it.
      Tribunal and Bloodmoon.
    - `Katars&Knuckles_TamrielRebuilt.omwaddon` - only if you are using [Tamriel Rebuilt](https://www.nexusmods.com/morrowind/mods/42145), should be loaded after the Tamriel Rebuilt plugins: puts the
      weapons in Tamriel Rebuilt's levelled lists too. Requires [Tamriel Data](https://www.nexusmods.com/morrowind/mods/44537).
-   - Load these before mods that rework interiors, like [Morrowind Interiors Project](https://www.nexusmods.com/morrowind/mods/52237).
+   - Load the `.omwaddon` files above before mods that rework interiors, like [Morrowind Interiors Project](https://www.nexusmods.com/morrowind/mods/52237).
    - `Katars&Knuckles.omwscripts`
    - `Katars&Knuckles_Conjuration.omwscripts` - adds the matching conjuration spell, Bound Fist, to some spell merchants.
 
@@ -366,12 +366,41 @@ Good to know:
 - NPCs swing hybrids with the skill the engine gives them; the skill swap and the experience are the
   player's.
 
-### Scripts and source
+### Asking about hybrids from a script
 
-Scripts can ask about hybrids through `I.H2HWeapons`, in scripts on the player, on NPCs and on creatures that can hold
-these: `hybridOfId(recordId)`, `hybridOfItem(item)` and `equippedHybrid()` (the actor's own right hand) give a weapon's
-definition, or `false`. A definition's `handToHand` says the weapon is swung with this mod's hand-to-hand moveset, as
-katars and knuckledusters are.
+Local scripts on the player, on NPCs and on creatures that can hold weapons get the `I.H2HWeapons` interface. Each of
+its three functions returns a weapon's **hybrid definition**, or `false` if the weapon is not a hybrid:
+
+- `hybridOfId(recordId)` - for a weapon record id.
+- `hybridOfItem(item)` - for an item; `false` for anything that is not a weapon.
+- `equippedHybrid()` - for the weapon in this actor's right hand.
+
+A hybrid definition is a table of the weapon's definition file fields, with their defaults filled in: `primarySkill`
+and `secondarySkill` (skill ids, like `handtohand`), `primaryExperience`, `secondaryExperience`, `scaling`, `moveset`,
+`fatigueDamage`, `silentDraw` and `tooltip`. It also has two fields from the weapon record:
+
+- `handToHand` - `true` if the weapon is swung with this mod's hand-to-hand moveset, like katars and knuckledusters.
+- `weaponSkill` - the skill the engine thinks the weapon uses.
+
+The table is shared by every script that asks, so read it but never change it. Call the functions from your handlers,
+not when your script loads, so it doesn't matter which script loads first.
+
+Example - is this weapon a hand-to-hand weapon?
+
+```lua
+local I = require('openmw.interfaces')
+
+local function isHandToHand(item)
+    if not I.H2HWeapons then return false end -- Katars & Knuckles is not installed
+    local hybrid = I.H2HWeapons.hybridOfItem(item)
+    return hybrid and hybrid.handToHand or false
+end
+```
+
+With a record id, use `hybridOfId("knuckle_iron")` in place of `hybridOfItem(item)`. A weapon the player enchanted
+gets the same definition as the weapon it was made from.
+
+### Source
 
 How everything works is written up in the [technical notes](Sources/DEVELOPMENT.md). The plugins,
 meshes, textures and animations are all built by scripts, from the Blender files in the repository:

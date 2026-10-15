@@ -563,8 +563,8 @@ def find_shiny_dir():
     """The textures folder of Aesthetically Shiny Things, in the mods folder beside this repo.
 
     Matched by name: other "Shiny" mods sit there too, and "Aesthetically Shiny
-    Metals PBR for extra content" sorts first. Of its two variants, "00 - PBR"
-    (the plain one, as installed) sorts before "01 - PBR Inverted".
+    Metals PBR for extra content" sorts first. Of its folders, "00 - PBR
+    Equipment" (the plain gear maps, as installed) sorts first.
     """
     if CONFIG["shiny_dir"]:
         p = pathlib.Path(CONFIG["shiny_dir"])
