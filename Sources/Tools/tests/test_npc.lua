@@ -18,6 +18,9 @@ st.weaponRecords["katar_steel"] = { type = 0, model = "meshes/steel_katar.nif" }
 st.weaponRecords["steel dagger"] = { type = 0, model = "meshes/w/w_dagger.nif" }
 st.weaponRecords["katar_ebony_rose"] = { type = 0, model = "meshes/ebony_rose.nif", enchant = "h2h_ebonyrose_en" }
 st.weaponRecords["generated:0x99"] = { type = 0, model = "meshes/ebony_rose.nif", enchant = "h2h_ebonyrose_burst_en" }
+-- Another mod's hybrid with fists' animations that leaves the left hand alone: not two-handed, no copy.
+st.vfsText = { ["hybridweapondefinitions/fist_mace.yaml"] = "primarySkill: handtohand\nsecondarySkill: bluntweapon\nmoveset: handToHand\n" }
+st.weaponRecords["fist_mace"] = { type = 3, model = "meshes/w/fist_mace.nif" }
 st.bones = { ["Weapon Bone"] = true, ["Weapon Bone.L"] = true }
 
 -- This script runs on an NPC.
@@ -147,6 +150,12 @@ check(st.left == torch, "a swap to a dagger gives the left hand back")
 st.equipped = katar
 stubs.advance(0.6)
 check(st.left == nil, "and a swap back, with no animation, takes it off within half a second")
+st.equipped = item("fist_mace")
+stubs.advance(0.6)
+check(st.left == torch and offHand() == nil, "a hybrid that is not two-handed gives it back, and shows no copy")
+st.equipped = katar
+stubs.advance(0.6)
+check(st.left == nil and offHand() ~= nil, "and the katar takes it again, with its copy")
 
 -- Equipping a two-handed weapon takes the shield or torch off, so a swap to one gives nothing back.
 st.weaponRecords["steel claymore"] = { type = 2, model = "meshes/w/w_claymore.nif" }
@@ -360,16 +369,16 @@ check(onBody, "dead by the time he comes into the world, it is on his body")
 -- I.H2HWeapons on an NPC, as on the player: what other mods' scripts on it ask.
 local api = npc.interface
 check(npc.interfaceName == "H2HWeapons" and api.version == 1, "the NPC script carries I.H2HWeapons")
-local asKatar = api.hybridOfId("katar_steel")
+local asKatar = api.getHybridDefForRecordId("katar_steel")
 check(asKatar and asKatar.handToHand == true, "a katar is a hybrid swung with the hand-to-hand moveset")
-check(api.hybridOfItem(katar) == asKatar, "by item too")
-check(api.hybridOfItem(dagger) == false and api.hybridOfId("steel dagger") == false, "a dagger is no hybrid")
+check(api.getHybridDefForItem(katar) == asKatar, "by item too")
+check(api.getHybridDefForItem(dagger) == false and api.getHybridDefForRecordId("steel dagger") == false, "a dagger is no hybrid")
 st.equipped = katar
-check(api.equippedHybrid() == asKatar, "the katar in its right hand")
+check(api.getEquippedHybridDef() == asKatar, "the katar in its right hand")
 st.equipped = dagger
-check(api.equippedHybrid() == false, "a dagger in its right hand is none")
+check(api.getEquippedHybridDef() == false, "a dagger in its right hand is none")
 st.equipped = nil
-check(api.equippedHybrid() == false, "nor are empty hands")
+check(api.getEquippedHybridDef() == false, "nor are empty hands")
 
 print(string.format("\n%d checks, %d failures", checks, fails))
 os.exit(fails == 0 and 0 or 1)

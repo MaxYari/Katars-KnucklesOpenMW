@@ -6,6 +6,8 @@ primaryExperience: 0.7
 secondaryExperience: 0.3
 scaling: minorSecondaryBonus
 moveset: handToHand
+twoHanded: true
+offHandCopy: true
 fatigueDamage: 0.75
 silentDraw: true
 swingSounds:

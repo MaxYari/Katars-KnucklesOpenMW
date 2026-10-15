@@ -35,7 +35,9 @@ of the fatigue - they are made for bruising.
 - **Price:** the same share again - and each is a pair, one for each hand, so any that would come in
   under 500 costs twice that. The plain weapon decides, and its enchanted versions follow it.
 - **Fatigue damage:** katars 50% of a bare-fisted hit, knuckledusters 75%.
-- **Engine weapon type:** katars Short Blade, knuckledusters Blunt Weapon. Both one handed.
+- **Engine weapon type:** katars Short Blade, knuckledusters Blunt Weapon. Both one handed to the
+  engine, but two-handed by their definitions: a copy in the left hand, no shield or torch, and the
+  tooltip says Two Handed.
 - **Skill you actually use:** Hand to Hand, for both.
 
 Sixteen weapons, in wood, iron, chitin, steel, silver, Nordic silver, adamantium, orcish, glass, ebony

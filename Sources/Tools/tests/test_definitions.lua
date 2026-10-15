@@ -31,12 +31,27 @@ moveset: default
   "secondaryExperience": 0.4, "scaling": "highestSkill",
   "tooltip": "Conjured edge: %{primarySkill} %{primary}, %{secondarySkill} %{secondary}, best %{highest}, %{primaryExperience}" }
 ]],
-    -- The hand-to-hand moveset on a two-handed weapon: it keeps the default one.
+    -- The hand-to-hand moveset and an off-hand copy on a two-handed weapon: it keeps the default
+    -- moveset, and gets no copy.
     ["hybridweapondefinitions/great_fists.yaml"] = [[
 primarySkill: handtohand
 secondarySkill: bluntweapon
 moveset: handToHand
+offHandCopy: true
 scaling: sideways
+]],
+    -- Fists' animations, both hands, no copy in the left one.
+    ["hybridweapondefinitions/fist_mace.yaml"] = [[
+primarySkill: handtohand
+secondarySkill: bluntweapon
+moveset: handToHand
+twoHanded: true
+]],
+    -- A copy in the left hand, with the file forgetting that it takes that hand.
+    ["hybridweapondefinitions/copy_only.yaml"] = [[
+primarySkill: handtohand
+secondarySkill: shortblade
+offHandCopy: true
 ]],
     -- Ranged weapons cannot be hybrids.
     ["hybridweapondefinitions/hybrid_bow.yaml"] = "primarySkill: marksman\nsecondarySkill: illusion\n",
@@ -71,6 +86,8 @@ st.weaponRecords["no_skill"] = { type = 0, model = "meshes/w/x.nif" }
 st.weaponRecords["broken"] = { type = 0, model = "meshes/w/y.nif" }
 st.weaponRecords["odd_whoosh"] = { type = 7, model = "meshes/w/axe.nif" }
 st.weaponRecords["fist_blade"] = { type = 0, model = "meshes/w/fist_blade.nif" }
+st.weaponRecords["fist_mace"] = { type = 3, model = "meshes/w/fist_mace.nif" }
+st.weaponRecords["copy_only"] = { type = 0, model = "meshes/w/copy_only.nif" }
 st.weaponRecords["katar_steel"] = { type = 0, model = "meshes/steel_katar.nif" }
 st.weaponRecords["knuckle_iron"] = { type = 3, model = "meshes/iron_knuckle.nif" }
 st.skills = {
@@ -87,7 +104,8 @@ local def, problems = definitions.parse({ primarySkill = "Short Blade", secondar
 check(def and def.primarySkill == "shortblade" and def.secondarySkill == "handtohand",
       "skill names are read in any case and spelling")
 check(def and def.primaryExperience == 0.7 and def.secondaryExperience == 0.3 and def.scaling == "minorSecondaryBonus"
-      and def.moveset == "default" and def.fatigueDamage == 0 and def.silentDraw == false and def.swingSounds == nil,
+      and def.moveset == "default" and def.fatigueDamage == 0 and def.silentDraw == false and def.swingSounds == nil
+      and def.twoHanded == false and def.offHandCopy == false,
       "and everything left out has its default")
 check(#problems == 0, "with nothing to say about it", problems[1])
 def, problems = definitions.parse({ primarySkill = "spear", secondarySkill = "Spear" })
@@ -95,10 +113,10 @@ check(def == nil and problems[1]:find("same skill"), "the same skill twice is re
 def, problems = definitions.parse({ primarySkill = "spear" })
 check(def == nil and problems[1]:find("secondarySkill"), "and so is a missing secondary skill", problems[1])
 def, problems = definitions.parse({ primarySkill = "spear", secondarySkill = "axe", primaryExperience = -1,
-                                    moveset = "kungfu", silentDraw = "yes" })
-check(def and def.primaryExperience == 0.7 and def.moveset == "default" and def.silentDraw == false,
-      "a bad optional field keeps its default")
-check(#problems == 3, "and is said", #problems)
+                                    moveset = "kungfu", silentDraw = "yes", twoHanded = "both" })
+check(def and def.primaryExperience == 0.7 and def.moveset == "default" and def.silentDraw == false
+      and def.twoHanded == false, "a bad optional field keeps its default")
+check(#problems == 4, "and is said", #problems)
 
 --- what the weapons are ---------------------------------------------------------------------------------
 local weapons = require("scripts.MaxYari.H2HWeapons.scripts.weapons")
@@ -107,10 +125,18 @@ check(mace and mace.primarySkill == "handtohand" and mace.secondarySkill == "des
 check(mace and mace.weaponSkill == "bluntweapon", "which the engine still swings as a blunt weapon")
 check(mace and mace.primaryExperience == 0.7 and mace.secondaryExperience == 0.5, "70% read as 0.7")
 check(mace and mace.scaling == "lowestSkill" and not mace.handToHand, "the lowest of the two, with its own animations")
+check(mace and not mace.twoHanded and not mace.offHandCopy, "one-handed, with nothing in the left hand")
 local spear = weapons.hybridOfId("spear_of_will")
 check(spear and spear.scaling == "highestSkill" and spear.weaponSkill == "spear", "a JSON file in a subfolder")
 local great = weapons.hybridOfId("great_fists")
 check(great and great.moveset == "default" and not great.handToHand, "a two-handed weapon cannot swing as fists")
+check(great and great.twoHanded and not great.offHandCopy, "nor hold a copy, and takes both hands as its type does")
+local fistMace = weapons.hybridOfId("fist_mace")
+check(fistMace and fistMace.handToHand and fistMace.twoHanded and not fistMace.offHandCopy,
+      "fists' animations, both hands, no copy")
+local copyOnly = weapons.hybridOfId("copy_only")
+check(copyOnly and copyOnly.offHandCopy and copyOnly.twoHanded and not copyOnly.handToHand,
+      "a copy in the left hand makes it two-handed")
 check(great and great.scaling == "minorSecondaryBonus", "and a scaling there is none of is the default one")
 check(weapons.hybridOfId("hybrid_bow") == false, "a bow cannot be a hybrid")
 check(weapons.hybridOfId("no_skill") == false, "nor a weapon whose file names no skill")
@@ -129,6 +155,8 @@ check(logged("no_skill.yaml: primarySkill 'swordplay' is not a skill"), "names t
 check(logged("broken.yaml: could not be read"), "and the file that could not be read")
 check(logged("great_fists.yaml: the handToHand moveset needs a one-handed weapon"), "and the moveset it could not use")
 check(logged("great_fists.yaml: scaling 'sideways'"), "and the scaling there is none of")
+check(logged("great_fists.yaml: offHandCopy needs a one-handed weapon"), "and the copy it could not have")
+check(logged("copy_only.yaml: offHandCopy needs twoHanded: true"), "and the copy that needed the left hand")
 check(logged("missing_weapon") and logged("left unused"), "and lists definitions with no weapon loaded")
 check(logged("hybrid weapons defined"), "and how many there are")
 check(not logged("katar_steel.yaml"), "and nothing about the files this mod ships", log)
@@ -172,6 +200,24 @@ play("bluntonehand", "equip start")
 onUpdate(0.016)
 check(#st.stoppedSounds == 0, "its draw keeps its sound", #st.stoppedSounds)
 
+-- Its left hand is its own: a shield stays in it.
+local playerSelf = require('openmw.self')
+local shield = stubs.object({ recordId = "iron_shield", isItem = true, parentContainer = playerSelf.object, count = 1 })
+st.inventories[playerSelf] = { shield }
+st.left = shield
+onUpdate(0.016)
+check(st.left == shield, "a hybrid that is not two-handed leaves the shield in the left hand")
+
+-- Two-handed: the shield comes off while it is out, and no copy goes in its place unless asked for.
+st.equipped = { recordId = "fist_mace" }
+for _ = 1, 4 do onUpdate(0.016) end
+check(st.left == nil, "a two-handed one takes the shield off")
+check(st.vfxById["H2HWeapons_OffHand"] == nil, "and with no offHandCopy, shows no copy")
+st.equipped = { recordId = "copy_only" }
+onUpdate(0.016)
+check(st.vfxById["H2HWeapons_OffHand"] and st.vfxById["H2HWeapons_OffHand"].model == "meshes/w/copy_only.nif",
+      "offHandCopy shows the copy, whatever the moveset")
+
 -- A spear, as good as the better of its skills, swung by its two-handed group.
 st.equipped = { recordId = "spear_of_will" }
 onUpdate(0.016)
@@ -206,6 +252,11 @@ check(inner.h2hFatigue == nil, "no fatigue line for a weapon that deals none")
 local note = inner.h2hExplanation and inner.h2hExplanation.props.text or ""
 check(note:find("lower of the two (30)", 1, true) and note:find("Destruction", 1, true),
       "with no tooltip of its own, the lowest skill's footnote, its number filled in", note)
+
+layout, inner = fakeTooltip("Type: Blunt Weapon, One Handed")
+modifier({ recordId = "fist_mace" }, layout)
+check(inner.type.props.text == "Type: Hand-to-hand (Blunt Weapon), Two Handed",
+      "a one-handed weapon made two-handed says so", inner.type.props.text)
 
 layout, inner = fakeTooltip("Type: Spear, Two Handed")
 modifier({ recordId = "spear_of_will" }, layout)

@@ -1,5 +1,6 @@
--- The left hand while a katar or knuckledusters are out: nothing in it, as with bare fists. Shared by
--- the player's script and every NPC's, which each say when one is out.
+-- The left hand while a hybrid whose definition says twoHanded - katars, knuckledusters - is out:
+-- nothing in it, as with bare fists. Shared by the player's script and every NPC's, which each say
+-- when one is out.
 --
 -- The engine counts hand-to-hand, like any two-handed weapon, as taking both hands: while it is out,
 -- a shield or torch stays equipped but is not shown, not held up, does not burn and cannot block, and
@@ -65,8 +66,8 @@ function M.new(actor)
         if types.Actor.inventory(actor):find(id) then setLeft(actor, id) end
     end
 
-    -- `out`: whether a katar or knuckledusters are out. Costs one equipment lookup while they are,
-    -- nothing while they are not and nothing is waiting to go back.
+    -- `out`: whether a two-handed hybrid is out. Costs one equipment lookup while one is,
+    -- nothing while none is and nothing is waiting to go back.
     function left.update(out)
         if out then
             local held = types.Actor.getEquipment(actor, CARRIED_LEFT)

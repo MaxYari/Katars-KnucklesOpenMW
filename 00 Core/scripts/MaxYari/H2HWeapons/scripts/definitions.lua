@@ -25,8 +25,7 @@ local M = {}
 M.FOLDER = "hybridweapondefinitions/"
 
 M.MOVESET = {
-    -- This mod's: ReAnimation's hand-to-hand set over the weapon's own animations (animations.lua),
-    -- a copy of the weapon in the off hand, and nothing else in that hand.
+    -- This mod's: ReAnimation's hand-to-hand set over the weapon's own animations (animations.lua).
     HandToHand = "handToHand",
     -- The weapon's own animations, as the engine plays them.
     Default = "default",
@@ -101,6 +100,8 @@ function M.parse(raw)
         fatigueDamage = 0,
         tooltip = nil,
         silentDraw = false,
+        twoHanded = false,   -- nothing else in the left hand while it is out (carriedleft.lua)
+        offHandCopy = false, -- a copy of the weapon on the left hand's bone (hands.lua)
         swingSounds = nil, -- nil: the weapon swings as its type does
     }
 
@@ -146,13 +147,18 @@ function M.parse(raw)
         end
     end
 
-    if raw.silentDraw ~= nil then
-        if type(raw.silentDraw) == "boolean" then
-            def.silentDraw = raw.silentDraw
+    local function flag(field)
+        local value = raw[field]
+        if value == nil then return end
+        if type(value) == "boolean" then
+            def[field] = value
         else
-            problems[#problems + 1] = "silentDraw is not true or false"
+            problems[#problems + 1] = field .. " is not true or false"
         end
     end
+    flag("silentDraw")
+    flag("twoHanded")
+    flag("offHandCopy")
 
     if raw.swingSounds ~= nil then
         def.swingSounds = M.parseSwingSounds(raw.swingSounds, problems)

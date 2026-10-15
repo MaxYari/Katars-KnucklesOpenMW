@@ -320,9 +320,13 @@ and on every hit its experience is handed out by the shares below.
 - `scaling` (default `minorSecondaryBonus`) - what a swing rolls with: `minorSecondaryBonus` is the
   primary skill plus 15% of the secondary, tapering to 5% as the secondary falls more than 10 points
   behind, `lowestSkill` the lower of the two, `highestSkill` the higher.
-- `moveset` (default `default`) - `handToHand`: this mod's fist animations, a copy of the weapon in
-  the off hand and nothing else in that hand (one-handed weapons only). `default`: the weapon's own
-  animations.
+- `moveset` (default `default`) - `handToHand`: this mod's fist animations (one-handed weapons only).
+  `default`: the weapon's own animations.
+- `twoHanded` (default `false`) - the weapon takes both hands: a shield or torch comes off while it's
+  drawn, and the tooltip says Two Handed. Katars and knuckledusters are. A weapon whose type is
+  already two-handed always is.
+- `offHandCopy` (default `false`) - a copy of the weapon in the left hand while it's drawn
+  (one-handed weapons only). Needs `twoHanded: true`.
 - `fatigueDamage` (default `0`) - fatigue damage per hit, as a share of a bare-fisted punch's. Katars
   `0.5`, knuckledusters `0.75`.
 - `silentDraw` (default `false`) - no draw and sheathe sound, like bare hands.
@@ -371,13 +375,13 @@ Good to know:
 Local scripts on the player, on NPCs and on creatures that can hold weapons get the `I.H2HWeapons` interface. Each of
 its three functions returns a weapon's **hybrid definition**, or `false` if the weapon is not a hybrid:
 
-- `hybridOfId(recordId)` - for a weapon record id.
-- `hybridOfItem(item)` - for an item; `false` for anything that is not a weapon.
-- `equippedHybrid()` - for the weapon in this actor's right hand.
+- `getHybridDefForRecordId(recordId)` - for a weapon record id.
+- `getHybridDefForItem(item)` - for an item; `false` for anything that is not a weapon.
+- `getEquippedHybridDef()` - for the weapon in this actor's right hand.
 
 A hybrid definition is a table of the weapon's definition file fields, with their defaults filled in: `primarySkill`
 and `secondarySkill` (skill ids, like `handtohand`), `primaryExperience`, `secondaryExperience`, `scaling`, `moveset`,
-`fatigueDamage`, `silentDraw` and `tooltip`. It also has two fields from the weapon record:
+`twoHanded`, `offHandCopy`, `fatigueDamage`, `silentDraw` and `tooltip`. It also has two fields from the weapon record:
 
 - `handToHand` - `true` if the weapon is swung with this mod's hand-to-hand moveset, like katars and knuckledusters.
 - `weaponSkill` - the skill the engine thinks the weapon uses.
@@ -392,13 +396,13 @@ local I = require('openmw.interfaces')
 
 local function isHandToHand(item)
     if not I.H2HWeapons then return false end -- Katars & Knuckles is not installed
-    local hybrid = I.H2HWeapons.hybridOfItem(item)
+    local hybrid = I.H2HWeapons.getHybridDefForItem(item)
     return hybrid and hybrid.handToHand or false
 end
 ```
 
-With a record id, use `hybridOfId("knuckle_iron")` in place of `hybridOfItem(item)`. A weapon the player enchanted
-gets the same definition as the weapon it was made from.
+With a record id, use `getHybridDefForRecordId("knuckle_iron")` in place of `getHybridDefForItem(item)`. A weapon
+the player enchanted gets the same definition as the weapon it was made from.
 
 ### Source
 

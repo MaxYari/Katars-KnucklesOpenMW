@@ -155,7 +155,8 @@ local EQUIPMENT_CACHE_TIME = 0.1
 
 local equippedInfo = nil
 local equippedHybrid = false     -- weapons.hybridOfId's answer
-local equippedHandToHand = false -- and whether it swings with the hand-to-hand moveset
+local equippedTwoHanded = false  -- and whether it takes the left hand too
+local equippedOffHandCopy = false -- and has a copy shown there
 local equippedSpecial = false
 local equippedModel = nil
 local equippedChargeModel = nil
@@ -167,7 +168,8 @@ local function refreshEquipped()
     local hybrid = info and weapons.hybridOfId(info.recordId) or false
     local changed = hybrid ~= equippedHybrid
     equippedHybrid = hybrid
-    equippedHandToHand = hybrid and hybrid.handToHand or false
+    equippedTwoHanded = hybrid and hybrid.twoHanded or false
+    equippedOffHandCopy = hybrid and hybrid.offHandCopy or false
     equippedSpecial = hybrid and weapons.specialOfId(info.recordId) or false
     equippedModel = hybrid and hybrid.model or nil
     equippedChargeModel = hybrid and weapons.chargeModelOfId(info.recordId) or nil
@@ -460,9 +462,8 @@ local function updateAttachments(stance)
         return
     end
 
-    local drawn = equippedHandToHand and weaponShown
-    local offHand = (drawn and equippedModel) or nil
-    local glow = (drawn and fury.strikes > 0 and equippedChargeModel) or nil
+    local offHand = (weaponShown and equippedOffHandCopy and equippedModel) or nil
+    local glow = (weaponShown and fury.strikes > 0 and equippedChargeModel) or nil
     onBones.attach(OFF_HAND, offHand)
     onBones.attach(GLOW_RIGHT, glow)
     -- Only a hand holding something can glow.
@@ -480,7 +481,7 @@ local function afterTimePassed()
 end
 
 --- The left hand --------------------------------------------------------------------------------
--- Nothing in it while one swung with the hand-to-hand moveset is out (carriedleft.lua): out from the
+-- Nothing in it while a two-handed hybrid is out (carriedleft.lua): out from the
 -- moment the stance says so, to the moment the hand has put it away, which is when the engine hides
 -- and shows a shield or torch with bare fists. Something equipped with the game paused, in the
 -- inventory, comes off when it resumes.
@@ -618,11 +619,16 @@ end
 
 -- The type line reads "Type: Short Blade, One Handed". Only the weapon's skill name is replaced -
 -- "Hand-to-hand (Short Blade)" - so the label, the separator and the handedness all stay in the
--- player's own language.
-local function hybridType(text, values)
+-- player's own language. A one-handed weapon whose definition makes it two-handed says so, in the
+-- engine's words for both, which every tooltip mod writes that line with.
+local ONE_HANDED = core.getGMST("sOneHanded"):gsub("(%W)", "%%%1")
+local TWO_HANDED = core.getGMST("sTwoHanded"):gsub("%%", "%%%%")
+local function hybridType(text, values, hybrid)
     local pattern = values.weaponSkill:gsub("(%W)", "%%%1")
     local label = fill(l10n("tooltip_type"), values):gsub("%%", "%%%%")
-    return (text:gsub(pattern, label, 1))
+    text = text:gsub(pattern, label, 1)
+    if hybrid.twoHanded then text = text:gsub(ONE_HANDED, TWO_HANDED, 1) end
+    return text
 end
 
 -- A line put in at a place in a ui content list. Not content:insert, which in 0.51 files the lines
@@ -665,7 +671,7 @@ local function registerInventoryExtender()
         local values = tooltipValues(hybrid)
         local typeEntry = inner:indexOf("type") and inner.type
         if typeEntry then
-            typeEntry.props.text = hybridType(typeEntry.props.text, values)
+            typeEntry.props.text = hybridType(typeEntry.props.text, values, hybrid)
         end
 
         if hybrid.fatigueDamage > 0 then
@@ -719,7 +725,7 @@ local function registerSharedTooltip()
             local typeIndex = content:indexOf("weaponType")
             if typeIndex then
                 local typeLine = content[typeIndex]
-                typeLine.props.text = hybridType(typeLine.props.text, tooltipValues(hybrid))
+                typeLine.props.text = hybridType(typeLine.props.text, tooltipValues(hybrid), hybrid)
             end
             if hybrid.fatigueDamage <= 0 then return end
 
@@ -761,7 +767,7 @@ local function registerUIToolkit()
         local after = nil
         for i, line in ipairs(lines) do
             if line.name == tips.CONTENT.WeaponType then
-                line.text = hybridType(line.text, values)
+                line.text = hybridType(line.text, values, hybrid)
                 after = i
             elseif line.name == tips.CONTENT.Damage then
                 after = i
@@ -845,7 +851,7 @@ local function onUpdate(dt)
     watchForFist()
 
     updateAttachments(stance)
-    left.update(equippedHandToHand and (stance == WEAPON_STANCE or weaponShown) or false)
+    left.update(equippedTwoHanded and (stance == WEAPON_STANCE or weaponShown) or false)
     silenceDrawSounds()
 end
 
@@ -855,14 +861,14 @@ return {
         version = 1,
         --- The hybrid weapon a record id is, or false: its definition's fields (primarySkill,
         --- secondarySkill, primaryExperience, secondaryExperience, scaling, moveset, fatigueDamage,
-        --- tooltip, silentDraw, swingSounds) and what its record adds (weaponSkill, handToHand,
-        --- drawSounds, model).
+        --- tooltip, silentDraw, twoHanded, offHandCopy, swingSounds) and what its record adds
+        --- (weaponSkill, handToHand, drawSounds, model).
         --- Shared - read it, never change it.
-        hybridOfId = weapons.hybridOfId,
+        getHybridDefForRecordId = weapons.hybridOfId,
         --- The same for an item object.
-        hybridOfItem = weapons.hybridOfItem,
+        getHybridDefForItem = weapons.hybridOfItem,
         --- The hybrid in the player's right hand, or false.
-        equippedHybrid = function() return equippedHybrid end,
+        getEquippedHybridDef = function() return equippedHybrid end,
     },
     eventHandlers = {
         H2HWeapons_VenomStrike = rose.onVenomStrike,

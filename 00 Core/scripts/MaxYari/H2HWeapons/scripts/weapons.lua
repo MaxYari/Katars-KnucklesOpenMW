@@ -140,6 +140,18 @@ local function resolve(recordId, record)
         hybrid.moveset = M.MOVESET.Default
     end
     hybrid.handToHand = hybrid.moveset == M.MOVESET.HandToHand
+    -- With a two-handed weapon the left hand grips that one weapon; a copy there would sit in it.
+    if hybrid.offHandCopy and not melee.oneHanded then
+        problems[#problems + 1] = "offHandCopy needs a one-handed weapon; it gets no copy"
+        hybrid.offHandCopy = false
+    end
+    -- The copy is what that hand holds, so nothing else can be in it.
+    if hybrid.offHandCopy and not hybrid.twoHanded then
+        problems[#problems + 1] = "offHandCopy needs twoHanded: true, as the copy takes the left hand; it is made two-handed"
+        hybrid.twoHanded = true
+    end
+    -- A two-handed weapon type takes both hands whatever the file says (the engine sees to that one).
+    if not melee.oneHanded then hybrid.twoHanded = true end
     return hybrid, problems, path
 end
 
@@ -164,6 +176,7 @@ end
 --- The hybrid this record id is, or false. A table of its definition's fields (definitions.parse)
 -- and what the weapon's record adds: weaponSkill (the skill the engine swings it with), handToHand
 -- (whether it swings with this mod's moveset), drawSounds (the engine's, for silentDraw), model.
+-- twoHanded and offHandCopy are the file's, corrected for what the weapon's type allows.
 -- Shared: never change it.
 function M.hybridOfId(recordId)
     if recordId == nil then return false end

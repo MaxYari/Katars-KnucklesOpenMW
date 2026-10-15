@@ -71,6 +71,7 @@ M.state = {
         fMinHandToHandMult = 0.1, fMaxHandToHandMult = 0.5,
         sSkillHandtohand = "Hand-to-hand", sSkillShortblade = "Short Blade",
         sSkillBluntweapon = "Blunt Weapon", fFightDispMult = 0.2, fHandtoHandHealthPer = 0.1, fCombatKODamageMult = 1.5,
+        sOneHanded = "One Handed", sTwoHanded = "Two Handed",
     },
     weaponRecords = {},   -- [id] = { type = , model = }
     played = {},          -- log of playBlendedAnimation calls

@@ -72,6 +72,8 @@ def definition(name, kind):
         "secondaryExperience: 0.3",
         "scaling: minorSecondaryBonus",
         "moveset: handToHand",
+        "twoHanded: true",
+        "offHandCopy: true",
         f"fatigueDamage: {number(k['fatigueDamage'])}",
         "silentDraw: true",
         "swingSounds:",

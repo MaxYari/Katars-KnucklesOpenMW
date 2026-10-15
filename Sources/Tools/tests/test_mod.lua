@@ -414,8 +414,8 @@ check(modifier ~= nil, "the tooltip modifier is registered")
 
 local layout, inner = fakeTooltip()
 modifier({ recordId = "katar_steel" }, layout)
-check(inner.type.props.text == "Type: Hand-to-hand (Short Blade), One Handed",
-      "the type line names hand-to-hand with the engine skill as a subtype", inner.type.props.text)
+check(inner.type.props.text == "Type: Hand-to-hand (Short Blade), Two Handed",
+      "the type line names hand-to-hand with the engine skill as a subtype, taking both hands", inner.type.props.text)
 check(inner.h2hFatigue ~= nil, "a fatigue damage line is added")
 check(inner.h2hFatigue and inner.h2hFatigue.props.text == "Fatigue Damage: 3 - 13",
       "with the katar's half of a bare fist, in whole numbers", inner.h2hFatigue and inner.h2hFatigue.props.text)
@@ -447,7 +447,7 @@ st.skills.shortblade.base = 30
 local knuckleLayout, knuckleInner = fakeTooltip()
 knuckleInner.type.props.text = "Type: Blunt Weapon, One Handed"
 modifier({ recordId = "knuckle_iron" }, knuckleLayout)
-check(knuckleInner.type.props.text == "Type: Hand-to-hand (Blunt Weapon), One Handed",
+check(knuckleInner.type.props.text == "Type: Hand-to-hand (Blunt Weapon), Two Handed",
       "knuckledusters name blunt weapon instead", knuckleInner.type.props.text)
 check(knuckleInner.h2hExplanation.props.text:find("Blunt Weapon", 1, true) ~= nil,
       "in the explanation too", knuckleInner.h2hExplanation.props.text)
@@ -486,7 +486,7 @@ local shared = stubs.sharedTooltipModifiers["H2HWeapons"]
 check(shared ~= nil, "a Shared Tooltip modifier is registered too")
 local sctx, scontent = fakeShared({ recordId = "katar_steel" }, "Short Blade, One Handed")
 shared(sctx)
-check(scontent.weaponType.props.text == "#ccccccHand-to-hand (Short Blade), One Handed",
+check(scontent.weaponType.props.text == "#ccccccHand-to-hand (Short Blade), Two Handed",
       "QuickLoot's type line names hand-to-hand, its colour tag kept", scontent.weaponType.props.text)
 check(scontent.h2hFatigue and scontent.h2hFatigue.props.text == "#ccccccFatigue Damage: #ffffff3 - 13",
       "and gets the fatigue line in its own label and value colours", scontent.h2hFatigue and scontent.h2hFatigue.props.text)
@@ -495,7 +495,7 @@ check(scontent.h2hExplanation == nil, "but no footnote, to keep a loot tooltip s
 
 local tightCtx, tight = fakeShared({ recordId = "knuckle_iron" }, "Blunt Weapon, One Handed", { shortText = true })
 shared(tightCtx)
-check(tight.weaponType.props.text == "#ccccccHand-to-hand (Blunt Weapon), One Handed", "knuckledusters name blunt weapon",
+check(tight.weaponType.props.text == "#ccccccHand-to-hand (Blunt Weapon), Two Handed", "knuckledusters name blunt weapon",
       tight.weaponType.props.text)
 check(tight.h2hFatigue and tight.h2hFatigue.props.text:find("%d%-%d") ~= nil,
       "short text tightens the range as it does the damage lines", tight.h2hFatigue and tight.h2hFatigue.props.text)
@@ -537,7 +537,7 @@ local recipe = fakeRecipe("Short Blade, One Handed")
 check(utkHandler(recipe, { type = "Weapon", object = { recordId = "katar_steel" } }) ~= false,
       "and never stops the handlers after it")
 local typeLine = byName(recipe.items, "WeaponType")
-check(typeLine.text == "Type Hand-to-hand (Short Blade), One Handed", "UI Toolkit's type line names hand-to-hand",
+check(typeLine.text == "Type Hand-to-hand (Short Blade), Two Handed", "UI Toolkit's type line names hand-to-hand",
       typeLine.text)
 local fatigueLine, fatigueAt = byName(recipe.items, "h2hFatigue")
 check(fatigueLine and fatigueLine.text == "Fatigue Damage" and fatigueLine.min == 3 and fatigueLine.max == 13,
@@ -554,7 +554,7 @@ check(built and built.props.text == note.text and built.props.textColor == "disa
 
 local keyRecipe = fakeRecipe("Blunt Weapon, One Handed")
 utkHandler(keyRecipe, { type = "Weapon", key = "knuckle_iron" })
-check(byName(keyRecipe.items, "WeaponType").text == "Type Hand-to-hand (Blunt Weapon), One Handed"
+check(byName(keyRecipe.items, "WeaponType").text == "Type Hand-to-hand (Blunt Weapon), Two Handed"
       and byName(keyRecipe.items, "h2hFatigue") ~= nil, "a tooltip for a record id gets it too")
 
 local plainRecipe = fakeRecipe("Short Blade, One Handed")

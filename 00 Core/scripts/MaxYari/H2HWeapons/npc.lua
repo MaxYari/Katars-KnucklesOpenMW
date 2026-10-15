@@ -44,12 +44,6 @@ local function weapon()
     return types.Actor.getEquipment(omwself, CARRIED_RIGHT)
 end
 
--- The hybrid an item is, if it swings with the hand-to-hand moveset; nil for anything else.
-local function handToHand(item)
-    local hybrid = weapons.hybridOfItem(item)
-    return hybrid and hybrid.handToHand and hybrid or nil
-end
-
 --- The off hand -------------------------------------------------------------------------------------
 -- Shows while the right hand shows its weapon: from the engine's "equip attach" key to its "unequip
 -- detach" (see player.lua). An NPC coming into the world, or back after the player rested near them,
@@ -82,8 +76,8 @@ local ownerAttached = false
 local function refresh()
     if not active then return end
     local item = shown and weapon() or nil
-    local hybrid = item and handToHand(item)
-    local model = hybrid and hybrid.model or nil
+    local hybrid = item and weapons.hybridOfItem(item)
+    local model = hybrid and hybrid.offHandCopy and hybrid.model or nil
     onBones.attach(OFF_HAND, model)
 end
 
@@ -149,7 +143,7 @@ local function settle()
 end
 
 --- The left hand ----------------------------------------------------------------------------------
--- Nothing in it while a weapon swung with the hand-to-hand moveset is out (carriedleft.lua): from the
+-- Nothing in it while a two-handed hybrid is out (carriedleft.lua): from the
 -- draw's start to the hand putting it away. Looked at on those, and with everything else twice a
 -- second while a weapon is out - so a shield or torch the engine puts back in an NPC's hand somewhere
 -- dark, once a second (Actors::updateEquippedLight), can be seen there for up to half a second.
@@ -157,7 +151,8 @@ local left = carriedLeft.new(omwself)
 
 local function isOut()
     if not shown and types.Actor.getStance(omwself) ~= WEAPON_STANCE then return false end
-    return handToHand(weapon()) ~= nil
+    local hybrid = weapons.hybridOfItem(weapon())
+    return hybrid and hybrid.twoHanded or false
 end
 
 checkLeftHand = function()
@@ -216,11 +211,11 @@ return {
     interface = {
         version = 1,
         --- The hybrid weapon a record id is, or false: as on the player. Shared - read it, never change it.
-        hybridOfId = weapons.hybridOfId,
+        getHybridDefForRecordId = weapons.hybridOfId,
         --- The same for an item object.
-        hybridOfItem = weapons.hybridOfItem,
+        getHybridDefForItem = weapons.hybridOfItem,
         --- The hybrid in this actor's right hand, or false.
-        equippedHybrid = function() return weapons.hybridOfItem(weapon()) end,
+        getEquippedHybridDef = function() return weapons.hybridOfItem(weapon()) end,
     },
     eventHandlers = {
         H2HWeapons_VenomStrike = rose.onVenomStrike,
