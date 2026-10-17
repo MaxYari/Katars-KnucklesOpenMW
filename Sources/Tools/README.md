@@ -169,6 +169,17 @@ python3 Sources/Tools/mirror_weapon_track.py <.kf files, or folders of them>
 python3 Sources/Tools/mirror_bone.py
 ```
 
+**`katar_seat.py`** writes a copy of someone else's `.kf` with both weapon bones held where the katar
+idle of the same view holds them. `For Mod Authors/` holds the ones made for other mods' authors, under
+those mods' own paths and names (N'Garde's hand-to-hand block, first and third person):
+
+```
+python3 Sources/Tools/katar_seat.py --idle "00 Core/Animations/xbase_anim.1st/xKatarIdle.kf" \
+    "<N'Garde>/Animations/xbase_anim.1st/xh2hBlock.kf" "For Mod Authors/NGarde/Animations/xbase_anim.1st/xh2hBlock.kf"
+python3 Sources/Tools/katar_seat.py --idle "00 Core/Animations/xbase_anim/xKatarIdle.kf" \
+    "<N'Garde>/Animations/xbase_anim/xblockh2h.kf" "For Mod Authors/NGarde/Animations/xbase_anim/xblockh2h.kf"
+```
+
 **`add_weapon_bone_l.py`** (*Blender*) puts `Weapon Bone.L` on the blend's `Bip01` armature, with an
 Auto-Rig Pro controller to pose it by.
 

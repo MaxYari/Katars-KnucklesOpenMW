@@ -25,5 +25,8 @@ __pycache__/
 # Baking inputs for the weapon textures - build-time only.
 /bake_source/
 
+# Other mods' animations with the katar seated in them, for those mods' authors to ship - not this mod's.
+/For Mod Authors/
+
 # A crate of every item by the Seyda Neen lighthouse (Sources/Tools/make_test_crate.py): for testing only.
 Katars&Knuckles_FOR_TESTING_ONLY_Crate_With_All_Items.omwaddon
