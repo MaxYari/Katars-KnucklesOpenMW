@@ -4,8 +4,8 @@
 -- under it), named after the record id: HybridWeaponDefinitions/katar_steel.yaml. YAML or JSON -
 -- .yaml, .yml or .json; openmw.markup reads JSON as the YAML it also is. A file at the same path in a
 -- later data folder replaces the earlier one, as any other file does, so a patch can change this
--- mod's own weapons. The fields, with what each defaults to, are in README.md ("Hybrid weapons for
--- modders"); parse() below is the authority.
+-- mod's own weapons. The fields, with what each defaults to, are in README.md ("Registering New
+-- Hybrid Weapons"); parse() below is the authority.
 --
 -- The folder is listed once per script instance, on first use, and a file is only read when its
 -- weapon is first looked at - every actor carries scripts that ask, and most never meet a hybrid.

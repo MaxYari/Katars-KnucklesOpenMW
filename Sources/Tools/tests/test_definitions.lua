@@ -233,6 +233,30 @@ check(math.abs(hit.skillGain - 0.4) < 1e-9, "spear, its own secondary skill, kee
 check(#st.skillUses == 1 and st.skillUses[1].skill == "conjuration" and st.skillUses[1].options.scale == 0.6,
       "and conjuration gets its 60%")
 
+--- asking for their skill (hybrid:getEffectiveSkill) -------------------------------------------------
+check(mace:getEffectiveSkill(playerSelf) == 30, "another mod reads the mace's skill: the lower of the two",
+      mace:getEffectiveSkill(playerSelf))
+check(spear:getEffectiveSkill() == 60, "and with no actor, this script's own: the higher of the spear's")
+-- hand-to-hand 50, plus 15% of short blade 40
+st.skills.shortblade = { base = 40, modifier = 0, damage = 0 }
+local fistBlade = player.interface.getHybridDefForRecordId("fist_blade") -- as another mod gets it
+check(fistBlade:getEffectiveSkill(playerSelf) == 56, "a minor secondary bonus", fistBlade:getEffectiveSkill(playerSelf))
+st.equipped = { recordId = "fist_blade" }
+onUpdate(0.016)
+play("weapononehand", "chop start")
+check(st.skills.shortblade.modifier == 16, "the swing puts 56 into short blade", st.skills.shortblade.modifier)
+check(fistBlade:getEffectiveSkill(playerSelf) == 56, "and mid-swing, its skill does not count that in",
+      fistBlade:getEffectiveSkill(playerSelf))
+play("weapononehand", "chop small follow start")
+check(st.skills.shortblade.modifier == 0 and fistBlade:getEffectiveSkill(playerSelf) == 56, "nor after it")
+-- A creature has one number for every skill of a specialization: hand-to-hand is stealth, destruction magic,
+-- conjuration magic, spear combat.
+local dremora = stubs.object({ creature = { isBiped = true, canUseWeapons = true,
+                                            combatSkill = 70, magicSkill = 20, stealthSkill = 40 } })
+check(mace:getEffectiveSkill(dremora) == 20, "a creature's: the lower of its stealth and magic",
+      mace:getEffectiveSkill(dremora))
+check(spear:getEffectiveSkill(dremora) == 70, "the higher of its magic and combat", spear:getEffectiveSkill(dremora))
+
 --- their tooltips --------------------------------------------------------------------------------------
 local function fakeTooltip(typeText)
     local inner = stubs.content({

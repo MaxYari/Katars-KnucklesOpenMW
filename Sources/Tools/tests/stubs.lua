@@ -55,6 +55,17 @@ M.SKILL_NAMES = {
     acrobatics = "Acrobatics", lightarmor = "Light Armor", shortblade = "Short Blade", marksman = "Marksman",
     mercantile = "Mercantile", speechcraft = "Speechcraft", handtohand = "Hand-to-hand",
 }
+-- And the specialization each is of, as Morrowind.esm has it.
+M.SKILL_SPECIALIZATIONS = {}
+for specialization, skills in pairs({
+    combat = { "armorer", "athletics", "axe", "block", "bluntweapon", "heavyarmor", "longblade", "mediumarmor", "spear" },
+    magic = { "alchemy", "alteration", "conjuration", "destruction", "enchant", "illusion", "mysticism",
+              "restoration", "unarmored" },
+    stealth = { "acrobatics", "handtohand", "lightarmor", "marksman", "mercantile", "security", "shortblade", "sneak",
+                "speechcraft" },
+}) do
+    for _, id in ipairs(skills) do M.SKILL_SPECIALIZATIONS[id] = specialization end
+end
 
 --- state the tests poke at -------------------------------------------------------------------------
 M.state = {
@@ -253,7 +264,7 @@ packages['openmw.core'] = {
         records = setmetatable({}, { __index = function(_, id)
             if st.skillRecords[id] then return st.skillRecords[id] end
             local name = M.SKILL_NAMES[id]
-            return name and { id = id, name = name } or nil
+            return name and { id = id, name = name, specialization = M.SKILL_SPECIALIZATIONS[id] } or nil
         end }),
     } },
 }

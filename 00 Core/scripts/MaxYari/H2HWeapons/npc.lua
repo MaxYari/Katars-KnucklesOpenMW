@@ -210,7 +210,8 @@ return {
     interfaceName = "H2HWeapons",
     interface = {
         version = 1,
-        --- The hybrid weapon a record id is, or false: as on the player. Shared - read it, never change it.
+        --- The hybrid weapon a record id is, or false: as on the player, hybrid:getEffectiveSkill([actor])
+        --- included. Shared - read it, never change it.
         getHybridDefForRecordId = weapons.hybridOfId,
         --- The same for an item object.
         getHybridDefForItem = weapons.hybridOfItem,

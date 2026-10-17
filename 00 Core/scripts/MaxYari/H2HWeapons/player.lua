@@ -199,6 +199,7 @@ local function revertSkillSwap()
     stat.modifier = stat.modifier - swappedDelta
     swappedSkill = nil
     swappedDelta = 0
+    weapons.setSwingNudge(nil)
 end
 
 -- The player's current values for a hybrid's two skills, and the one it swings with.
@@ -222,6 +223,7 @@ local function applySkillSwap(hybrid)
     swappedSkill = skillName
     swappedDelta = delta
     swappedAt = core.getSimulationTime()
+    weapons.setSwingNudge(skillName, delta)
 end
 
 --- Experience -------------------------------------------------------------------------------------
@@ -862,7 +864,8 @@ return {
         --- The hybrid weapon a record id is, or false: its definition's fields (primarySkill,
         --- secondarySkill, primaryExperience, secondaryExperience, scaling, moveset, fatigueDamage,
         --- tooltip, silentDraw, twoHanded, offHandCopy, swingSounds) and what its record adds
-        --- (weaponSkill, handToHand, drawSounds, model).
+        --- (weaponSkill, handToHand, drawSounds, model); and hybrid:getEffectiveSkill([actor]), the
+        --- skill an actor (by default this one) has with it.
         --- Shared - read it, never change it.
         getHybridDefForRecordId = weapons.hybridOfId,
         --- The same for an item object.

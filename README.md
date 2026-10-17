@@ -283,7 +283,7 @@ Your own weapons can work the way katars and knuckledusters do - or be another k
 mod's source and the tools that build it. If you are already reading this on git - just read below.
 
 <!-- nexus-skip-start -->
-### Hybrid weapons
+### Registering New Hybrid Weapons
 
 Make the weapons in your plugin as usual, and next to it ship one small file per weapon in a
 `HybridWeaponDefinitions` folder, named after the weapon's record id:
@@ -370,7 +370,7 @@ Good to know:
 - NPCs swing hybrids with the skill the engine gives them; the skill swap and the experience are the
   player's.
 
-### Asking about hybrids from a script
+### Fetching Hybrid Weapons Info
 
 Local scripts on the player, on NPCs and on creatures that can hold weapons get the `I.H2HWeapons` interface. Each of
 its three functions returns a weapon's **hybrid definition**, or `false` if the weapon is not a hybrid:
@@ -385,6 +385,11 @@ and `secondarySkill` (skill ids, like `handtohand`), `primaryExperience`, `secon
 
 - `handToHand` - `true` if the weapon is swung with this mod's hand-to-hand moveset, like katars and knuckledusters.
 - `weaponSkill` - the skill the engine thinks the weapon uses.
+
+And one method:
+
+- `hybrid:getEffectiveSkill([actor])` - the actor's skill with this weapon: its two skills combined by its `scaling`,
+  the number the tooltip shows. Without `actor`, it's the actor whose `I.H2HWeapons` you asked.
 
 The table is shared by every script that asks, so read it but never change it. Call the functions from your handlers,
 not when your script loads, so it doesn't matter which script loads first.
@@ -403,6 +408,20 @@ end
 
 With a record id, use `getHybridDefForRecordId("knuckle_iron")` in place of `getHybridDefForItem(item)`. A weapon
 the player enchanted gets the same definition as the weapon it was made from.
+
+Example - this actor's skill with the hybrid weapon in its hand:
+
+```lua
+local I = require('openmw.interfaces')
+
+local function hybridSkill()
+    if not I.H2HWeapons then return nil end -- Katars & Knuckles is not installed
+    local hybrid = I.H2HWeapons.getEquippedHybridDef()
+    return hybrid and hybrid:getEffectiveSkill() or nil -- nil: not holding a hybrid
+end
+```
+
+To ask about another actor - say, the one this actor is fighting - pass it in: `hybrid:getEffectiveSkill(target)`.
 
 ### Source
 

@@ -15,6 +15,7 @@ local types = require('openmw.types')
 local vfs = require('openmw.vfs')
 
 local definitions = require(mp .. "scripts/definitions")
+local formulas = require(mp .. "scripts/formulas")
 local U = require(mp .. "scripts/uniques")
 
 local M = {}
@@ -109,6 +110,41 @@ local specialById = {}
 -- on the weapon bone drops it inside the weapon with no offsets. Looked up once per weapon.
 local chargeModelById = {}
 
+-- What player.lua has added to the weapon's own skill for the length of a swing (applySkillSwap). It
+-- is the effective skill put there, not the player's, so the skill reads below take it back out. Only
+-- the player's scripts know of it: another actor's, asking about the player mid-swing, reads it in.
+local swingNudge = { skill = nil, delta = 0 }
+
+--- player.lua's: its swing has added `delta` to the player's `skill`, or (with no skill) nothing now.
+function M.setSwingNudge(skill, delta)
+    swingNudge.skill = skill
+    swingNudge.delta = skill and delta or 0
+end
+
+-- An actor's value for a skill: an NPC's own, the player's without the swing's nudge, and a creature's
+-- from the one number its record has for every skill of that specialization (MWClass::Creature::getSkill).
+local function skillOf(actor, skillId)
+    if types.Creature.objectIsInstance(actor) then
+        local specialization = core.stats.Skill.records[skillId].specialization
+        return types.Creature.record(actor)[specialization .. "Skill"] or 0
+    end
+    local value = types.NPC.stats.skills[skillId](actor).modified
+    if skillId == swingNudge.skill and types.Player.objectIsInstance(actor) then
+        value = value - swingNudge.delta
+    end
+    return value
+end
+
+-- hybrid:getEffectiveSkill(actor): the skill the actor has with this weapon, its two made one by its
+-- scaling - what the player's swings roll against, and the tooltip's %{effective}. Without an actor,
+-- the one whose script asked for the hybrid: this module is loaded once per script, so the tables it
+-- hands out (through that actor's I.H2HWeapons) are that actor's.
+local function getEffectiveSkill(hybrid, actor)
+    actor = actor or require('openmw.self')
+    return formulas.effectiveSkill(hybrid.scaling, skillOf(actor, hybrid.primarySkill),
+        skillOf(actor, hybrid.secondarySkill))
+end
+
 -- The hybrid a weapon record is - its definition, put together with what its record says - or false,
 -- and what stops a definition from making it one.
 local function resolve(recordId, record)
@@ -135,6 +171,7 @@ local function resolve(recordId, record)
     hybrid.weaponSkill = melee.skill
     hybrid.drawSounds = { melee.sound .. " Up", melee.sound .. " Down" }
     hybrid.model = record.model
+    hybrid.getEffectiveSkill = getEffectiveSkill
     if hybrid.moveset == M.MOVESET.HandToHand and not melee.oneHanded then
         problems[#problems + 1] = "the handToHand moveset needs a one-handed weapon; it uses the default one"
         hybrid.moveset = M.MOVESET.Default
@@ -175,8 +212,9 @@ end
 
 --- The hybrid this record id is, or false. A table of its definition's fields (definitions.parse)
 -- and what the weapon's record adds: weaponSkill (the skill the engine swings it with), handToHand
--- (whether it swings with this mod's moveset), drawSounds (the engine's, for silentDraw), model.
--- twoHanded and offHandCopy are the file's, corrected for what the weapon's type allows.
+-- (whether it swings with this mod's moveset), drawSounds (the engine's, for silentDraw), model; and
+-- the method getEffectiveSkill([actor]). twoHanded and offHandCopy are the file's, corrected for what
+-- the weapon's type allows.
 -- Shared: never change it.
 function M.hybridOfId(recordId)
     if recordId == nil then return false end

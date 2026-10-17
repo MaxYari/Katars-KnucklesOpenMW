@@ -1,5 +1,5 @@
 # Glass Katars, from Katars & Knuckles - written by Sources/Tools/make_hybrid_definitions.py.
-# What each field does: the mod's README, "Hybrid weapons for modders".
+# What each field does: the mod's README, "Registering New Hybrid Weapons".
 primarySkill: handtohand
 secondarySkill: shortblade
 primaryExperience: 0.7

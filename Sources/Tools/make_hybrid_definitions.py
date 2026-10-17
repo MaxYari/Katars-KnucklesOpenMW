@@ -65,7 +65,7 @@ def definition(name, kind):
     k = KINDS[kind]
     lines = [
         f"# {name}, from Katars & Knuckles - written by Sources/Tools/make_hybrid_definitions.py.",
-        "# What each field does: the mod's README, \"Hybrid weapons for modders\".",
+        "# What each field does: the mod's README, \"Registering New Hybrid Weapons\".",
         "primarySkill: handtohand",
         f"secondarySkill: {k['secondarySkill']}",
         "primaryExperience: 0.7",
