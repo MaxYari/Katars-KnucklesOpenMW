@@ -412,8 +412,11 @@ installed, for the NIF library inside it, and it is safe to run twice.
 
 **The moveset.** Katars and knuckledusters move and fight with ReAnimation's own hand-to-hand
 animations - idle, walk, run, sneak, jump, draw and sheathe, and every punch with its mirrored
-variant - brought into `Reanimv  starts Katsr.blend` under the katar's names, with the weapon bones
-seated for the grip, and exported from there. They keep the fist's timing: the engine's one-handed attack
+variant - brought into `Sources/Katars and animations.blend`, with the weapon bones seated for the
+grip, and exported from there. There are two sets: the knuckledusters' (`[Raw] Knuckle ...`,
+`xKnuckleIdle.kf`, `idleknuckle`) and the katars' (`[Raw] Katar ...`, `xKatarIdle.kf`, `idlekatar`),
+the same idles, walks and jump with the hands held wider apart. Both swing and draw with the
+knuckledusters' attacks and equip. They keep the fist's timing: the engine's one-handed attack
 underneath is re-timed to them, not the other way round, so a hit still lands on the frame it
 should. That is also why these weapons have such low speeds - 0.9 for katars, 1.0 for
 knuckledusters: the fist's animations are quick to begin with, and at 1.0 about as quick as a
@@ -424,8 +427,9 @@ one is. Katars move over ReAnimation's short blade set, one step cycle to the lo
 Knuckledusters have no blunt set and move over the one-handed one, which in first person is laid out
 differently: the walk and run an 8-frame lead-in and then three step cycles to the loop, the sneak
 two cycles. One cycle cannot follow that, and drifted off the footsteps. So there, and only in first
-person, they play the fist's cycles laid out the same way (`xKatar1hMovement.kf` and
-`xKatar1hSneakMovement.kf`, `walkforwardkatar1h`, `sneakforwardkatar1h` and so on). The walk's text
+person, they play the fist's cycles laid out the same way (`xKnuckle1hMovement.kf` and
+`xKnuckle1hSneakMovement.kf`, `walkforwardknuckle1h`, `sneakforwardknuckle1h` and so on, and the
+katars' alike). The walk's text
 keys are the one-handed walk's to the frame; the sneak's cycle is stretched to 34 frames, which puts
 both its loops within 2% of the one-handed sneak's and every footstep within about a frame of theirs
 - ReAnimation's moveset builder scales the directions by fixed factors, and the one-handed sneak was
@@ -553,7 +557,7 @@ overwritten, so retexture packs carry straight over. Textures baked for this mod
 
 ## Building from source
 
-`Reanimv  starts Katsr.blend` holds the weapons, their animations and the rig; the textures are baked,
+`Sources/Katars and animations.blend` holds the weapons, their animations and the rig; the textures are baked,
 and the meshes exported, from a copy of it, `Katars_bake_work.blend`. Everything built from them is
 built by a script, so a rebuild is reproducible. What each script does, and how to run it:
 
@@ -577,10 +581,11 @@ Tribunal.bsa and Bloodmoon.bsa if you want them back.
 There are none of their own: `Sources/Tools/make_third_person_anims.py` makes them from the
 first-person ones exactly as ReAnimation makes its own hand-to-hand set's, with its first-person to
 third-person tool (`Sources/Tools/FirstToThird/first_to_third.py` in its repository, found beside this
-mod; its README has every setting). The katar set is the fist's, changed a little, so it is built as
-hand-to-hand (`--alias katar=hh`) on Animation Compilation's third-person hand-to-hand (found beside
-this mod; `--third` for another, `--third vanilla` for vanilla's): katar and kataralt over
-`handtohand`, idlekatar over `idlehh`, jumpkatar over `jumphh`. Our upper body turned the way the
+mod; its README has every setting). Both sets are the fist's, changed a little, so each is built as
+hand-to-hand (`--alias knuckle=hh`, then `--alias katar=hh`) on Animation Compilation's third-person
+hand-to-hand (found beside this mod; `--third` for another, `--third vanilla` for vanilla's): knuckle
+and knucklealt over `handtohand`, idleknuckle and idlekatar over `idlehh`, jumpknuckle and jumpkatar
+over `jumphh`. Our upper body turned the way the
 first person turns it, on their legs, hips and root motion; attacks at our timing, their legs warped
 through the text keys both share, held in place (their lunge on the pelvis) and ending on the idle's
 first frame; the head looking straight ahead through every swing and draw (in first person it turns
@@ -590,8 +595,7 @@ engine's head tracking still turns it toward whoever an NPC fights); the idles b
 The walks, runs and sneaks are not converted - the fist's walk cycles swing the arms in ways made for
 first person. They are made from the idles (`--idle-moves hh`, `--idle-sneak hh`) on the one-handed
 walk's legs, which is what they play over in game (`--legs-from walkforwardkatar=walkforward1h` and
-so on): the katar idle's upper body over the walks and runs, the katar sneaking idle's over the
-sneaks, the arms springing a little with the steps, the torso nodding, swinging and leaning over the
+so on): each set's idle's upper body over the walks and runs, its sneaking idle's over the sneaks, the arms springing with the steps and keeping three quarters of the way they face as the torso swings, the torso nodding, swinging and leaning over the
 legs as people's do, leaning as that walk leans against its own idle and at least 3 degrees forward
 walking, 8 running. They play whole (`animations.lua`), so the pace, the footsteps and the root motion
 are the one-handed walk's. The torso motion is all from the chest up, on a lower spine held steady

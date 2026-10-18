@@ -172,11 +172,13 @@ local function resolve(recordId, record)
     hybrid.drawSounds = { melee.sound .. " Up", melee.sound .. " Down" }
     hybrid.model = record.model
     hybrid.getEffectiveSkill = getEffectiveSkill
-    if hybrid.moveset == M.MOVESET.HandToHand and not melee.oneHanded then
-        problems[#problems + 1] = "the handToHand moveset needs a one-handed weapon; it uses the default one"
+    local handToHand = hybrid.moveset == M.MOVESET.HandToHand or hybrid.moveset == M.MOVESET.HandToHandWide
+    if handToHand and not melee.oneHanded then
+        problems[#problems + 1] = "the " .. hybrid.moveset .. " moveset needs a one-handed weapon; it uses the default one"
         hybrid.moveset = M.MOVESET.Default
+        handToHand = false
     end
-    hybrid.handToHand = hybrid.moveset == M.MOVESET.HandToHand
+    hybrid.handToHand = handToHand
     -- With a two-handed weapon the left hand grips that one weapon; a copy there would sit in it.
     if hybrid.offHandCopy and not melee.oneHanded then
         problems[#problems + 1] = "offHandCopy needs a one-handed weapon; it gets no copy"
@@ -212,7 +214,7 @@ end
 
 --- The hybrid this record id is, or false. A table of its definition's fields (definitions.parse)
 -- and what the weapon's record adds: weaponSkill (the skill the engine swings it with), handToHand
--- (whether it swings with this mod's moveset), drawSounds (the engine's, for silentDraw), model; and
+-- (whether it swings with one of this mod's movesets), drawSounds (the engine's, for silentDraw), model; and
 -- the method getEffectiveSkill([actor]). twoHanded and offHandCopy are the file's, corrected for what
 -- the weapon's type allows.
 -- Shared: never change it.

@@ -1,23 +1,24 @@
-"""Lays the katar's walk and sneak out as the first-person one-handed ones are, to play over them.
+"""Lays the hand-to-hand walks and sneaks out as the first-person one-handed ones are, to play over them.
 
-The katar's walk, run and sneak are each one step cycle - a left foot and a right, 32 frames - and
-every group of xKatarMovement.kf and xKatarSneakMovement.kf is one loop of one. A katar is a short
-blade, and moves over ReAnimation's short blade set (walkforward1s, sneakforward1s), which is laid
-out the same way. Knuckledusters are blunt weapons, which have no set of their own, and move over
-the one-handed set (walkforward1h, sneakforward1h), which is not:
+Each set's walk, run and sneak - the knuckledusters' and the katars' - are each one step cycle, a
+left foot and a right, 32 frames, and every group of xKnuckleMovement.kf, xKatarMovement.kf and their
+SneakMovement is one loop of one. A katar is a short blade, and moves over ReAnimation's short blade
+set (walkforward1s, sneakforward1s), which is laid out the same way. Knuckledusters are blunt weapons,
+which have no set of their own, and move over the one-handed set (walkforward1h, sneakforward1h),
+as does anything else one-handed, which is not:
 
     walk and run   an 8-frame lead-in that plays once, then three step cycles to the loop
     sneak          two step cycles to the loop, which starts a frame after a right foot
 
 animations.lua keeps each in step with its parent by how far through its loop each one is, and one
-cycle cannot follow two or three: the arms drifted off the footsteps. This lays each katar cycle out
-the one-handed way, as "[Raw] Katar Walk 1h" and "[Raw] Katar Sneak 1h":
+cycle cannot follow two or three: the arms drifted off the footsteps. This lays each cycle out the
+one-handed way, as "[Raw] Knuckle Walk 1h", "[Raw] Knuckle Sneak 1h" and the katar's two:
 
 1. Copies of the cycle back to back, from the phase the one-handed loop starts at, after the lead-in
    where there is one. These are the raw keys themselves, cut exactly where a copy has to begin or
    end, with the cycle's own handles, so every curve is the cycle's - checked by evaluating both.
-2. The markers laid out alike: <Move>Katar1h start at 0, loop start after the lead-in, loop stop and
-   stop at the end, and the cycle's footsteps in every copy.
+2. The markers laid out alike: <Move>Knuckle1h / <Move>Katar1h start at 0, loop start after the
+   lead-in, loop stop and stop at the end, and the cycle's footsteps in every copy.
 
 The sneak's cycle is also stretched a little, from 32 frames to 34. ReAnimation's moveset builder
 makes every direction from the one raw action - sneaking forward at 2.7 times its length, sideways
@@ -27,17 +28,18 @@ frames both come within 2%, which the phase sync takes up.
 Run it again and it replaces what it made before; an action of one of those names it did not make is
 kept, renamed "<name> (old)".
 
---export then exports the two as export_katar_anims.py exports every katar action - ReAnimation's
+--export then exports them as export_katar_anims.py exports every hand-to-hand action - ReAnimation's
 bake, moveset builder and export, Weapon Bone.L and the SoundGenRef footsteps straight from the
 blend - and checks their step cycles, footsteps and loop lengths against the one-handed set's. The
 export changes the file in memory, so --save saves first.
 
 From Blender: set OPTIONS below, then Text Editor > Open this file, Run Script. Headless:
-    blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/make_katar_1h_movement.py -- \\
+    blender -b "Sources/Katars and animations.blend" --python Sources/Tools/make_katar_1h_movement.py -- \\
         --save --export "00 Core/Animations/xbase_anim.1st"
 """
 import importlib
 import os
+import re
 import sys
 
 import bpy
@@ -53,13 +55,14 @@ OPTIONS = {
 
 def _tools_dir():
     """Where this file is. Run from the Text Editor, __file__ is the .blend's path with the text's
-    name on the end, so beside the opened file and Sources/Tools next to the .blend are tried too."""
+    name on the end, so beside the opened file and the Tools folder by the .blend are tried too."""
     candidates = [os.path.dirname(os.path.abspath(__file__))]
     text = bpy.data.texts.get(os.path.basename(__file__))
     if text is not None and text.filepath:
         candidates.append(os.path.dirname(os.path.abspath(bpy.path.abspath(text.filepath))))
     if bpy.data.filepath:
-        candidates.append(os.path.join(os.path.dirname(bpy.data.filepath), "Sources", "Tools"))
+        blend_dir = os.path.dirname(bpy.data.filepath)
+        candidates += [os.path.join(blend_dir, "Tools"), os.path.join(blend_dir, "Sources", "Tools")]
     for folder in candidates:
         if os.path.isfile(os.path.join(folder, "make_katar_1h_movement.py")):
             return folder
@@ -72,14 +75,17 @@ MOD = os.path.normpath(os.path.join(HERE, "..", ".."))
 # Frames are the source cycle's. `start` is the phase of the cycle the loop starts at, `lead_in` how
 # much of the cycle before it plays once first, and `length` a cycle's frames in the new action.
 LAYOUTS = [
-    {"source": "[Raw] Katar Walk", "target": "[Raw] Katar Walk 1h",
-     "group": "RunForwardkatar", "new_group": "RunForwardKatar1h",
+    {"source": "[Raw] %s Walk" % name, "target": "[Raw] %s Walk 1h" % name,
+     "group": "RunForward" + name, "new_group": "RunForward%s1h" % name,
      "lead_in": 8, "start": 0, "cycles": 3, "length": 32,
-     "out": "xKatar1hMovement", "theirs": "x1hMovement.kf"},
-    {"source": "[Raw] Katar Sneak", "target": "[Raw] Katar Sneak 1h",
-     "group": "SneakForwardkatar", "new_group": "SneakForwardKatar1h",
+     "out": "x%s1hMovement" % name, "theirs": "x1hMovement.kf"}
+    for name in ("Knuckle", "Katar")
+] + [
+    {"source": "[Raw] %s Sneak" % name, "target": "[Raw] %s Sneak 1h" % name,
+     "group": "SneakForward" + name, "new_group": "SneakForward%s1h" % name,
      "lead_in": 0, "start": 1, "cycles": 2, "length": 34,
-     "out": "xKatar1hSneakMovement", "theirs": "x1hSneakMovement.kf"},
+     "out": "x%s1hSneakMovement" % name, "theirs": "x1hSneakMovement.kf"}
+    for name in ("Knuckle", "Katar")
 ]
 TAG = "katar_1h_movement"
 TOLERANCE = 1e-5          # how far a laid-out curve may stray from the cycle it came from
@@ -362,8 +368,8 @@ def make_action(layout):
 
 
 def export(layouts, out_dir, reanimation):
-    """Through export_katar_anims.py, which exports every katar action the same way and checks these
-    two against the one-handed set's loops."""
+    """Through export_katar_anims.py, which exports every hand-to-hand action the same way and checks
+    these against the one-handed set's loops."""
     if HERE not in sys.path:
         sys.path.insert(0, HERE)
     import export_katar_anims
@@ -398,7 +404,7 @@ def check_loops(ours_path, theirs_path):
     ours, theirs = loops(ours_path), loops(theirs_path)
     off = []
     for group in sorted(ours):
-        their_group = group.replace("katar1h", "1h")
+        their_group = re.sub("(knuckle|katar)1h", "1h", group)
         if their_group not in theirs:
             off.append("%s: %s has no %s" % (group, os.path.basename(theirs_path), their_group))
             continue

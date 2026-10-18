@@ -1,7 +1,8 @@
-"""Exports the katar's first-person animations from this blend - the blend is where they live.
+"""Exports the hand-to-hand first-person animations from this blend - the blend is where they live.
 
-Every "[Raw] Katar ..." action (not the "(old)" ones import_h2h_actions.py keeps) goes through the
-same three steps ReAnimation's build_and_export_moveset.py takes, its own helpers doing them:
+Every "[Raw] Knuckle ..." and "[Raw] Katar ..." action (not the "(old)" ones import_h2h_actions.py
+keeps) goes through the same three steps ReAnimation's build_and_export_moveset.py takes, its own
+helpers doing them:
 
 1. Bizarre Anim's Bake Animation, off the Auto-Rig Pro rig onto Bip01;
 2. for a walk, run or sneak, ReAnimation's build_moveset_action.py, which lays the one cycle out as
@@ -9,21 +10,22 @@ same three steps ReAnimation's build_and_export_moveset.py takes, its own helper
 3. Bizarre Anim's Export Animation for the first-person skeleton, at 30 frames a second, with
    'Weapon Bone.L' kept - the blend keys it (import_h2h_actions.py, reseat_weapon_bones.py), so
    nothing is mirrored into the file afterwards. Camera motion is not negated: ReAnimation's own
-   first-person exports were not, and the katar set is theirs.
+   first-person exports were not, and the hand-to-hand set is theirs.
 
 Nothing is changed in a file once it is written. The blend already carries what the game wants:
-the katar's group names, the weapon seat, the left weapon bone, and footsteps as SoundGenRef - keys
+the group names, the weapon seat, the left weapon bone, and footsteps as SoundGenRef - keys
 that sound nothing, since the one-handed animation underneath sounds its own (footstep_refs.py).
 What is checked: that no file carries a SoundGen key, and that the one-handed walk and sneak loops
 lie where the one-handed set's do (make_katar_1h_movement.check_loops).
 
 The .kf files - only those, not the .nif the exporter writes beside each - land in
 00 Core/Animations/xbase_anim.1st under the names already there, whatever case the export gives them:
-ReAnimation's builder names a movement set from its marker group, so "[Raw] Katar Walk" comes out
-as xkatarMovement. Then run make_third_person_anims.py for the third-person sets.
+ReAnimation's builder names a movement set from its marker group, so "[Raw] Knuckle Walk", whose
+group is RunForwardKnuckle, comes out as xKnuckleMovement. Then run make_third_person_anims.py for the
+third-person sets.
 
 From Blender: Text Editor > Open this file, Run Script (ONLY below picks the actions). Headless:
-    blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/export_katar_anims.py
+    blender -b "Sources/Katars and animations.blend" --python Sources/Tools/export_katar_anims.py
     ... -- --only Idle            only actions whose name contains it
 """
 import contextlib
@@ -40,7 +42,7 @@ import bpy
 # Run headless, "-- --only <text>" says instead.
 ONLY = None
 
-PREFIX = "[Raw] Katar "
+PREFIXES = ("[Raw] Knuckle ", "[Raw] Katar ")
 ADDON = "BizarreMorrowindAnimatonUtilities"
 SCRIPT = "build_and_export_moveset.py"   # a text in ReAnimation's Sources/Reanimv3.blend
 HELPERS_END = "# --------------------------------------------------------------------- Validate"
@@ -49,7 +51,8 @@ FPS = 30
 SETTINGS = {"export_as": "1ST_PERSON", "retained_extra_bones": "Weapon Bone.L",
             "enable_root_motion_arp": False, "negate_camera_motion": False}
 # Actions laid out over a one-handed set: checked against ReAnimation's file of that set.
-ONE_HANDED = {"xKatar1hMovement": "x1hMovement.kf", "xKatar1hSneakMovement": "x1hSneakMovement.kf"}
+ONE_HANDED = {"x%s1h%sMovement" % (name, sneak): "x1h%sMovement.kf" % sneak
+              for name in ("Knuckle", "Katar") for sneak in ("", "Sneak")}
 LOG = []
 
 
@@ -66,7 +69,8 @@ def _tools_dir():
     if text is not None and text.filepath:
         candidates.append(pathlib.Path(bpy.path.abspath(text.filepath)).resolve().parent)
     if bpy.data.filepath:
-        candidates.append(pathlib.Path(bpy.data.filepath).resolve().parent / "Sources" / "Tools")
+        blend_dir = pathlib.Path(bpy.data.filepath).resolve().parent
+        candidates += [blend_dir / "Tools", blend_dir / "Sources" / "Tools"]
     for folder in candidates:
         if (folder / "make_katar_1h_movement.py").is_file():
             return folder
@@ -289,10 +293,11 @@ def export_into(h, exporter, names, scratch):
 
 
 def main(only=None):
-    names = sorted(a.name for a in bpy.data.actions if a.name.startswith(PREFIX)
+    names = sorted(a.name for a in bpy.data.actions if a.name.startswith(PREFIXES)
                    and not a.name.endswith(" (old)") and (only is None or only.lower() in a.name.lower()))
     if not names:
-        raise RuntimeError("no %r actions%s" % (PREFIX + "...", " matching %r" % only if only else ""))
+        raise RuntimeError("no %s actions%s" % (" or ".join(repr(p + "...") for p in PREFIXES),
+                                                " matching %r" % only if only else ""))
     log("exporting %d action(s) to %s" % (len(names), os.path.relpath(OUT, MOD)))
     written = export_actions(names)
     log("wrote %d file(s); run make_third_person_anims.py for the third-person sets" % len(written))

@@ -1,11 +1,12 @@
-"""Ends every katar attack on the pose [Raw] Katar Idle starts on.
+"""Ends every attack on the pose [Raw] Knuckle Idle starts on.
 
 When an attack's follow-through is over the engine goes back to the idle, so an attack whose last
 frame is some other pose jumps to it. ReAnimation's chop and thrust end on it. The slash started and
 ended on an older idle, and the mirrored attacks on the idle mirrored: hands rolled 20 degrees, head
 turned 11.
 
-In each attack ([Raw] Katar Chop, Slash and Thrust, and their Mirrored), the last key and every other
+In each attack ([Raw] Knuckle Chop, Slash and Thrust, and their Mirrored - katars swing them too), the
+last key and every other
 key holding the same pose (the slash's first and second-to-last) get the values Idle keys at its first
 frame. Every channel, but for:
 
@@ -20,7 +21,7 @@ import_h2h_actions.py keeps are left alone. Then export as usual (export_katar_a
 make_third_person_anims.py).
 
 From Blender: Text Editor > Open this file, Run Script, then save the .blend. Headless:
-    blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/snap_attack_ends.py -- --save
+    blender -b "Sources/Katars and animations.blend" --python Sources/Tools/snap_attack_ends.py -- --save
 """
 import importlib
 import math
@@ -29,8 +30,9 @@ import sys
 
 import bpy
 
-ATTACKS = ["[Raw] Katar %s%s" % (attack, side) for attack in ("Chop", "Slash", "Thrust")
+ATTACKS = ["[Raw] Knuckle %s%s" % (attack, side) for attack in ("Chop", "Slash", "Thrust")
            for side in ("", " Mirrored")]
+IDLE = "[Raw] Knuckle Idle"
 # A key holding the attack's last pose to within this is snapped along with it.
 SAME_POSE_DEGREES = 2.5
 SAME_POSE_DISTANCE = 0.005
@@ -55,7 +57,8 @@ def _tools_dir():
     if text is not None and text.filepath:
         candidates.append(pathlib.Path(bpy.path.abspath(text.filepath)).resolve().parent)
     if bpy.data.filepath:
-        candidates.append(pathlib.Path(bpy.data.filepath).resolve().parent / "Sources" / "Tools")
+        blend_dir = pathlib.Path(bpy.data.filepath).resolve().parent
+        candidates += [blend_dir / "Tools", blend_dir / "Sources" / "Tools"]
     for folder in candidates:
         if (folder / "import_h2h_actions.py").is_file():
             return folder
@@ -180,9 +183,9 @@ def main():
     rig = bpy.data.objects["rig"]
     bip = bpy.data.objects["Bip01"]
 
-    idle = bpy.data.actions.get(h2h.SEAT_FROM)
+    idle = bpy.data.actions.get(IDLE)
     if idle is None:
-        raise RuntimeError("no %r in this blend" % h2h.SEAT_FROM)
+        raise RuntimeError("no %r in this blend" % IDLE)
     missing = [name for name in ATTACKS if name not in bpy.data.actions]
     if missing:
         raise RuntimeError("not in this blend: %s" % ", ".join(missing))

@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-"""Builds the third-person katar animations - what NPCs, and the player in third person, play with a
-katar or knuckledusters in hand - from the first-person ones.
+"""Builds the third-person hand-to-hand animations - what NPCs, and the player in third person, play
+with a katar or knuckledusters in hand - from the first-person ones.
 
-There are no third-person katar animations of their own. The katar moveset is the fist's - ReAnimation's
-hand-to-hand animations, changed a little - so these are built exactly as ReAnimation builds its own
-hand-to-hand set for third person, with its Sources/Tools/FirstToThird/first_to_third.py (see its
-README): the first-person animations (00 Core/Animations/xbase_anim.1st) on the third person's
-hand-to-hand ones, Animation Compilation's by default - 'katar=hh' pairs katar and kataralt with
-handtohand, idlekatar with idlehh, walkforwardkatar with walkforwardhh, jumpkatar with jumphh, and
-gives them every setting hand-to-hand gets: the upper body turned the way the first person turns it,
+There are no third-person ones of their own. Both sets, the knuckledusters' and the katars', are the
+fist's - ReAnimation's hand-to-hand animations, changed a little - so these are built exactly as
+ReAnimation builds its own hand-to-hand set for third person, with its
+Sources/Tools/FirstToThird/first_to_third.py (see its README): the first-person animations
+(00 Core/Animations/xbase_anim.1st) on the third person's hand-to-hand ones, Animation Compilation's
+by default. One run per set, as the tool takes one set of names for each of the engine's stances:
+'knuckle=hh' pairs knuckle and knucklealt with handtohand, idleknuckle with idlehh, walkforwardknuckle
+with walkforwardhh, jumpknuckle with jumphh, 'katar=hh' the katar's, and gives them every setting
+hand-to-hand gets: the upper body turned the way the first person turns it,
 on the third person's legs, hips and root motion; attacks at the first person's timing, held in place
 and ending on the idle's first frame; the head looking straight ahead; idles breathing; walks, runs and
-sneaks at the third person's timing, the torso moving over the legs as people's do. Everything else is
-that tool's defaults.
+sneaks at the third person's timing, the torso moving over the legs as people's do, the arms bouncing
+with half the spring, in the walk's own time, and keeping three quarters of the way they face as the
+torso swings under them (ARM_BOUNCE, ARM_FACING). Everything else is that tool's defaults.
 
 What this adds to the tool's build, for this mod:
   * Footsteps. Ours carry them as SoundGenRef keys (footstep_refs.py), which sound nothing. The tool
@@ -34,12 +37,13 @@ What this adds to the tool's build, for this mod:
   * Each kf's blending rules (<kf>.yaml) are copied along.
 
 The walks, runs and sneaks are not converted: they are made from the idles, on the one-handed walk's
-legs - the katar idle's upper body over the one-handed walks and runs, the katar sneaking idle's over
-the one-handed sneaks - and play whole in game (animations.lua), so the pace, the steps and the root
+legs - each set's idle's upper body over the one-handed walks and runs, its sneaking idle's over the
+one-handed sneaks - and play whole in game (animations.lua), so the pace, the steps and the root
 motion are exactly those of the one-handed walk they play over, and the torso moves over the legs.
 Leaning as that walk leans against its own idle, at least 3 degrees forward walking and 8 running.
-The turns are made so too, from the katar idle on the one-handed turn's legs, and play over it in third
-person. The jump is ours, on the hand-to-hand jump's legs.
+The turns are made so too, from the idle on the one-handed turn's legs, and play over it in third
+person. The jump is ours, on the hand-to-hand jump's legs. The katars have no swings or equip of their
+own: they play the knuckledusters'.
 
 One set per third-person skeleton folder the engine loads (npcanimation.cpp, updateNpcBase):
 xbase_anim is loaded for every NPC, xbase_animkna on top of it for beasts, with their own legs;
@@ -80,16 +84,33 @@ OFF_HAND_BONE = 'Weapon Bone.L'
 # Their seat stays as the first person has it, on the hand bone (see above).
 WEAPON_BONES = ('Weapon Bone', OFF_HAND_BONE)
 SEAT_TOLERANCE = 0.01  # units: a seat that moves more than this is not a seat
-# Not converted: the katar's walk and sneak laid out as the first-person one-handed ones are
+# The sets, by the name of their groups and files (xKnuckleIdle.kf, idleknuckle).
+SETS = ('Knuckle', 'Katar')
+# Not converted: the walks and sneaks laid out as the first-person one-handed ones are
 # (make_katar_1h_movement.py), first person's alone, and the plain ones, which third person makes
 # from the idles instead (see above).
-NOT_CONVERTED = ('xKatar1hMovement.kf', 'xKatar1hSneakMovement.kf', 'xKatarMovement.kf', 'xKatarSneakMovement.kf')
-MADE = ('xKatarTurn.kf',)  # made from the idle, as the walks are: the mod's spelling of the tool's names
+NOT_CONVERTED = tuple('x%s%s.kf' % (s, kind) for s in SETS
+                      for kind in ('1hMovement', '1hSneakMovement', 'Movement', 'SneakMovement'))
+MADE = tuple('x%sTurn.kf' % s for s in SETS)  # made from the idle, as the walks are: the mod's spelling
 MOVES = [m + d for m in ('walk', 'run', 'sneak') for d in ('forward', 'back', 'left', 'right')] + ['turnleft', 'turnright']
-# The tool's settings for this set (see the top of this file); everything else is its default.
-SETTINGS = ['--alias', 'katar=hh', '--idle-moves', 'hh', '--idle-sneak', 'hh', '--prefix', '',
-            '--skip', '', '--skip-files', '',
-            '--legs-from', ', '.join('%skatar=%s1h' % (m, m) for m in MOVES)]
+# How far the arms lag behind the walk's bob and spring back, from 0 to the whole of the tool's spring - in
+# the walk's own time (--arm-bounce-real-time): stepped a frame per sample, as the tool does by default, a
+# forward walk, with three or four samples to a frame, hardly bounced at all.
+ARM_BOUNCE = '0.5'
+# How much the arms keep the way they face while a walk's torso nods, swings and leans under them, the hands
+# carried by the shoulders: a guard held forward, as a spell is, stays partly pointed ahead.
+ARM_FACING = '0.75'
+
+
+def settings(name):
+    """The tool's settings for one set (see the top of this file); everything else is its default."""
+    name = name.lower()
+    # --keep-bones: the fingers are fitted on the first person's whole hand, and the off-hand weapon bone
+    # kept, before finish() leaves out what the skeletons lack.
+    return ['--alias', '%s=hh' % name, '--idle-moves', 'hh', '--idle-sneak', 'hh', '--prefix', '',
+            '--skip', '', '--skip-files', '', '--keep-bones', '--arm-bounce', ARM_BOUNCE,
+            '--keep-arm-facing', ARM_FACING, '--arm-bounce-real-time', 'y',
+            '--legs-from', ', '.join('%s%s=%s1h' % (m, name, m) for m in MOVES)]
 
 
 def find_mod(given, starts, inside):
@@ -302,27 +323,29 @@ def main():
     skeletons = bsa_files(bsa, {s for names in SKELETONS.values() for s in names})
 
     with tempfile.TemporaryDirectory() as scratch:
-        first_dir, built = os.path.join(scratch, 'xbase_anim.1st'), os.path.join(scratch, 'built')
-        os.makedirs(first_dir)
-        sources = sorted(p for p in glob.glob(os.path.join(FIRST_PERSON, '*.kf'))
-                         if os.path.basename(p) not in NOT_CONVERTED)
         first = {}
-        for path in sources:
-            kf = nifkf.KF.load(path)
-            tk = kf.blocks[kf.textkey_block][1]
-            tk['keys'] = [(t, footstep_refs.from_ref(text)) for t, text in tk['keys']]
-            kf.save(os.path.join(first_dir, os.path.basename(path)))
-            first[os.path.basename(path)] = kf
-        command = [sys.executable, os.path.join(tools, 'FirstToThird', 'first_to_third.py'), '-y',
-                   '--first', first_dir, '--third', third, '--out', built, '--data-files', data_files] + SETTINGS
-        if args.verbose:
-            command.append('-v')
-        print('first_to_third.py on %s' % (third or "vanilla's animations"))
-        subprocess.run(command, check=True)
+        for name in SETS:
+            first_dir = os.path.join(scratch, name, 'xbase_anim.1st')
+            os.makedirs(first_dir)
+            sources = sorted(p for p in glob.glob(os.path.join(FIRST_PERSON, 'x%s*.kf' % name))
+                             if os.path.basename(p) not in NOT_CONVERTED)
+            for path in sources:
+                kf = nifkf.KF.load(path)
+                tk = kf.blocks[kf.textkey_block][1]
+                tk['keys'] = [(t, footstep_refs.from_ref(text)) for t, text in tk['keys']]
+                kf.save(os.path.join(first_dir, os.path.basename(path)))
+                first[os.path.basename(path)] = kf
+            command = [sys.executable, os.path.join(tools, 'FirstToThird', 'first_to_third.py'), '-y',
+                       '--first', first_dir, '--third', third, '--out', os.path.join(scratch, name, 'built'),
+                       '--data-files', data_files] + settings(name)
+            if args.verbose:
+                command.append('-v')
+            print('first_to_third.py on %s, the %s set' % (third or "vanilla's animations", name.lower()))
+            subprocess.run(command, check=True)
 
         finger_cache = {}  # (side, the hand's pose) -> fitted rotations, shared by every skeleton
         for folder in SKELETONS:
-            written = sorted(glob.glob(os.path.join(built, folder, '*.kf')))
+            written = sorted(p for name in SETS for p in glob.glob(os.path.join(scratch, name, 'built', folder, '*.kf')))
             if not written:
                 continue
             keep = set.intersection(*(skeleton_bones(skeletons[s]) for s in SKELETONS[folder]))
@@ -334,10 +357,11 @@ def main():
                 # What the tool made from an idle (xkatarMovement.kf) under the mod's own spelling.
                 name = next((n for n in NOT_CONVERTED + MADE + tuple(first) if n.lower() == os.path.basename(path).lower()),
                             os.path.basename(path))
+                own_set = next(s for s in SETS if name.lower().startswith('x' + s.lower()))
                 errors = []
                 # The seat and the hand's offsets are the same in every first-person file.
-                dropped = finish(T, E, fingers, finger_cache, path, first.get(name, first['xKatarIdle.kf']), name,
-                                 keep, os.path.join(out_dir, name), errors)
+                dropped = finish(T, E, fingers, finger_cache, path, first.get(name, first['x%sIdle.kf' % own_set]),
+                                 name, keep, os.path.join(out_dir, name), errors)
                 print('  %-26s fingers fitted to %.2f units on average, %.2f at worst; %d tracks the skeleton '
                       'has no bone for left out' % (name, sum(errors) / max(len(errors), 1), max(errors, default=0.0),
                                                     len(dropped)))

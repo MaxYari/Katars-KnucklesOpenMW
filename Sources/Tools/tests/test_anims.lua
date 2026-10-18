@@ -12,13 +12,16 @@ end
 
 st.weaponRecords["katar_steel"] = { type = 0, model = "meshes/steel_katar.nif" }
 st.weaponRecords["steel dagger"] = { type = 0, model = "meshes/w/w_dagger.nif" }
-st.groups = { weapononehand = true, weapononehand1 = true, katar = true, kataralt = true, idlekatar = true,
-              idle1s = true, idlekatarsneak = true, walkforward1s = true, walkforwardkatar = true,
-              jump1s = true, jumpkatar = true }
+st.weaponRecords["knuckle_iron"] = { type = 3, model = "meshes/iron_knuckle.nif" }
+-- The swings and the equip are the knuckledusters' for both sets; the idles, moves and jump each set's own.
+st.groups = { weapononehand = true, weapononehand1 = true, knuckle = true, knucklealt = true,
+              idle1s = true, walkforward1s = true, jump1s = true,
+              idlekatar = true, idlekatarsneak = true, walkforwardkatar = true, jumpkatar = true,
+              idleknuckle = true, idleknucklesneak = true, walkforwardknuckle = true, jumpknuckle = true }
 st.stance = 1
 
 local function key(k, t) st.textKeys[string.lower(k)] = t end
-for _, g in ipairs({ "weapononehand", "katar", "kataralt" }) do
+for _, g in ipairs({ "weapononehand", "knuckle", "knucklealt" }) do
     local base = g == "weapononehand" and 50 or 0
     for _, attack in ipairs({ "slash", "chop", "thrust" }) do
         key(g .. ": " .. attack .. " start", base + 0)
@@ -27,7 +30,7 @@ for _, g in ipairs({ "weapononehand", "katar", "kataralt" }) do
     end
 end
 -- The equip section: the fist's is half a second, the one-handed weapon's twice that.
-key("katar: equip start", 0); key("katar: equip stop", 0.5)
+key("knuckle: equip start", 0); key("knuckle: equip stop", 0.5)
 key("weapononehand: equip start", 60); key("weapononehand: equip stop", 61)
 
 local api = require("scripts.MaxYari.ReAnimation_v3.ReAnimationAPI")
@@ -71,7 +74,7 @@ end
 
 st.equipped = { recordId = "katar_steel" }
 local groups, opts = swing()
-check(groups["katar"] == true, "a katar swings with the katar animation")
+check(groups["knuckle"] == true, "a katar swings with the knuckledusters' animation")
 check(groups["weapononehand1"] ~= true, "and ReAnimation's own alternate is stood down")
 check(math.abs(opts.speed - 2.0) < 1e-3, "and the parent is re-timed to it", opts.speed)
 
@@ -84,23 +87,23 @@ local follow = function(attack)
 end
 follow("slash")
 groups, opts = swing("chop")
-check(groups["katar"] or groups["kataralt"], "a katar chops with the fist's chop")
+check(groups["knuckle"] or groups["knucklealt"], "a katar chops with the fist's chop")
 check(groups["weapononehand1"] ~= true, "not ReAnimation's one-handed alternate")
 check(opts.blendMask == 0, "and the parent is hidden under it", opts.blendMask)
 follow("chop")
 groups = swing("thrust")
-check(groups["katar"] or groups["kataralt"], "and thrusts with the fist's thrust")
+check(groups["knuckle"] or groups["knucklealt"], "and thrusts with the fist's thrust")
 follow("thrust")
 
 -- the variants alternate as they do for bare fists
 local seen = {}
 for _ = 1, 2 do
     local g = swing("slash")
-    if g["katar"] then seen.katar = true end
-    if g["kataralt"] then seen.kataralt = true end
+    if g["knuckle"] then seen.knuckle = true end
+    if g["knucklealt"] then seen.knucklealt = true end
     follow("slash")
 end
-check(seen.katar and seen.kataralt, "one swing, then its mirror")
+check(seen.knuckle and seen.knucklealt, "one swing, then its mirror")
 
 -- The equip plays the fist's section over the parent's length: the weapon still appears at the
 -- parent's attach key.
@@ -109,7 +112,7 @@ local equip = { startKey = "equip start", startkey = "equip start", stopKey = "e
                 stopkey = "equip stop", speed = 1, priority = 7, blendMask = 15 }
 stubs.I.AnimationController.playBlendedAnimation("weapononehand", equip)
 local fistEquip
-for _, p in ipairs(st.played) do if p.group == "katar" then fistEquip = p.options end end
+for _, p in ipairs(st.played) do if p.group == "knuckle" then fistEquip = p.options end end
 check(fistEquip ~= nil, "drawing plays the fist's equip")
 check(fistEquip and math.abs(fistEquip.speed - 0.5) < 1e-6, "at half speed, so its half second fills the parent's second",
       fistEquip and fistEquip.speed)
@@ -196,6 +199,30 @@ local jumped = false
 for _, p in ipairs(st.played) do if p.group == "jumpkatar" then jumped = true end end
 check(jumped, "and jumping its jump")
 
+-- Knuckledusters hold the fist's own guard: the knuckle set's idle, walk and jump, not the katar's.
+local function played(group, options)
+    st.played = {}
+    stubs.I.AnimationController.playBlendedAnimation(group, options)
+    local out = {}
+    for _, p in ipairs(st.played) do out[p.group] = true end
+    return out
+end
+st.equipped = { recordId = "knuckle_iron" }
+local idleOpts = { startKey = "start", startkey = "start", speed = 1, priority = 0, blendMask = 15, loops = 3 }
+local seenKnuckle = played("idle1s", idleOpts)
+check(seenKnuckle["idleknuckle"] and not seenKnuckle["idlekatar"], "knuckledusters stand in the knuckle idle")
+seenKnuckle = played("walkforward1s", { speed = 1, priority = 5, blendMask = 15, loops = 999 })
+check(seenKnuckle["walkforwardknuckle"] and not seenKnuckle["walkforwardkatar"], "walk with the knuckle walk")
+seenKnuckle = played("jump1s", { startKey = "start", startkey = "start", speed = 1, priority = 5, blendMask = 15 })
+check(seenKnuckle["jumpknuckle"] and not seenKnuckle["jumpkatar"], "and jump with the knuckle jump")
+seenKnuckle = played("weapononehand", { startKey = "slash start", startkey = "slash start", stopKey = "slash max attack",
+                                        stopkey = "slash max attack", speed = 2, priority = 7, blendMask = 15 })
+check(seenKnuckle["knuckle"] or seenKnuckle["knucklealt"], "swinging the knuckle set's attacks, as katars do")
+follow("slash")
+st.equipped = { recordId = "katar_steel" }
+local seenKatar = played("idle1s", idleOpts)
+check(seenKatar["idlekatar"] and not seenKatar["idleknuckle"], "katars stand in their own, wider idle")
+
 -- A generated record - a Bound Fist scaled to its caster, Ebony Rose's burst copy, a katar someone
 -- enchanted - is one too, though ReAnimation hands out its id lowercased and the engine only knows it
 -- as "Generated:0x...".
@@ -204,12 +231,12 @@ st.weaponRecords["generated:0x77"] = { type = 0, model = "meshes/daedric_katar.n
 st.equipped = { recordId = "Generated:0x77" }
 follow("thrust")
 groups = swing()
-check(groups["katar"] or groups["kataralt"], "a generated katar swings as a katar")
+check(groups["knuckle"] or groups["knucklealt"], "a generated katar swings as a katar")
 follow("slash")
 
 st.equipped = { recordId = "steel dagger" }
 groups = swing()
-check(groups["katar"] ~= true, "a dagger does not swing with the katar animation")
+check(groups["knuckle"] ~= true, "a dagger does not swing with the hand-to-hand animation")
 -- the alternation opens on the parent itself, so the second swing is ReAnimation's alternate. It only
 -- counts a swing as the one before once its follow-through has played.
 follow("slash")
@@ -223,7 +250,7 @@ st.cameraMode = 1
 api.engineHandlers.onUpdate(0.016) -- ReAnimation looks at the view once a frame
 st.equipped = { recordId = "katar_steel" }
 groups = swing()
-check(groups["katar"] or groups["kataralt"], "in third person a katar swings with the katar animation too")
+check(groups["knuckle"] or groups["knucklealt"], "in third person a katar swings with the knuckledusters' animation too")
 check(groups["weapononehand1"] ~= true, "where ReAnimation has no set of its own")
 follow("slash")
 -- Standing still, the swing's own legs show: its lower body goes over the katar idle's, which outranks
@@ -237,7 +264,7 @@ local function swingLegs()
     stubs.I.AnimationController.playBlendedAnimation("weapononehand", o)
     local lower
     for _, p in ipairs(st.played) do
-        if p.group == "katar" or p.group == "kataralt" then lower = p.options.priority[LB.LowerBody] end
+        if p.group == "knuckle" or p.group == "knucklealt" then lower = p.options.priority[LB.LowerBody] end
     end
     follow("slash")
     return lower, o.priority[LB.LowerBody]
@@ -271,6 +298,40 @@ stubs.I.AnimationController.playBlendedAnimation("idlesneak",
 sneakIdle = false
 for _, p in ipairs(st.played) do if p.group == "idlekatarsneak" then sneakIdle = true end end
 check(not sneakIdle, "and a dagger's is left alone")
+
+-- Under Full Body Awareness first person has a sneaking idle too, which the engine plays on while the
+-- player sneaks about, two up on the legs (SneakIdleLowerBody). Ours has to stay under the sneak walk
+-- there, or it wins the legs and the player cannot move; and it stops once the weapon is sheathed, as
+-- that idle plays on whatever is in hand.
+local animationApi = require("openmw.animation")
+local LBG = animationApi.BONE_GROUP
+st.cameraMode = 0
+api.engineHandlers.onUpdate(0.016)
+st.equipped = { recordId = "katar_steel" }
+st.played = {}
+stubs.I.AnimationController.playBlendedAnimation("idlesneak", { startKey = "start", startkey = "start", speed = 1,
+    blendMask = 15, loops = 999,
+    priority = { [LBG.LowerBody] = animationApi.PRIORITY.SneakIdleLowerBody, [LBG.Torso] = 0, [LBG.LeftArm] = 0,
+                 [LBG.RightArm] = 0 } })
+local fbaSneak
+for _, p in ipairs(st.played) do if p.group == "idlekatarsneak" then fbaSneak = p.options end end
+check(fbaSneak and fbaSneak.priority[LBG.LowerBody] < animationApi.PRIORITY.Movement,
+      "under FBA, the katar's sneaking idle stays under the sneak walk on the legs",
+      fbaSneak and fbaSneak.priority[LBG.LowerBody])
+-- Sheathed, sneaking on: only the sneaking idles play now (the stubs take every known group to be
+-- playing, which would start the walks too).
+st.cancelled = {}
+st.stance = 0
+local allGroups = st.groups
+st.groups = { idlesneak = true, idlekatarsneak = true }
+api.engineHandlers.onUpdate(0.016)
+st.groups = allGroups
+local sheathedStop = false
+for _, g in ipairs(st.cancelled) do if g == "idlekatarsneak" then sheathedStop = true end end
+check(sheathedStop, "and stops when the katars are sheathed, though the sneaking idle plays on")
+st.stance = 1
+st.cameraMode = 1
+api.engineHandlers.onUpdate(0.016)
 
 -- Turning on the spot in third person: with a katar, ours goes over the turn as a walk does - the katar
 -- idle's upper body made on the one-handed turn's legs.

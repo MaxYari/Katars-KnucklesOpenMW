@@ -1,10 +1,10 @@
-"""Spreads the katar's weapon seat from [Raw] Katar Idle to the rest of the katar moveset.
+"""Spreads the weapon seat from [Raw] Katar Idle to the rest of both hand-to-hand sets.
 
-'Weapon Bone' holds one pose - the seat - through every katar action, and 'Weapon Bone.L' holds its
-mirror in the left hand, plus the katar's half turn (import_h2h_actions.py). Move the right bone in
-[Raw] Katar Idle, run this, and:
+'Weapon Bone' holds one pose - the seat - through every katar and knuckle action, and 'Weapon Bone.L'
+holds its mirror in the left hand, plus the katar's half turn (import_h2h_actions.py). Move the right
+bone in [Raw] Katar Idle, run this, and:
 
-1. every other [Raw] Katar action holding the seat the rest of the set shares gets Idle's new one.
+1. every other [Raw] Katar and [Raw] Knuckle action holding the seat the rest share gets Idle's new one.
    An action holding some other seat, or moving the bone, is left alone and listed;
 2. 'Weapon Bone.L' is keyed afresh at the new seat's mirror in all of them, Idle included.
 
@@ -15,7 +15,7 @@ This is the blend only: export the actions afterwards (export_katar_anims.py) fo
 files to take the new seat.
 
 From Blender: Text Editor > Open this file, Run Script, then save the .blend. Headless:
-    blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/reseat_weapon_bones.py -- --save
+    blender -b "Sources/Katars and animations.blend" --python Sources/Tools/reseat_weapon_bones.py -- --save
 """
 import collections
 import importlib
@@ -43,7 +43,8 @@ def _tools_dir():
     if text is not None and text.filepath:
         candidates.append(pathlib.Path(bpy.path.abspath(text.filepath)).resolve().parent)
     if bpy.data.filepath:
-        candidates.append(pathlib.Path(bpy.data.filepath).resolve().parent / "Sources" / "Tools")
+        blend_dir = pathlib.Path(bpy.data.filepath).resolve().parent
+        candidates += [blend_dir / "Tools", blend_dir / "Sources" / "Tools"]
     for folder in candidates:
         if (folder / "import_h2h_actions.py").is_file():
             return folder
@@ -102,7 +103,7 @@ def main():
                            % (idle.name, h2h.RIGHT))
     keys = sorted(new)
 
-    others = [a for a in bpy.data.actions if a.name.startswith("[Raw] Katar ")
+    others = [a for a in bpy.data.actions if a.name.startswith(("[Raw] Katar ", "[Raw] Knuckle "))
               and not a.name.endswith(" (old)") and a is not idle and h2h.bone_curves(a, h2h.RIGHT)]
     seats = {a.name: held_seat(a) for a in others}
     # The seat Idle used to hold is the one the rest of the set still shares.

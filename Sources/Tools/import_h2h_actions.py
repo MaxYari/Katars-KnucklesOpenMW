@@ -1,12 +1,13 @@
-"""Brings ReAnimation's hand-to-hand [Raw] actions into this blend as the katar moveset.
+"""Brings ReAnimation's hand-to-hand [Raw] actions into this blend as the knuckledusters' moveset.
 
 The Blender half of Sources/Tools/import_h2h_set.py, which does the same to the exported .kf files -
-so the rig, not only the export, carries the katar moveset:
+so the rig, not only the export, carries the moveset:
 
-1. Appends every "[Raw] h2h ..." action from ReAnimation's source blend as "[Raw] Katar ...", the
-   names the exports go out under (xKatarChop.kf and so on).
-2. Renames their text-key markers' groups: HandToHand -> Katar, Idlehh -> Idlekatar,
-   RunForwardhh -> RunForwardkatar and so on. SoundGen footsteps become SoundGenRef, which sound
+1. Appends every "[Raw] h2h ..." action from ReAnimation's source blend as "[Raw] Knuckle ...", the
+   names the exports go out under (xKnuckleChop.kf and so on). The katars' wider set is made from
+   those (widen_katar_moves.py).
+2. Renames their text-key markers' groups: HandToHand -> Knuckle, Idlehh -> Idleknuckle,
+   RunForwardhh -> RunForwardKnuckle and so on. SoundGen footsteps become SoundGenRef, which sound
    nothing: the one-handed animation playing underneath sounds its own (footstep_refs.py).
 3. Holds the 'Weapon Bone' controller at the katar's seat - the pose the existing katar actions key
    it at, which the weapons are modelled for. ReAnimation's hand-to-hand actions leave it at rest.
@@ -20,7 +21,7 @@ An existing action this would overwrite is kept, renamed "<name> (old)". Run it 
 only what it made itself (tagged h2h_import), so nothing drifts and nothing of yours is lost.
 
 From Blender: set OPTIONS below, then Text Editor > Open this file, Run Script. Headless:
-    blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/import_h2h_actions.py -- \\
+    blender -b "Sources/Katars and animations.blend" --python Sources/Tools/import_h2h_actions.py -- \\
         --source "<ReAnimation>/Sources/Reanimv3.blend" --save
 """
 import math
@@ -33,25 +34,25 @@ from bpy_extras.io_utils import axis_conversion
 from mathutils import Matrix
 
 ACTIONS = {
-    "[Raw] h2h Chop": "[Raw] Katar Chop",
-    "[Raw] h2h Chop Mirrored": "[Raw] Katar Chop Mirrored",
-    "[Raw] h2h Slash": "[Raw] Katar Slash",
-    "[Raw] h2h Slash Mirrored": "[Raw] Katar Slash Mirrored",
-    "[Raw] h2h Thrust": "[Raw] Katar Thrust",
-    "[Raw] h2h Thrust Mirrored": "[Raw] Katar Thrust Mirrored",
-    "[Raw] h2h Eq Uneq": "[Raw] Katar Eq Uneq",
-    "[Raw] h2h Idle": "[Raw] Katar Idle",
-    "[Raw] h2h Idle Sneak": "[Raw] Katar Idle Sneak",
-    "[Raw] h2h Jump": "[Raw] Katar Jump",
-    "[Raw] h2h Walk": "[Raw] Katar Walk",
-    "[Raw] h2h Sneak": "[Raw] Katar Sneak",
+    "[Raw] h2h Chop": "[Raw] Knuckle Chop",
+    "[Raw] h2h Chop Mirrored": "[Raw] Knuckle Chop Mirrored",
+    "[Raw] h2h Slash": "[Raw] Knuckle Slash",
+    "[Raw] h2h Slash Mirrored": "[Raw] Knuckle Slash Mirrored",
+    "[Raw] h2h Thrust": "[Raw] Knuckle Thrust",
+    "[Raw] h2h Thrust Mirrored": "[Raw] Knuckle Thrust Mirrored",
+    "[Raw] h2h Eq Uneq": "[Raw] Knuckle Eq Uneq",
+    "[Raw] h2h Idle": "[Raw] Knuckle Idle",
+    "[Raw] h2h Idle Sneak": "[Raw] Knuckle Idle Sneak",
+    "[Raw] h2h Jump": "[Raw] Knuckle Jump",
+    "[Raw] h2h Walk": "[Raw] Knuckle Walk",
+    "[Raw] h2h Sneak": "[Raw] Knuckle Sneak",
 }
 GROUPS = {
-    "handtohand": "Katar",
-    "handtohandalt": "KatarAlt",
-    "idlehh": "Idlekatar",
-    "idlehhsneak": "IdlekatarSneak",
-    "jumphh": "Jumpkatar",
+    "handtohand": "Knuckle",
+    "handtohandalt": "KnuckleAlt",
+    "idlehh": "Idleknuckle",
+    "idlehhsneak": "IdleknuckleSneak",
+    "jumphh": "Jumpknuckle",
     "soundgen": "SoundGenRef",
 }
 MOVE_GROUP = re.compile(r"^((?:walk|run|sneak)(?:forward|back|left|right))hh$", re.I)
@@ -144,8 +145,8 @@ def rename_group(group):
         return GROUPS[key]
     m = MOVE_GROUP.match(group.strip())
     if m:
-        return m.group(1) + "katar"
-    raise RuntimeError("marker group %r has no katar name - add it to GROUPS" % group)
+        return m.group(1) + "Knuckle"
+    raise RuntimeError("marker group %r has no knuckle name - add it to GROUPS" % group)
 
 
 def rename_markers(action):

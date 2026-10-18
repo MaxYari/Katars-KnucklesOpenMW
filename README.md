@@ -320,8 +320,9 @@ and on every hit its experience is handed out by the shares below.
 - `scaling` (default `minorSecondaryBonus`) - what a swing rolls with: `minorSecondaryBonus` is the
   primary skill plus 15% of the secondary, tapering to 5% as the secondary falls more than 10 points
   behind, `lowestSkill` the lower of the two, `highestSkill` the higher.
-- `moveset` (default `default`) - `handToHand`: this mod's fist animations (one-handed weapons only).
-  `default`: the weapon's own animations.
+- `moveset` (default `default`) - `handToHand`: this mod's fist animations, as knuckledusters swing
+  (one-handed weapons only). `handToHandWide`: the same with the hands held wider apart, as katars
+  swing. `default`: the weapon's own animations.
 - `twoHanded` (default `false`) - the weapon takes both hands: a shield or torch comes off while it's
   drawn, and the tooltip says Two Handed. Katars and knuckledusters are. A weapon whose type is
   already two-handed always is.

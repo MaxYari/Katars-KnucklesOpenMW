@@ -5,7 +5,7 @@ secondarySkill: shortblade
 primaryExperience: 0.7
 secondaryExperience: 0.3
 scaling: minorSecondaryBonus
-moveset: handToHand
+moveset: handToHandWide
 twoHanded: true
 offHandCopy: true
 fatigueDamage: 0.5

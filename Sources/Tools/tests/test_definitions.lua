@@ -47,6 +47,12 @@ secondarySkill: bluntweapon
 moveset: handToHand
 twoHanded: true
 ]],
+    -- The katars' wider guard, in another spelling.
+    ["hybridweapondefinitions/wide_fists.yaml"] = [[
+primarySkill: handtohand
+secondarySkill: shortblade
+moveset: hand to hand wide
+]],
     -- A copy in the left hand, with the file forgetting that it takes that hand.
     ["hybridweapondefinitions/copy_only.yaml"] = [[
 primarySkill: handtohand
@@ -88,6 +94,7 @@ st.weaponRecords["odd_whoosh"] = { type = 7, model = "meshes/w/axe.nif" }
 st.weaponRecords["fist_blade"] = { type = 0, model = "meshes/w/fist_blade.nif" }
 st.weaponRecords["fist_mace"] = { type = 3, model = "meshes/w/fist_mace.nif" }
 st.weaponRecords["copy_only"] = { type = 0, model = "meshes/w/copy_only.nif" }
+st.weaponRecords["wide_fists"] = { type = 0, model = "meshes/w/wide_fists.nif" }
 st.weaponRecords["katar_steel"] = { type = 0, model = "meshes/steel_katar.nif" }
 st.weaponRecords["knuckle_iron"] = { type = 3, model = "meshes/iron_knuckle.nif" }
 st.skills = {
@@ -134,6 +141,9 @@ check(great and great.twoHanded and not great.offHandCopy, "nor hold a copy, and
 local fistMace = weapons.hybridOfId("fist_mace")
 check(fistMace and fistMace.handToHand and fistMace.twoHanded and not fistMace.offHandCopy,
       "fists' animations, both hands, no copy")
+local wide = weapons.hybridOfId("wide_fists")
+check(wide and wide.moveset == "handToHandWide" and wide.handToHand,
+      "the wide moveset is a hand-to-hand one too", wide and wide.moveset)
 local copyOnly = weapons.hybridOfId("copy_only")
 check(copyOnly and copyOnly.offHandCopy and copyOnly.twoHanded and not copyOnly.handToHand,
       "a copy in the left hand makes it two-handed")

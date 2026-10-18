@@ -11,7 +11,7 @@ Idempotent: run it again after moving anything and it re-places the bone, the co
 constraints together.
 
 From Blender: Text Editor > Open this file, Run Script, then save the .blend. Headless:
-    blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/add_weapon_bone_l.py -- --save
+    blender -b "Sources/Katars and animations.blend" --python Sources/Tools/add_weapon_bone_l.py -- --save
 """
 import importlib
 import pathlib
@@ -36,7 +36,8 @@ def _tools_dir():
     if text is not None and text.filepath:
         candidates.append(pathlib.Path(bpy.path.abspath(text.filepath)).resolve().parent)
     if bpy.data.filepath:
-        candidates.append(pathlib.Path(bpy.data.filepath).resolve().parent / "Sources" / "Tools")
+        blend_dir = pathlib.Path(bpy.data.filepath).resolve().parent
+        candidates += [blend_dir / "Tools", blend_dir / "Sources" / "Tools"]
     for folder in candidates:
         if (folder / "import_h2h_actions.py").is_file():
             return folder

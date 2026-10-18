@@ -1,12 +1,18 @@
--- The hand-to-hand moveset, registered with ReAnimation, for every hybrid weapon whose definition
--- asks for it (moveset: handToHand): ReAnimation's own hand-to-hand set, brought into this mod's
--- blend under the katar's names, with Weapon Bone seated for the katar grip and Weapon Bone.L keyed
--- at its mirror, and exported from there (Sources/Tools/export_katar_anims.py) - and played over the
--- one-handed groups the engine uses for these weapons
+-- The hand-to-hand movesets, registered with ReAnimation, for every hybrid weapon whose definition
+-- asks for one: ReAnimation's own hand-to-hand set, brought into this mod's blend, with Weapon Bone
+-- seated for the grip and Weapon Bone.L keyed at its mirror, and exported from there
+-- (Sources/Tools/export_katar_anims.py) - and played over the one-handed groups the engine uses for
+-- these weapons
 -- - a katar is a short blade (1s), knuckledusters blunt (1b) as a one-handed axe is, and any of them
 -- falls back to the generic one-handed animations (1h) when those have none (character.cpp:795),
 -- which a one-handed long blade plays anyway. Everything here lists all three rather than guessing.
--- The moveset needs a one-handed weapon (weapons.lua says so for any other).
+-- A moveset needs a one-handed weapon (weapons.lua says so for any other).
+--
+-- Two sets, each named after its weapon: the knuckledusters' (moveset: handToHand), the fist's own
+-- guard - idleknuckle, walkforwardknuckle, jumpknuckle - and the katars' (handToHandWide), the same
+-- with the hands held further apart in the idles, the walks and the jump - idlekatar,
+-- walkforwardkatar, jumpkatar (Sources/Tools/widen_katar_moves.py). Both swing and draw with the
+-- knuckledusters' attacks and equip, "knuckle" and "knucklealt".
 --
 -- In first person and in third, on the player, every NPC, and every creature that can hold these
 -- (weapons.canWield: two-legged and fighting with weapons, as dremora and skeletons do - they play the
@@ -77,7 +83,7 @@ local ANY_VIEW = RA.ARMATURE_TYPE.Any
 local BG = animation.BONE_GROUP
 local controls = omwself.controls
 
---- Is a weapon swung with the hand-to-hand moveset in hand? -----------------------------------------
+--- Which hand-to-hand set is in hand? ----------------------------------------------------------------
 -- ReAnimation already caches the equipped weapon's record id for everyone, at ten reads a second, so
 -- the answer costs one table lookup. Conditions are polled every frame, which is why it matters.
 --
@@ -85,18 +91,35 @@ local controls = omwself.controls
 -- and a generated record's - a Bound Fist scaled to its caster, Ebony Rose's burst copy, anything an
 -- enchanter made - only resolves in its own case, "Generated:0x..." (ESM::RefId::deserializeText).
 -- Looked up by the lowercased one, those were none of ours, and swung as plain one-handed weapons.
-local handToHandById = {}
+local SETS = { "knuckle", "katar" }
+local SET_OF_MOVESET = {
+    [weapons.MOVESET.HandToHand] = "knuckle",
+    [weapons.MOVESET.HandToHandWide] = "katar",
+}
+-- The attacks and the equip both sets play.
+local SWINGS = "knuckle"
 
-local function isHandToHandWeapon()
+local setById = {}
+
+-- The set the weapon in hand swings with, or false.
+local function equippedSet()
     local id = RA.getEquippedWeaponId()
     if id == nil then return false end
-    local handToHand = handToHandById[id]
-    if handToHand == nil then
+    local set = setById[id]
+    if set == nil then
         local hybrid = weapons.hybridOfItem(RA.getEquippedWeapon())
-        handToHand = hybrid and hybrid.handToHand or false
-        handToHandById[id] = handToHand
+        set = hybrid and SET_OF_MOVESET[hybrid.moveset] or false
+        setById[id] = set
     end
-    return handToHand
+    return set
+end
+
+local function isHandToHandWeapon()
+    return equippedSet() ~= false
+end
+
+local function holding(set)
+    return function() return equippedSet() == set end
 end
 
 -- The three groups a one-handed hand-to-hand weapon's `base` can play under.
@@ -145,9 +168,10 @@ end
 -- Two ranked overrides on the same parents, only one of which ever plays: sneaking (2) over standing
 -- (1). First person has no "idlesneak" of its own - a sneaking weapon user is still playing idle1s -
 -- so controls.sneak is the only way to tell, and startOnUpdate is what notices it change. Third
--- person has one, and plays it for anyone sneaking, weapon or not (CharacterController::
+-- person has one, and so has first person under Full Body Awareness, whose first-person set is a
+-- whole body's; the engine plays it for anyone sneaking, weapon or not (CharacterController::
 -- refreshIdleAnims only adds the weapon's suffix to a plain idle), so there it is a parent of its own
--- and says so itself.
+-- and says so itself. Being anyone's, it plays on with the weapon sheathed - ours stops then.
 local SNEAK_IDLE = "idlesneak"
 
 -- ReAnimation's own first-person sneak idles (idle1hsneak, idle1ssneak) play over these same parents
@@ -155,10 +179,12 @@ local SNEAK_IDLE = "idlesneak"
 -- stop. The engine shows the highest state on each bone group, and on a tie the one whose name sorts
 -- first (animation.cpp, resetActiveGroups) - theirs, so theirs showed. In first person ours goes one
 -- above them: two above the parent, three on the lower body, which there carries the spine the arms
--- and the camera hang from; still below the jump. Theirs never play in third person, where
--- "idlesneak" already has its lower body two up and raising it as far would tie it with walking.
+-- and the camera hang from; still below the jump. Theirs never play over "idlesneak", whose lower
+-- body is two up already (SneakIdleLowerBody), and which the engine plays on while the actor sneaks
+-- about: raised as far, it tied with the walk underneath, and won the tie by its name - the player
+-- stood rooted to the spot in first person under Full Body Awareness, by our idle's legs.
 local function sneakIdleOptions(self, pOptions)
-    if gutils.getArmatureType() == RA.ARMATURE_TYPE.FirstPerson then
+    if self.parent ~= SNEAK_IDLE and gutils.getArmatureType() == RA.ARMATURE_TYPE.FirstPerson then
         return raiseOverParent(self, pOptions, 2, 3)
     end
     return outrankParent(self, pOptions)
@@ -166,6 +192,10 @@ end
 
 local function sneaking(self)
     return self.parent == SNEAK_IDLE or controls.sneak
+end
+
+local function drawn()
+    return types.Actor.getStance(omwself) == types.Actor.STANCE.Weapon
 end
 
 -- The engine plays a weapon idle to its "loop stop" one to four times and on to its "stop", and
@@ -192,41 +222,45 @@ local function idleOptions(base)
     end
 end
 
-local function idleCondition(self)
-    -- startOnUpdate reads parentOptions, which are filled when the parent is seen playing - or, for
-    -- one the actor was loaded with or came into the world with, which the engine started before Lua
-    -- could see it, by ReAnimation (3.3) on its first update after.
-    return self.parentOptions ~= nil and isHandToHandWeapon()
+-- startOnUpdate reads parentOptions, which are filled when the parent is seen playing - or, for one
+-- the actor was loaded with or came into the world with, which the engine started before Lua could
+-- see it, by ReAnimation (3.3) on its first update after. The same goes for the moves below.
+local function startsWith(holds)
+    return function(self) return self.parentOptions ~= nil and holds() end
 end
 
-RA.addAnimationOverride({
-    id = "H2HWeaponIdle",
-    parent = oneHanded("idle"),
-    groupname = "idlekatar",
-    armatureType = ANY_VIEW,
-    overridePriority = 1,
-    condition = idleCondition,
-    stopCondition = function(self) return not isHandToHandWeapon() end,
-    preOverride = noteIdlePoint,
-    options = idleOptions(outrankParent),
-    startOnAnimEvent = true,
-    startOnUpdate = true,
-})
 local sneakParents = oneHanded("idle")
 sneakParents[#sneakParents + 1] = SNEAK_IDLE
-RA.addAnimationOverride({
-    id = "H2HWeaponIdleSneak",
-    parent = sneakParents,
-    groupname = "idlekatarsneak",
-    armatureType = ANY_VIEW,
-    overridePriority = 2,
-    condition = function(self) return idleCondition(self) and sneaking(self) end,
-    stopCondition = function(self) return not (isHandToHandWeapon() and sneaking(self)) end,
-    preOverride = noteIdlePoint,
-    options = idleOptions(sneakIdleOptions),
-    startOnAnimEvent = true,
-    startOnUpdate = true,
-})
+for _, set in ipairs(SETS) do
+    local holds = holding(set)
+    local idleCondition = startsWith(holds)
+    RA.addAnimationOverride({
+        id = "H2HWeaponIdle_" .. set,
+        parent = oneHanded("idle"),
+        groupname = "idle" .. set,
+        armatureType = ANY_VIEW,
+        overridePriority = 1,
+        condition = idleCondition,
+        stopCondition = function() return not holds() end,
+        preOverride = noteIdlePoint,
+        options = idleOptions(outrankParent),
+        startOnAnimEvent = true,
+        startOnUpdate = true,
+    })
+    RA.addAnimationOverride({
+        id = "H2HWeaponIdleSneak_" .. set,
+        parent = sneakParents,
+        groupname = "idle" .. set .. "sneak",
+        armatureType = ANY_VIEW,
+        overridePriority = 2,
+        condition = function(self) return idleCondition(self) and sneaking(self) end,
+        stopCondition = function(self) return not (holds() and sneaking(self) and drawn()) end,
+        preOverride = noteIdlePoint,
+        options = idleOptions(sneakIdleOptions),
+        startOnAnimEvent = true,
+        startOnUpdate = true,
+    })
+end
 
 --- Locomotion ---------------------------------------------------------------------------------------
 -- Follows the one-handed cycle it replaces every frame, as ReAnimation's star locomotion does
@@ -311,85 +345,90 @@ end
 
 -- Started on update, the options come from the parent as it was last seen starting (moveOptions), or
 -- as ReAnimation took it to have started, for a walk under way before Lua could see it (as the idle's
--- condition).
-local function moveCondition(self)
-    return self.parentOptions ~= nil and isHandToHandWeapon()
-end
+-- condition, startsWith).
+local MOVES = { "walkforward", "walkback", "walkleft", "walkright",
+                "runforward", "runback", "runleft", "runright",
+                "sneakforward", "sneakback", "sneakleft", "sneakright" }
 
-for _, base in ipairs({ "walkforward", "walkback", "walkleft", "walkright",
-                        "runforward", "runback", "runleft", "runright",
-                        "sneakforward", "sneakback", "sneakleft", "sneakright" }) do
-    RA.addAnimationOverride({
-        id = "H2HWeaponMove_" .. base,
-        parent = oneHanded(base),
-        groupname = base .. "katar",
-        armatureType = ANY_VIEW,
-        overridePriority = 1,
-        condition = moveCondition,
-        stopCondition = function(self) return not isHandToHandWeapon() end,
-        options = moveOptions,
-        onUpdate = syncMove,
-        startOnAnimEvent = true,
-        startOnUpdate = true,
-    })
+for _, set in ipairs(SETS) do
+    local holds = holding(set)
+    for _, base in ipairs(MOVES) do
+        RA.addAnimationOverride({
+            id = "H2HWeaponMove_" .. set .. "_" .. base,
+            parent = oneHanded(base),
+            groupname = base .. set,
+            armatureType = ANY_VIEW,
+            overridePriority = 1,
+            condition = startsWith(holds),
+            stopCondition = function() return not holds() end,
+            options = moveOptions,
+            onUpdate = syncMove,
+            startOnAnimEvent = true,
+            startOnUpdate = true,
+        })
+    end
 end
 
 -- The first-person one-handed walk, run and sneak are not laid out like the fist's: the walk and run
 -- are an 8-frame lead-in and then three step cycles to the loop, the sneak two cycles, where the
 -- fist's - and the short blade's a katar moves over - are one. Knuckledusters move over them (there is
 -- no blunt set), and a one-cycle loop phase-matched to a longer one drifts off its footsteps. Over
--- those, the katar's cycles laid out the one-handed way (xKatar1hMovement.kf and
--- xKatar1hSneakMovement.kf, from Sources/Tools/make_katar_1h_movement.py), ranked above the plain
--- ones. First person only: third person has no such files, and there the plain ones play.
-for _, base in ipairs({ "walkforward", "walkback", "walkleft", "walkright",
-                        "runforward", "runback", "runleft", "runright",
-                        "sneakforward", "sneakback", "sneakleft", "sneakright" }) do
-    RA.addAnimationOverride({
-        id = "H2HWeaponMove1h_" .. base,
-        parent = base .. "1h",
-        groupname = base .. "katar1h",
-        armatureType = RA.ARMATURE_TYPE.FirstPerson,
-        overridePriority = 2,
-        condition = moveCondition,
-        stopCondition = function(self) return not isHandToHandWeapon() end,
-        options = moveOptions,
-        onUpdate = syncMove,
-        startOnAnimEvent = true,
-        startOnUpdate = true,
-    })
+-- those, each set's cycles laid out the one-handed way (xKnuckle1hMovement.kf,
+-- xKnuckle1hSneakMovement.kf and the katar's, from Sources/Tools/make_katar_1h_movement.py), ranked
+-- above the plain ones. First person only: third person has no such files, and there the plain ones play.
+for _, set in ipairs(SETS) do
+    local holds = holding(set)
+    for _, base in ipairs(MOVES) do
+        RA.addAnimationOverride({
+            id = "H2HWeaponMove1h_" .. set .. "_" .. base,
+            parent = base .. "1h",
+            groupname = base .. set .. "1h",
+            armatureType = RA.ARMATURE_TYPE.FirstPerson,
+            overridePriority = 2,
+            condition = startsWith(holds),
+            stopCondition = function() return not holds() end,
+            options = moveOptions,
+            onUpdate = syncMove,
+            startOnAnimEvent = true,
+            startOnUpdate = true,
+        })
+    end
 end
 
 --- Turning --------------------------------------------------------------------------------------------
 -- Turning on the spot plays the weapon's turn - turnleft1s, or the one-handed one it falls back to
 -- (CharacterController::refreshMovementAnims) - on the whole body, over the idle, and so over ours. In
--- third person ours goes over it as a walk does: the katar idle's upper body on the one-handed turn's
--- own legs (make_third_person_anims.py), kept in step with it. Only the turn's legs under the katar
--- idle, as it was, tipped the idle's chest some 9 degrees to the side: it is made to sit on the
+-- third person ours goes over it as a walk does: the set's idle's upper body on the one-handed turn's
+-- own legs (make_third_person_anims.py), kept in step with it. Only the turn's legs under the idle,
+-- as it was, tipped the idle's chest some 9 degrees to the side: it is made to sit on the
 -- hand-to-hand idle's spine, which leans otherwise than the one-handed turn's. First person keeps the
 -- engine's turn.
-for _, base in ipairs({ "turnleft", "turnright" }) do
-    RA.addAnimationOverride({
-        id = "H2HWeaponTurn_" .. base,
-        parent = oneHanded(base),
-        groupname = base .. "katar",
-        armatureType = RA.ARMATURE_TYPE.ThirdPerson,
-        overridePriority = 1,
-        condition = moveCondition,
-        stopCondition = function(self) return not isHandToHandWeapon() end,
-        options = moveOptions,
-        onUpdate = syncMove,
-        startOnAnimEvent = true,
-        startOnUpdate = true,
-    })
+for _, set in ipairs(SETS) do
+    local holds = holding(set)
+    for _, base in ipairs({ "turnleft", "turnright" }) do
+        RA.addAnimationOverride({
+            id = "H2HWeaponTurn_" .. set .. "_" .. base,
+            parent = oneHanded(base),
+            groupname = base .. set,
+            armatureType = RA.ARMATURE_TYPE.ThirdPerson,
+            overridePriority = 1,
+            condition = startsWith(holds),
+            stopCondition = function() return not holds() end,
+            options = moveOptions,
+            onUpdate = syncMove,
+            startOnAnimEvent = true,
+            startOnUpdate = true,
+        })
+    end
 end
 
 -- Attacking or drawing standing still in third person, the legs are the swing's: the engine plays an
 -- attack's lower body at WeaponLowerBody, over its idle (Default), but ours outranks the one-handed
--- idle by two there, so the katar idle's legs showed under every swing - and the swing's chest, made
--- to turn on its own hips, turned on the idle's, swinging off to the side. Third person only: in first
+-- idle by two there, so the idle's legs showed under every swing - and the swing's chest, made to
+-- turn on its own hips, turned on the idle's, swinging off to the side. Third person only: in first
 -- person the lower body carries the spine the arms and the camera hang from, and the idle's holds it.
--- Still below the katar's sneaking idle (two over the engine's, SneakIdleLowerBody), the jump and a walk.
-local ATTACK_GROUPS = { katar = true, kataralt = true }
+-- Still below the sneaking idle (two over the engine's, SneakIdleLowerBody), the jump and a walk.
+local ATTACK_GROUPS = { [SWINGS] = true, [SWINGS .. "alt"] = true }
 local ATTACK_LOWER_BODY = animation.PRIORITY.WeaponLowerBody + 2
 
 I.AnimationController.addPlayBlendedAnimationHandler(function(groupname, options)
@@ -407,26 +446,28 @@ end)
 -- Plays twice per jump - from "start" in the air, then from "loop stop" for the landing - and the
 -- engine replays it each time, so starting on the event covers both. It stops with its parent: the
 -- one-handed jump underneath is hidden, so stopping this mid-air would leave nothing playing.
-RA.addAnimationOverride({
-    id = "H2HWeaponJump",
-    parent = oneHanded("jump"),
-    groupname = "jumpkatar",
-    armatureType = ANY_VIEW,
-    overridePriority = 1,
-    condition = isHandToHandWeapon,
-    options = hideParent,
-    startOnAnimEvent = true,
-})
+for _, set in ipairs(SETS) do
+    RA.addAnimationOverride({
+        id = "H2HWeaponJump_" .. set,
+        parent = oneHanded("jump"),
+        groupname = "jump" .. set,
+        armatureType = ANY_VIEW,
+        overridePriority = 1,
+        condition = holding(set),
+        options = hideParent,
+        startOnAnimEvent = true,
+    })
+end
 
 --- Equip and unequip ----------------------------------------------------------------------------------
 -- Sections of the weapon's own group - "weapononehand: equip start/stop", "unequip start/stop"
--- (character.cpp:1405, :1463) - so they live in "katar" as the attacks do, in xKatarEqUneq.kf. The
+-- (character.cpp:1405, :1463) - so they live in "knuckle" as the attacks do, in xKnuckleEqUneq.kf. The
 -- hidden parent's "equip attach" / "unequip detach" keys are still what show and hide the weapon,
 -- and the engine ends the section on the parent's timing (character.cpp:1834, :1860), so the fist's
 -- section is played fitted to the parent's length: the weapon appears and leaves at the same
 -- fraction of the motion it always did.
 --
--- Registered before the attacks, which play "katar" on the same parent: the condition clears a
+-- Registered before the attacks, which play "knuckle" on the same parent: the condition clears a
 -- finished equip when an attack plays, and preOverride clears a swing still winding up when a
 -- sheathe starts the unequip - both rely on this running first. Stance Any: a sheathe drops the
 -- stance to Nothing before the unequip plays.
@@ -442,7 +483,7 @@ end
 RA.addAnimationOverride({
     id = "H2HWeaponEquip",
     parent = "weapononehand",
-    groupname = "katar",
+    groupname = SWINGS,
     armatureType = ANY_VIEW,
     stance = RA.STANCE.Any,
     overridePriority = 1,
@@ -475,10 +516,11 @@ RA.addAnimationOverride({
 
 --- Attacks -------------------------------------------------------------------------------------------
 -- The fist's chop, slash and thrust, each with its mirrored variant, alternated as ReAnimation
--- alternates them for bare fists. ReAnimation's own one-handed set lives on "weapononehand" too, and
--- two sets active at once would hide the parent twice and uniquify its priority twice - the engine
--- would then erase one of the two. Ranked above it (ReAnimation's sets sit at 0), this one takes
--- every attack while a hand-to-hand weapon is in hand, and ReAnimation's stands down.
+-- alternates them for bare fists - the knuckledusters', which katars swing too. ReAnimation's own
+-- one-handed set lives on "weapononehand" too, and two sets active at once would hide the parent
+-- twice and uniquify its priority twice - the engine would then erase one of the two. Ranked above
+-- it (ReAnimation's sets sit at 0), this one takes every attack while a hand-to-hand weapon is in
+-- hand, and ReAnimation's stands down.
 RA.addAttackVariants({
     id = "H2HWeaponAttacks",
     parentAttackGroupname = "weapononehand",
@@ -488,8 +530,8 @@ RA.addAttackVariants({
     overridePriority = 1,
     condition = isHandToHandWeapon,
     attacks = {
-        chop = { { "katar" }, { "kataralt" } },
-        slash = { { "katar" }, { "kataralt" } },
-        thrust = { { "katar" }, { "kataralt" } },
+        chop = { { SWINGS }, { SWINGS .. "alt" } },
+        slash = { { SWINGS }, { SWINGS .. "alt" } },
+        thrust = { { SWINGS }, { SWINGS .. "alt" } },
     },
 })

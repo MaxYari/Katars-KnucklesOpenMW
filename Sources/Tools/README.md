@@ -14,7 +14,7 @@ Run everything from the repository root.
 - **The es3 NIF library** from [Greatness7's io_scene_mw](https://github.com/Greatness7/io_scene_mw),
   for any script that reads or writes a `.nif` or `.kf`. It is found in the installed Blender add-on;
   otherwise set `IO_SCENE_MW` to the add-on's `lib` folder.
-- **Blender 5.1** for the ones marked *Blender*. They work on the open `Reanimv  starts Katsr.blend`:
+- **Blender 5.1** for the ones marked *Blender*. They work on the open `Sources/Katars and animations.blend`:
   open the script in Blender's Text Editor and run it, or run it headless as shown. From the Text
   Editor, what the command line gives after `--` is set at the top of the script instead (`OPTIONS`,
   or `ONLY` in `export_katar_anims.py`); where there is no such setting for `--save`, save the
@@ -68,40 +68,49 @@ it back into `00 Core/` before committing.
 
 ## Animations
 
-The first-person set lives in the blend. In order, after changing it:
+The first-person set lives in the blend: the knuckledusters' actions, `[Raw] Knuckle ...`, and the
+katars', `[Raw] Katar ...`, the same with the hands held wider apart. In order, after changing it:
 
 1. **`reseat_weapon_bones.py`** (*Blender*) - after moving `Weapon Bone` in `[Raw] Katar Idle`: gives
-   every katar action holding the old seat the new one, and keys `Weapon Bone.L` at its mirror.
+   every action of both sets holding the old seat the new one, and keys `Weapon Bone.L` at its mirror.
 
    ```
-   blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/reseat_weapon_bones.py -- --save
+   blender -b "Sources/Katars and animations.blend" --python Sources/Tools/reseat_weapon_bones.py -- --save
    ```
 
-2. **`snap_attack_ends.py`** (*Blender*) - after changing the first frame of `[Raw] Katar Idle`: ends
+2. **`snap_attack_ends.py`** (*Blender*) - after changing the first frame of `[Raw] Knuckle Idle`: ends
    every attack on that pose.
 
    ```
-   blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/snap_attack_ends.py -- --save
+   blender -b "Sources/Katars and animations.blend" --python Sources/Tools/snap_attack_ends.py -- --save
    ```
 
-3. **`export_katar_anims.py`** (*Blender*) - exports every `[Raw] Katar` action to
+3. **`widen_katar_moves.py`** (*Blender*) - after changing a knuckle idle sneak, walk, sneak or jump, or
+   the correctors in `[Raw] Katar Idle`: makes the katar's from the knuckle ones, with the katar idle's
+   wider guard.
+
+   ```
+   blender -b "Sources/Katars and animations.blend" --python Sources/Tools/widen_katar_moves.py -- --save
+   ```
+
+4. **`export_katar_anims.py`** (*Blender*) - exports every `[Raw] Knuckle` and `[Raw] Katar` action to
    `00 Core/Animations/xbase_anim.1st` as `.kf`, and checks the footsteps and the one-handed loops.
    `-- --only Idle` exports only the actions whose name contains it.
 
    ```
-   blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/export_katar_anims.py
+   blender -b "Sources/Katars and animations.blend" --python Sources/Tools/export_katar_anims.py
    ```
 
-4. **`make_katar_1h_movement.py`** (*Blender*) - after changing the katar walk or sneak: lays them out
-   as the first-person one-handed walk and sneak are (`[Raw] Katar Walk 1h`, `[Raw] Katar Sneak 1h`),
-   and with `--export` exports them too.
+5. **`make_katar_1h_movement.py`** (*Blender*) - after changing a walk or sneak: lays both sets' out
+   as the first-person one-handed walk and sneak are (`[Raw] Knuckle Walk 1h`, `[Raw] Katar Sneak 1h`
+   and so on), and with `--export` exports them too.
 
    ```
-   blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/make_katar_1h_movement.py -- \
+   blender -b "Sources/Katars and animations.blend" --python Sources/Tools/make_katar_1h_movement.py -- \
        --save --export "00 Core/Animations/xbase_anim.1st"
    ```
 
-5. **`make_third_person_anims.py`** - the third-person sets, `00 Core/Animations/xbase_anim` and
+6. **`make_third_person_anims.py`** - the third-person sets, `00 Core/Animations/xbase_anim` and
    `00 Core/Animations/xbase_animkna`, made from the first-person one. Re-run it after every
    first-person export. It finds Morrowind.bsa from `openmw.cfg` (`--data-files` otherwise) and copies
    each animation's blending rules (`<name>.yaml`) along. It uses `third_person_fingers.py`.
@@ -110,9 +119,9 @@ The first-person set lives in the blend. In order, after changing it:
    python3 Sources/Tools/make_third_person_anims.py
    ```
 
-6. **`make_fba_compat.py`** - `02 FBA Compatibility`, the first-person set for OpenMW Full Body
+7. **`make_fba_compat.py`** - `02 FBA Compatibility`, the first-person set for OpenMW Full Body
    Awareness: FBA's legs and movement under ours, built by ReAnimation's FBA builder
-   (`Sources/Tools/FBACompat` in ReAnimation's repository) with the katar's groups pointed at FBA's
+   (`Sources/Tools/FBACompat` in ReAnimation's repository) with our groups pointed at FBA's
    hand-to-hand ones. Re-run it after every first-person export too. It finds ReAnimation next to this
    mod (`--reanimation` otherwise) and FBA from `openmw.cfg` (`--fba` otherwise).
 
@@ -121,16 +130,16 @@ The first-person set lives in the blend. In order, after changing it:
    ```
 
 The blending rules in `00 Core/Animations/xbase_anim.1st` are ReAnimation's own hand-to-hand ones,
-`xh2hJump.yaml`, `xh2hSlash.yaml` and `xh2hThrust.yaml`, under the katar's names. There are only
-those three because ReAnimation has only those three.
+`xh2hJump.yaml`, `xh2hSlash.yaml` and `xh2hThrust.yaml`, under the knuckledusters' names, and the jump's
+under the katar's too. There are only those because ReAnimation has only those three.
 
 Also:
 
 - **`import_h2h_actions.py`** (*Blender*) - brings ReAnimation's hand-to-hand `[Raw]` actions into the
-  blend as the katar's. Only for starting over from ReAnimation; the actions are this mod's since.
+  blend as the knuckledusters'. Only for starting over from ReAnimation; the actions are this mod's since.
 
   ```
-  blender -b "Reanimv  starts Katsr.blend" --python Sources/Tools/import_h2h_actions.py -- \
+  blender -b "Sources/Katars and animations.blend" --python Sources/Tools/import_h2h_actions.py -- \
       --source "<ReAnimation>/Sources/Reanimv3.blend" --save
   ```
 

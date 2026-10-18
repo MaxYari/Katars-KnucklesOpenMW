@@ -25,8 +25,10 @@ local M = {}
 M.FOLDER = "hybridweapondefinitions/"
 
 M.MOVESET = {
-    -- This mod's: ReAnimation's hand-to-hand set over the weapon's own animations (animations.lua).
+    -- This mod's: ReAnimation's hand-to-hand set over the weapon's own animations (animations.lua),
+    -- the knuckledusters'; and the katars', the same with the hands held wider apart.
     HandToHand = "handToHand",
+    HandToHandWide = "handToHandWide",
     -- The weapon's own animations, as the engine plays them.
     Default = "default",
 }
@@ -50,6 +52,7 @@ local SCALINGS = {
 }
 local MOVESETS = {
     handtohand = M.MOVESET.HandToHand,
+    handtohandwide = M.MOVESET.HandToHandWide,
     default = M.MOVESET.Default,
 }
 
@@ -135,7 +138,7 @@ function M.parse(raw)
         if moveset then
             def.moveset = moveset
         else
-            problems[#problems + 1] = "moveset '" .. tostring(raw.moveset) .. "' is not one of handToHand, default"
+            problems[#problems + 1] = "moveset '" .. tostring(raw.moveset) .. "' is not one of handToHand, handToHandWide, default"
         end
     end
 

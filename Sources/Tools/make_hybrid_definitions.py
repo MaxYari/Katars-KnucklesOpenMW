@@ -21,13 +21,14 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "00 C
 TOOLTIP = ("Hand-to-Hand weapon: effectiveness is determined by the %{primarySkill} skill (%{primary}), "
            "with a minor bonus from %{secondarySkill} (%{bonus}).")
 
-# What each kind is. A katar keeps its own blade's whoosh, sharp and under the fist's; knuckledusters
-# whoosh as a fist alone. Fatigue damage is the share of a bare-fisted hit's: a katar hits for 80% of
+# What each kind is. A katar holds its hands wider apart than a fist does (the handToHandWide set), and
+# keeps its own blade's whoosh, sharp and under the fist's; knuckledusters whoosh as a fist alone. Fatigue damage is the share of a bare-fisted hit's: a katar hits for 80% of
 # the shortsword it is cut from and trades the least for bruising, knuckledusters 50% and the most
 # (make_plugin.py DAMAGE_FACTOR).
 KINDS = {
     "katar": {
         "secondarySkill": "shortblade",
+        "moveset": "handToHandWide",
         "fatigueDamage": 0.5,
         "swingSounds": [
             {"sound": "HandToHand", "volume": 1},
@@ -36,6 +37,7 @@ KINDS = {
     },
     "knuckle": {
         "secondarySkill": "bluntweapon",
+        "moveset": "handToHand",
         "fatigueDamage": 0.75,
         "swingSounds": [
             {"sound": "HandToHand", "volume": 1},
@@ -71,7 +73,7 @@ def definition(name, kind):
         "primaryExperience: 0.7",
         "secondaryExperience: 0.3",
         "scaling: minorSecondaryBonus",
-        "moveset: handToHand",
+        f"moveset: {k['moveset']}",
         "twoHanded: true",
         "offHandCopy: true",
         f"fatigueDamage: {number(k['fatigueDamage'])}",

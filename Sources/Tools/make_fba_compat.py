@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Writes "02 FBA Compatibility": the katar's first-person animations for OpenMW Full Body Awareness.
+"""Writes "02 FBA Compatibility": the hand-to-hand first-person animations for OpenMW Full Body Awareness.
 
 FBA shows the whole body in first person and plays third-person legs on it. Our first-person
 animations play on the whole body there - legs, hips and the root the engine moves the player by -
@@ -8,8 +8,8 @@ so with FBA the legs hung in the first-person rig's pose. This runs ReAnimation'
 "00 Core/Animations/xbase_anim.1st", the way ReAnimation's own FBA Compatibility is built: FBA's
 legs and root motion under our upper body, with its default settings.
 
-Our groups are named after the katar, so they are pointed at FBA's hand-to-hand ones: the attacks
-and the equip ("katar", "kataralt") at "handtohand", everything else ("runforwardkatar",
+Our groups are named after the weapons, so they are pointed at FBA's hand-to-hand ones: the attacks
+and the equip ("knuckle", "knucklealt") at "handtohand", everything else ("runforwardknuckle",
 "idlekatar"...) at its "hh" group. The footsteps are read from our SoundGenRef keys.
 
 Re-run it after any first-person change (after export_katar_anims.py):
@@ -29,7 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.normpath(os.path.join(HERE, "..", ".."))
 ANIMS = os.path.join(MOD, "00 Core", "Animations", "xbase_anim.1st")
 OUT = os.path.join(MOD, "02 FBA Compatibility", "Animations", "xbase_anim.1st")
-ALIASES = ["^katar(alt)?$=handtohand", "katar=hh"]
+ALIASES = ["^(knuckle|katar)(alt)?$=handtohand", "knuckle|katar=hh"]
 
 
 def find_reanimation(given):
