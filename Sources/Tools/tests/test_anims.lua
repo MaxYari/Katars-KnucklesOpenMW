@@ -244,10 +244,22 @@ groups = swing()
 check(groups["weapononehand1"] == true, "and ReAnimation's own set takes the dagger's swings again")
 follow("slash")
 
+-- Switching the view. ReAnimation sees it at the first animation played in the next frame (it checks
+-- the stance and view once a frame). Here every known group counts as playing, so on that frame's
+-- update overrides would start inside ReAnimation's own loop and the switch, noticed there, rebuild
+-- the list the loop walks: the frame turns over with nothing playing, and the switch is seen at the
+-- next play.
+local function switchView(mode)
+    st.cameraMode = mode
+    local groups = st.groups
+    st.groups = {}
+    api.engineHandlers.onUpdate(0.016)
+    st.groups = groups
+end
+
 -- Third person - an NPC, or the player with the camera pulled back - plays the same set: the same
 -- names, loaded from the third-person skeleton's folder instead.
-st.cameraMode = 1
-api.engineHandlers.onUpdate(0.016) -- ReAnimation looks at the view once a frame
+switchView(1)
 st.equipped = { recordId = "katar_steel" }
 groups = swing()
 check(groups["knuckle"] or groups["knucklealt"], "in third person a katar swings with the knuckledusters' animation too")
@@ -272,12 +284,10 @@ end
 local legs, parentLegs = swingLegs()
 check(legs == 3, "in third person a katar swing's legs go over the katar idle's", legs)
 check(parentLegs ~= 3, "the hidden parent's are left as they were", parentLegs)
-st.cameraMode = 0
-api.engineHandlers.onUpdate(0.016)
+switchView(0)
 legs = swingLegs()
 check(legs == 1, "in first person the swing's lower body is left at the engine's", legs)
-st.cameraMode = 1
-api.engineHandlers.onUpdate(0.016)
+switchView(1)
 over1h = walk1h()
 check(over1h["walkforwardkatar"] and not over1h["walkforwardkatar1h"],
       "third person has no one-handed layout of the walk, and plays the plain one")
@@ -305,8 +315,7 @@ check(not sneakIdle, "and a dagger's is left alone")
 -- that idle plays on whatever is in hand.
 local animationApi = require("openmw.animation")
 local LBG = animationApi.BONE_GROUP
-st.cameraMode = 0
-api.engineHandlers.onUpdate(0.016)
+switchView(0)
 st.equipped = { recordId = "katar_steel" }
 st.played = {}
 stubs.I.AnimationController.playBlendedAnimation("idlesneak", { startKey = "start", startkey = "start", speed = 1,
@@ -330,8 +339,7 @@ local sheathedStop = false
 for _, g in ipairs(st.cancelled) do if g == "idlekatarsneak" then sheathedStop = true end end
 check(sheathedStop, "and stops when the katars are sheathed, though the sneaking idle plays on")
 st.stance = 1
-st.cameraMode = 1
-api.engineHandlers.onUpdate(0.016)
+switchView(1)
 
 -- Turning on the spot in third person: with a katar, ours goes over the turn as a walk does - the katar
 -- idle's upper body made on the one-handed turn's legs.
@@ -358,8 +366,7 @@ check(turn and turn.group == "turnrightkatar", "either way, over the short blade
 st.equipped = { recordId = "steel dagger" }
 check(turned("turnleft1h") == nil, "a dagger's turn is left alone")
 st.equipped = { recordId = "katar_steel" }
-st.cameraMode = 0
-api.engineHandlers.onUpdate(0.016)
+switchView(0)
 check(turned("turnleft1h") == nil, "and first person keeps the engine's turn")
 
 --- the idle -------------------------------------------------------------------------------------------
